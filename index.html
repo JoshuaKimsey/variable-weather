@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="A beautiful weather app with animated weather conditions">
+    <meta name="theme-color" content="#4A90E2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Weather">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="icons/favicon-32x32.png">
+
+    <!-- Favicon for different resolutions -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png">
+
+    <!-- Apple touch icons for different devices -->
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512x512.png">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="resources/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="resources/font-awesome/css/all.min.css">
+    <link href="styles.css" rel="stylesheet">
+
+    <style>
+        /* Styles for the install button */
+        #install-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: none;
+        }
+
+        #install-button {
+            background-color: #1e88e5;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        #install-button:hover {
+            background-color: #1565c0;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="weather-background" id="weather-background"></div>
+
+    <div class="container">
+        <div id="weather-container">
+            <div class="error-message" id="error-message"></div>
+
+            <div id="weather-content">
+                <div class="loading" id="loading">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+
+                <div class="weather-data" id="weather-data" style="display: none;">
+                    <div class="alerts-container" id="alerts-container" style="display: none;"></div>
+
+                    <div class="weather-info">
+                        <div class="weather-main">
+                            <div class="location" id="location">New York City, NY</div>
+                            <div class="date" id="date">Loading...</div>
+                            <div class="last-updated" id="last-updated">Out of date. Refreshing...</div>
+                            <div class="temperature" id="temperature">72°F</div>
+                            <div class="weather-description" id="weather-description">Sunny</div>
+                        </div>
+
+                        <div class="weather-icon" id="weather-icon"></div>
+                    </div>
+
+                    <div class="weather-details">
+                        <div class="detail-card">
+                            <i class="fas fa-wind"></i>
+                            <div class="title">Wind Speed</div>
+                            <div class="value" id="wind-speed">5 mph</div>
+                        </div>
+
+                        <div class="detail-card">
+                            <i class="fas fa-tint"></i>
+                            <div class="title">Humidity</div>
+                            <div class="value" id="humidity">45%</div>
+                        </div>
+
+                        <div class="detail-card">
+                            <i class="fas fa-compress-arrows-alt"></i>
+                            <div class="title">Pressure</div>
+                            <div class="value" id="pressure">1015 hPa</div>
+                        </div>
+
+                        <div class="detail-card">
+                            <i class="fas fa-eye"></i>
+                            <div class="title">Visibility</div>
+                            <div class="value" id="visibility">10 mi</div>
+                        </div>
+                    </div>
+
+                    <div class="forecast">
+                        <h3>Daily Forecast</h3>
+                        <div class="forecast-container" id="forecast-container">
+                            <!-- Forecast cards will be added dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- API Attribution Footer -->
+                    <div class="attribution-footer">
+                        <div class="search-box">
+                            <input type="text" id="location-input" placeholder="Enter location (city, state, country)">
+                            <button id="search-button" aria-label="Search"><i class="fas fa-search"></i></button>
+                        </div>
+                        <div id="api-indicator" class="api-indicator">Data provided by National Weather Service</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Settings Modal -->
+    <div class="modal-backdrop" id="api-settings-backdrop" style="display:none;"></div>
+    <div class="settings-modal" id="api-settings-modal" style="display:none;">
+        <div class="settings-modal-content">
+            <div class="settings-modal-header">
+                <h3>Settings</h3>
+                <button id="close-settings-modal">&times;</button>
+            </div>
+            <div class="settings-modal-body">
+                <p>Enter your Pirate Weather API key to use for non-US locations. You can get a free key from <a
+                        href="https://pirateweather.net/getting-started" target="_blank">pirateweather.net</a>.</p>
+                <div class="settings-form-group">
+                    <label for="pirate-api-key">Pirate Weather API Key:</label>
+                    <input type="text" id="pirate-api-key" placeholder="Enter your API key">
+                </div>
+                <div class="api-key-status" id="api-key-status"></div>
+            </div>
+            <div class="settings-modal-footer">
+                <button id="save-api-key" class="settings-btn settings-btn-primary">Save Key</button>
+                <button id="remove-api-key" class="settings-btn settings-btn-danger" style="display:none;">Remove
+                    Key</button>
+            </div>
+        </div>
+        <div class="settings-divider"></div>
+
+        <div class="settings-form-group">
+            <label>Display Units:</label>
+            <div class="unit-toggle-container">
+                <input type="radio" id="imperial-units" name="unit" value="imperial" class="unit-toggle-input" checked>
+                <input type="radio" id="metric-units" name="unit" value="metric" class="unit-toggle-input">
+                <label for="imperial-units" class="unit-toggle-label">°F</label>
+                <label for="metric-units" class="unit-toggle-label">°C</label>
+                <div class="unit-toggle-slider"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings button in footer -->
+    <div class="settings-button-container">
+        <button id="open-settings" title="API Settings">
+            <i class="fas fa-cog"></i>
+        </button>
+    </div>
+
+    <!-- PWA Install Button -->
+    <div id="install-container">
+        <button id="install-button">
+            <i class="fas fa-download"></i> Install App
+        </button>
+    </div>
+
+    <!-- Import the PWA registration script -->
+    <script src="js/pwa.js"></script>
+
+    <!-- Import the main script as a module -->
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>

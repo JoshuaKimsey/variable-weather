@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Weather App</title>
+    <link rel="stylesheet" href="resources/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="resources/font-awesome/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to bottom, #4B79A1 0%, #283E51 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .offline-container {
+            max-width: 500px;
+            padding: 30px;
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            color: #f8f9fa;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        p {
+            margin-bottom: 30px;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+
+        .btn {
+            background-color: #1e88e5;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #1565c0;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="offline-container">
+        <div class="icon">
+            <i class="fas fa-cloud"></i>
+        </div>
+        <h1>You're Offline</h1>
+        <p>It looks like you don't have an internet connection right now. The Weather App needs to be online to fetch
+            the latest weather data.</p>
+        <button class="btn" onclick="tryReconnect()">Try Again</button>
+    </div>
+
+    <script>
+        function tryReconnect() {
+            window.location.reload();
+        }
+    </script>
+</body>
+
+</html>
