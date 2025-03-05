@@ -1,6 +1,6 @@
 // Service Worker for Weather App
 
-const CACHE_NAME = 'weather-app-v1';
+const CACHE_NAME = 'variable-weather-cache';
 const ASSETS = [
   '/',
   '/index.html',
@@ -57,11 +57,6 @@ self.addEventListener('activate', event => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', event => {
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin) &&
-    !event.request.url.includes('cdnjs.cloudflare.com')) {
-    return;
-  }
 
   // API requests - network first, then cache, with timeout
   if (event.request.url.includes('api.weather.gov') ||
@@ -125,7 +120,7 @@ self.addEventListener('fetch', event => {
             }
             // For images, return a placeholder
             if (event.request.destination === 'image') {
-              return caches.match('/images/placeholder.png');
+              return caches.match('/icons/icon-512x512.png');
             }
             // For everything else, just fail
             return new Response('Network error', {

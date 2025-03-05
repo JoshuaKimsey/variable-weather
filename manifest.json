@@ -1,7 +1,7 @@
 {
   "name": "Variable Weather",
   "short_name": "Var Weather",
-  "description": "A simple and elegant weather application with animated weather conditions",
+  "description": "A free and open source weather app, designed to make it easy to get the weather information you need. Inspired by Breezy Weather.",
   "start_url": "/index.html",
   "id": "/index.html",
   "display": "standalone",
