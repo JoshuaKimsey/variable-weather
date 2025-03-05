@@ -29,6 +29,38 @@ export function fetchWeather(lat, lon, locationName = null) {
 }
 
 /**
+ * Helper function to extract the numeric wind speed from NWS wind speed string
+ * This should be placed OUTSIDE and BEFORE any functions that use it
+ * 
+ * @param {string} windSpeedString - Wind speed string like "10 mph" or "5 to 10 mph"
+ * @returns {number|null} - Numeric wind speed value or null if not found
+ */
+function extractWindSpeed(windSpeedString) {
+    if (!windSpeedString) return null;
+    
+    // Check if it's a range like "5 to 10 mph"
+    if (windSpeedString.includes('to')) {
+        // Take the higher value in the range
+        const parts = windSpeedString.split('to');
+        if (parts.length > 1) {
+            const match = parts[1].match(/(\d+)/);
+            if (match && match[1]) {
+                return parseInt(match[1], 10);
+            }
+        }
+    }
+    
+    // Otherwise extract the first number found
+    const match = windSpeedString.match(/(\d+)/);
+    if (match && match[1]) {
+        return parseInt(match[1], 10);
+    }
+    
+    return null;
+}
+
+
+/**
  * Fetch weather from National Weather Service API with proper current conditions
  */
 function fetchNWSWeather(lat, lon, locationName = null) {
