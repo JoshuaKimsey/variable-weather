@@ -2,24 +2,24 @@
 
 const CACHE_NAME = 'variable-weather-cache';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/js/main.js',
-  '/js/api.js',
-  '/js/apiSettings.js',
-  '/js/ui.js',
-  '/js/utils.js',
-  '/js/units.js',
-  '/js/config.js',
-  '/js/weatherIcons.js',
-  '/js/weatherBackgrounds.js',
+  '/variable-weather/',
+  '/variable-weather/index.html',
+  '/variable-weather/styles.css',
+  '/variable-weather/js/main.js',
+  '/variable-weather/js/api.js',
+  '/variable-weather/js/apiSettings.js',
+  '/variable-weather/js/ui.js',
+  '/variable-weather/js/utils.js',
+  '/variable-weather/js/units.js',
+  '/variable-weather/js/config.js',
+  '/variable-weather/js/weatherIcons.js',
+  '/variable-weather/js/weatherBackgrounds.js',
   // Add fonts, images, and other assets as needed
-  '/resources/bootstrap/css/bootstrap.min.css',
-  '/resources/font-awesome/all.min.css',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  '/icons/favicon-32x32.png'
+  '/variable-weather/resources/bootstrap/css/bootstrap.min.css',
+  '/variable-weather/resources/font-awesome/all.min.css',
+  '/variable-weather/icons/icon-192x192.png',
+  '/variable-weather/icons/icon-512x512.png',
+  '/variable-weather/icons/favicon-32x32.png'
 ];
 
 // Install event - cache the app shell
