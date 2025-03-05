@@ -702,11 +702,35 @@ function mapNWSIconToGeneric(nwsIconUrl) {
  * Fetch weather from Pirate Weather API (fallback for non-US locations)
  */
 function fetchPirateWeather(lat, lon, locationName = null) {
-    const url = `${API_ENDPOINTS.PIRATE_WEATHER}/${getPirateWeatherApiKey()}/${lat},${lon}?units=us`;
+    // Get the API key
+    const apiKey = getPirateWeatherApiKey();
+    
+    // Check if it's the default placeholder
+    if (apiKey === '*insert-your-api-key-here*' || apiKey === '' || apiKey === null) {
+        console.error('No Pirate Weather API key configured');
+        showError('Pirate Weather API key required. Please add your API key in Settings to get weather data for this location.');
+        // Add a subtle click event on the error to open settings
+        const errorElement = document.getElementById('error-message');
+        if (errorElement) {
+            errorElement.style.cursor = 'pointer';
+            errorElement.addEventListener('click', () => {
+                const openSettingsBtn = document.getElementById('open-settings');
+                if (openSettingsBtn) openSettingsBtn.click();
+            });
+        }
+        hideLoading();
+        return;
+    }
+
+    const url = `${API_ENDPOINTS.PIRATE_WEATHER}/${apiKey}/${lat},${lon}?units=us`;
 
     fetch(url)
         .then(response => {
             if (!response.ok) {
+                // Check if we get a 401 or 403 (auth errors)
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('Invalid Pirate Weather API key. Please check your API key in Settings.');
+                }
                 throw new Error('Weather data not available');
             }
             return response.json();
@@ -724,6 +748,6 @@ function fetchPirateWeather(lat, lon, locationName = null) {
         })
         .catch(error => {
             console.error('Error fetching Pirate Weather data:', error);
-            showError('Error fetching weather data. Please try again later.');
+            showError(error.message || 'Error fetching weather data. Please try again later.');
         });
 }

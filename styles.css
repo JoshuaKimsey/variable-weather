@@ -228,6 +228,22 @@ body {
     background-color: #1565c0;
 }
 
+.api-key-info {
+    margin: 10px 0 15px 20px;
+    font-size: 0.9rem;
+    color: #555;
+}
+
+.settings-link {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.required-marker {
+    color: #f44336;
+    margin-left: 3px;
+}
+
 /*-----------------------------------------------
  * 4. WEATHER DETAILS CARDS
  *-----------------------------------------------*/

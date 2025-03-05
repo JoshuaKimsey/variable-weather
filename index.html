@@ -150,10 +150,14 @@
                 <button id="close-settings-modal">&times;</button>
             </div>
             <div class="settings-modal-body">
-                <p>Enter your Pirate Weather API key to use for non-US locations. You can get a free key from <a
-                        href="https://pirateweather.net/getting-started" target="_blank">pirateweather.net</a>.</p>
+                <p><strong>Pirate Weather API Key Required for:</strong></p>
+                <ul class="api-key-info">
+                    <li>Weather data outside the United States</li>
+                    <li>Fallback when National Weather Service is unavailable</li>
+                </ul>
+                <p>You can get a free key from <a href="https://pirateweather.net/getting-started" target="_blank" class="settings-link">pirateweather.net</a>.</p>
                 <div class="settings-form-group">
-                    <label for="pirate-api-key">Pirate Weather API Key:</label>
+                    <label for="pirate-api-key">Pirate Weather API Key:<span class="required-marker">*</span></label>
                     <input type="text" id="pirate-api-key" placeholder="Enter your API key">
                 </div>
                 <div class="api-key-status" id="api-key-status"></div>
