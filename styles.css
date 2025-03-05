@@ -126,6 +126,70 @@ body {
     color: #ffffff;
 }
 
+.station-info {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 15px;
+    padding: 5px 10px;
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.station-info .station-name {
+    font-weight: 600;
+}
+
+.station-info .observation-time {
+    font-style: italic;
+    margin-left: 5px;
+}
+
+.station-info.forecast-data {
+    background-color: rgba(255, 173, 51, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.no-forecast {
+    text-align: center;
+    padding: 20px;
+    color: #ccc;
+    font-style: italic;
+}
+
+.forecast-error {
+    text-align: center;
+    padding: 20px;
+    color: #ff6b6b;
+    font-style: italic;
+}
+
+.description-source {
+    font-size: 0.75rem;
+    padding: 2px 4px;
+    border-radius: 3px;
+    background-color: rgba(0, 164, 74, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.description-source.forecast-description {
+    background-color: rgba(255, 173, 51, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.attribution-link {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+    transition: all 0.2s ease;
+}
+
+.attribution-link:hover {
+    color: #fff;
+    text-decoration-style: solid;
+}
+
 .weather-icon {
     flex: 0 0 250px;
     height: 250px;

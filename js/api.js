@@ -5,7 +5,7 @@
 import { resetLastUpdateTime } from './autoUpdate.js';
 import { getPirateWeatherApiKey, API_ENDPOINTS } from './config.js';
 import { displayWeatherData, showLoading, hideLoading, hideError, showError } from './ui.js';
-import { getCountryCode, isUSLocation, formatLocationName } from './utils.js';
+import { getCountryCode, isUSLocation, formatLocationName, calculateDistance } from './utils.js';
 
 /**
  * Fetch weather data from the appropriate API
@@ -59,7 +59,6 @@ function extractWindSpeed(windSpeedString) {
     return null;
 }
 
-
 /**
  * Fetch weather from National Weather Service API with proper current conditions
  */
@@ -109,20 +108,39 @@ function fetchNWSWeather(lat, lon, locationName = null) {
                     
                     for (let i = 0; i < maxStations; i++) {
                         if (stationsData.features[i] && stationsData.features[i].id) {
-                            const stationUrl = stationsData.features[i].id;
+                            const station = stationsData.features[i];
+                            const stationUrl = station.id;
+                            
+                            // Capture station metadata for later use
+                            const stationMetadata = {
+                                id: stationUrl,
+                                name: station.properties.name,
+                                distance: null // Will calculate this later if coordinates are available
+                            };
+                            
+                            // If station has coordinates, calculate distance from requested location
+                            if (station.geometry && station.geometry.coordinates) {
+                                const stationLon = station.geometry.coordinates[0];
+                                const stationLat = station.geometry.coordinates[1];
+                                stationMetadata.distance = calculateDistance(lat, lon, stationLat, stationLon);
+                            }
+                            
                             // Create a promise for each station's latest observation
                             stationPromises.push(
                                 fetch(`${stationUrl}/observations/latest`)
                                     .then(response => {
                                         if (!response.ok) {
                                             // If this station fails, we'll try the next one
-                                            return { properties: null };
+                                            return { properties: null, stationMetadata: null };
                                         }
-                                        return response.json();
+                                        return response.json().then(data => {
+                                            // Attach station metadata to the observation data
+                                            return { ...data, stationMetadata };
+                                        });
                                     })
                                     .catch(() => {
                                         // If this station fails, we'll try the next one
-                                        return { properties: null };
+                                        return { properties: null, stationMetadata: null };
                                     })
                             );
                         }
@@ -244,7 +262,14 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         },
         alerts: alerts,
         source: 'nws',
-        timezone: cityState || (locationName ? formatLocationName(locationName) : 'US Location')
+        timezone: cityState || (locationName ? formatLocationName(locationName) : 'US Location'),
+        observation: {
+            // New field for observation metadata
+            fromStation: false,
+            stationName: null,
+            stationDistance: null,
+            observationTime: null
+        }
     };
     
     // Check if we have valid observation data
@@ -267,6 +292,24 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
     if (hasValidObservation) {
         const currentObservation = observationData.properties;
         
+        // Add observation metadata
+        weatherData.observation.fromStation = true;
+        
+        // Add station name if available
+        if (observationData.stationMetadata && observationData.stationMetadata.name) {
+            weatherData.observation.stationName = observationData.stationMetadata.name;
+        }
+        
+        // Add station distance if available
+        if (observationData.stationMetadata && observationData.stationMetadata.distance !== null) {
+            weatherData.observation.stationDistance = observationData.stationMetadata.distance;
+        }
+        
+        // Add observation time if available
+        if (currentObservation.timestamp) {
+            weatherData.observation.observationTime = currentObservation.timestamp;
+        }
+        
         // Temperature - using observed temperature
         if (currentObservation.temperature.unitCode === 'wmoUnit:degC') {
             // Convert from C to F if needed
@@ -277,7 +320,42 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         
         // Weather description - use actual observed weather condition
         if (currentObservation.textDescription) {
-            weatherData.currently.summary = currentObservation.textDescription;
+            // Extract the actual observation text and check if it contains forecast-like language
+            const textDescription = currentObservation.textDescription;
+            console.log("Original observation textDescription:", textDescription);
+            
+            // Check for forecast-like phrases that shouldn't be in an observation
+            const forecastPhrases = ['likely', 'chance', 'possible', 'expect', 'will be', 'tonight', 'tomorrow'];
+            const containsForecastLanguage = forecastPhrases.some(phrase => 
+                textDescription.toLowerCase().includes(phrase));
+            
+            if (containsForecastLanguage) {
+                console.log("Warning: Observation contains forecast-like language, using plain description");
+                // Try to clean up the description to make it more observation-like
+                let cleanedDescription = textDescription;
+                
+                // Remove forecast words
+                forecastPhrases.forEach(phrase => {
+                    const regex = new RegExp('\\b' + phrase + '\\b', 'gi');
+                    cleanedDescription = cleanedDescription.replace(regex, '');
+                });
+                
+                // Simplify "Showers And Thunderstorms Likely" to just "Showers And Thunderstorms"
+                cleanedDescription = cleanedDescription
+                    .replace(/Showers And Thunderstorms Likely/i, 'Showers And Thunderstorms')
+                    .replace(/Chance of/i, '')
+                    .replace(/  +/g, ' ') // Replace multiple spaces with a single space
+                    .trim();
+                    
+                weatherData.currently.summary = cleanedDescription || textDescription;
+                
+                // Also mark that this observation text was adjusted
+                weatherData.observation.descriptionAdjusted = true;
+            } else {
+                // Use the observation text as-is
+                weatherData.currently.summary = textDescription;
+                weatherData.observation.descriptionAdjusted = false;
+            }
             
             // Check if we need to add wind info when not mentioned
             if (!weatherData.currently.summary.toLowerCase().includes('wind') && 
@@ -288,6 +366,9 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         } else {
             // Fall back to forecast description only if observation doesn't have one
             weatherData.currently.summary = currentForecast.shortForecast;
+            
+            // Mark that we're using forecast description
+            weatherData.observation.usingForecastDescription = true;
         }
         
         // Weather icon - determine from observation or text
@@ -362,6 +443,9 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         // Fallback to forecast data if observation data is invalid or missing
         console.log("Using forecast data (no valid observation found)");
         
+        // Set observation metadata to indicate we're using forecast data
+        weatherData.observation.fromStation = false;
+        
         // Temperature
         weatherData.currently.temperature = currentForecast.temperature;
         
@@ -394,6 +478,9 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         humidity: weatherData.currently.humidity,
         source: hasValidObservation ? "observation data" : "forecast data"
     });
+    
+    // Add debugging for observation metadata
+    console.log("Observation metadata:", weatherData.observation);
     
     // Process daily forecast data (same as before)
     // NWS provides separate day and night forecasts, so we need to combine them
@@ -472,9 +559,6 @@ function mapNWSIconToGeneric(nwsIconUrl) {
             }
         }
     }
-
-    // Log the extracted icon code for debugging
-    //console.log(`Extracted NWS icon code: ${iconCode}, time of day: ${timeOfDay}, chance: ${hasChance}`);
 
     // If no icon code found, default to cloudy
     if (!iconCode) return 'cloudy';
