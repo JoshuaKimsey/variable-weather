@@ -84,10 +84,10 @@ export function formatDate(date) {
  */
 export function updatePageTitle(temperature, location) {
     try {
-        document.title = `${Math.round(temperature)}°F | ${location} | Weather App`;
+        document.title = `${Math.round(temperature)}°F | ${location} | Variable Weather`;
     } catch (error) {
         console.error('Error updating page title:', error);
-        document.title = 'Weather App';
+        document.title = 'Variable Weather';
     }
 }
 
