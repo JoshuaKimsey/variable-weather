@@ -355,32 +355,41 @@ function generateCloudGroup(options) {
         boxShadow = '0 0 20px rgba(255, 255, 255, 0.3)';
     }
     
-    // UPDATED POSITIONING STRATEGIES - Shifted more to the left and center for all types
+    // SHIFTED POSITIONING STRATEGIES - All clouds moved more to the left
     const positionStrategies = {
         // Sparse coverage (few clouds) - for partly cloudy
         sparse: [
-            {top: 30, left: 20, z: 3, size: 0.9},  // Centered main cloud
-            {top: 40, left: 10, z: 2, size: 0.7},  // Left cloud
-            {top: 45, left: 35, z: 1, size: 0.8}   // Right cloud
+            {top: 30, left: -10 + (Math.random() * 20), z: 3, size: 0.9},  // Main cloud in center (shifted left)
+            {top: 20, left: -10 + (Math.random() * 20), z: 2, size: 0.7},  // Second cloud top-left
+            {top: 40, left: -10 + (Math.random() * 20), z: 1, size: 0.75}  // Third cloud right (shifted left)
         ],
         // Moderate coverage - for normal cloudy
         moderate: [
-            {top: 25, left: 20, z: 3, size: 1.0},  // Main cloud centered
-            {top: 35, left: 10, z: 2, size: 0.9},  // Left cloud
-            {top: 50, left: 5, z: 1, size: 0.8},  // Far left
-            {top: 20, left: 15, z: 2, size: 0.85}, // Top left-center
-            {top: 30, left: 35, z: 1, size: 0.75}  // Right cloud
+            {top: 30, left: -10 + (Math.random() * 20), z: 3, size: 1.0},  // Main central cloud (shifted left)
+            {top: 20, left: -10 + (Math.random() * 20), z: 3, size: 0.85}, // Upper left
+            {top: 15, left: -10 + (Math.random() * 20), z: 2, size: 0.75}, // Upper right (shifted left)
+            {top: 40, left: -10 + (Math.random() * 20), z: 2, size: 0.8},  // Lower left
+            {top: 45, left: -10 + (Math.random() * 20), z: 1, size: 0.7}   // Lower right (shifted left)
         ],
         // Full coverage - for heavy precipitation
         full: [
-            {top: 25, left: 20, z: 4, size: 1.1},  // Main large cloud
-            {top: 30, left: 7, z: 3, size: 1.0},  // Left side
-            {top: 35, left: 30, z: 3, size: 0.9},  // Right side
-            {top: 45, left: 12, z: 2, size: 0.95}, // Lower left
-            {top: 20, left: 15, z: 2, size: 1.0},  // Upper center
-            {top: 40, left: 25, z: 1, size: 0.85}  // Center-right
+            {top: 25, left: -10 + (Math.random() * 20), z: 4, size: 1.1},  // Main large central cloud (shifted left)
+            {top: 15, left: -10 + (Math.random() * 20), z: 3, size: 0.9},  // Upper left
+            {top: 15, left: -10 + (Math.random() * 20), z: 3, size: 0.85}, // Upper right (shifted left)
+            {top: 35, left: -10 + (Math.random() * 20), z: 2, size: 0.8},  // Mid left
+            {top: 40, left: -10 + (Math.random() * 20), z: 2, size: 0.75}, // Mid right (shifted left)
+            {top: 50, left: -10 + (Math.random() * 20), z: 1, size: 0.85}  // Lower center (shifted left)
         ]
     };
+    
+    // Add extra positions for high coverage scenarios
+    // These have also been shifted leftward
+    if (config.coverage >= 0.9) {
+        positionStrategies.full.push(
+            {top: 30, left: 50, z: 1, size: 0.7},  // Extra right cloud (shifted left)
+            {top: 25, left: 0, z: 1, size: 0.75}   // Extra left cloud
+        );
+    }
     
     // Select positioning strategy based on coverage
     let positions;
@@ -392,8 +401,31 @@ function generateCloudGroup(options) {
         positions = positionStrategies.full;
     }
     
+    // Randomize the cloud positions slightly to break any remaining patterns
+    positions = positions.map(pos => {
+        // Add vertical and horizontal randomness
+        const verticalVariance = 8; 
+        const horizontalVariance = 5; // Slightly reduced to maintain leftward positioning
+        
+        return {
+            top: pos.top + (Math.random() * verticalVariance * 2 - verticalVariance),
+            left: pos.left + (-0.5 + Math.random() * horizontalVariance * 2 - horizontalVariance),
+            z: pos.z,
+            size: pos.size * (0.9 + Math.random() * 0.2) // Add 10% random size variation
+        };
+    });
+    
     // Limit clouds to the specified number, but at least 1
     const numClouds = Math.max(1, Math.min(config.numClouds, positions.length));
+    
+    // Add a small chance to shuffle the cloud order
+    if (Math.random() > 0.5) {
+        // Simple Fisher-Yates shuffle
+        for (let i = positions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [positions[i], positions[j]] = [positions[j], positions[i]];
+        }
+    }
     
     // Generate clouds based on position strategies
     for (let i = 0; i < numClouds; i++) {
@@ -403,21 +435,17 @@ function generateCloudGroup(options) {
         const cloudWidth = config.containerSize * 0.7 * position.size;
         const cloudHeight = cloudWidth * 0.5;
         
-        // Add some randomness to positioning - slightly reduced to maintain alignment
-        const topPos = position.top + (Math.random() * 8 - 4);
-        const leftPos = position.left + (Math.random() * 5 - 2.5);
-        
         // Create the cloud
         const cloud = generateRandomCloud({
             baseWidth: cloudWidth,
             baseHeight: cloudHeight,
             color: cloudColor,
-            top: topPos,
-            left: leftPos,
+            top: position.top,
+            left: position.left,
             zIndex: position.z,
             animate: true,
-            minPuffs: 3,
-            maxPuffs: 5,
+            minPuffs: 5,
+            maxPuffs: 8,
             variance: 0.2,
             boxShadow: boxShadow
         });
