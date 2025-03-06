@@ -389,6 +389,11 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
                 weatherData.currently.icon = mapNWSIconToGeneric(currentForecast.icon);
             }
         }
+
+        console.log('Weather icon source:', isThunderstorm ? 'text detection' : 
+            (currentObservation.icon ? 'observation icon' : 'forecast icon'));
+          console.log('Weather icon value:', weatherData.currently.icon);
+          console.log('Current time of day:', weatherData.currently.isDaytime ? 'Day' : 'Night');
         
         // Wind speed
         if (currentObservation.windSpeed && currentObservation.windSpeed.value !== null) {
@@ -528,6 +533,8 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
 function mapNWSIconToGeneric(nwsIconUrl) {
     if (!nwsIconUrl) return 'cloudy'; // Default fallback
 
+    console.log('Mapping NWS icon URL:', nwsIconUrl);
+
     // Extract the icon code from the URL
     // Example: https://api.weather.gov/icons/land/day/tsra,40?size=medium
     const parts = nwsIconUrl.split('/');
@@ -539,6 +546,7 @@ function mapNWSIconToGeneric(nwsIconUrl) {
     for (let i = 0; i < parts.length; i++) {
         if (parts[i] === 'day' || parts[i] === 'night') {
             timeOfDay = parts[i];
+            console.log('Time of day from URL:', timeOfDay);
             // The next part should contain the icon code
             if (i + 1 < parts.length) {
                 const codePart = parts[i + 1];
@@ -555,6 +563,7 @@ function mapNWSIconToGeneric(nwsIconUrl) {
                 } else {
                     iconCode = codePart;
                 }
+                console.log('Extracted icon code:', iconCode);
                 break;
             }
         }
@@ -563,13 +572,15 @@ function mapNWSIconToGeneric(nwsIconUrl) {
     // If no icon code found, default to cloudy
     if (!iconCode) return 'cloudy';
 
-    // Expanded map of NWS codes to our icon system
-    const nwsIconMap = {
-        // Regular weather codes
-        'skc': timeOfDay === 'day' ? 'clear-day' : 'clear-night',
-        'few': timeOfDay === 'day' ? 'partly-cloudy-day' : 'partly-cloudy-night',
-        'sct': timeOfDay === 'day' ? 'partly-cloudy-day' : 'partly-cloudy-night',
-        'bkn': timeOfDay === 'day' ? 'partly-cloudy-day' : 'partly-cloudy-night',
+    // Night prefix for mapped icon codes
+    const nightPrefix = timeOfDay === 'night' ? 'n' : '';
+    
+    // Base weather conditions with night awareness
+    const baseConditions = {
+        'skc': timeOfDay === 'night' ? 'clear-night' : 'clear-day',
+        'few': timeOfDay === 'night' ? 'partly-cloudy-night' : 'partly-cloudy-day',
+        'sct': timeOfDay === 'night' ? 'partly-cloudy-night' : 'partly-cloudy-day',
+        'bkn': timeOfDay === 'night' ? 'partly-cloudy-night' : 'partly-cloudy-day',
         'ovc': 'cloudy',
         'wind_skc': 'wind',
         'wind_few': 'wind',
@@ -596,83 +607,56 @@ function mapNWSIconToGeneric(nwsIconUrl) {
         'dust': 'fog',
         'smoke': 'fog',
         'haze': 'fog',
-        'hot': timeOfDay === 'day' ? 'clear-day' : 'clear-night',
-        'cold': timeOfDay === 'day' ? 'clear-day' : 'clear-night',
+        'hot': timeOfDay === 'night' ? 'clear-night' : 'clear-day',
+        'cold': timeOfDay === 'night' ? 'clear-night' : 'clear-day',
         'blizzard': 'snow',
-        'fog': 'fog',
-
-        // Additional thunderstorm-related codes
-        'hi_tsra': 'thunderstorm',       // Slight chance thunderstorm
-        'hi_ntsra': 'thunderstorm',      // Slight chance thunderstorm night
-        'fc': 'thunderstorm',            // Funnel cloud
-        'tor': 'thunderstorm',           // Tornado
-        'hur_warn': 'thunderstorm',      // Hurricane warning
-        'ts_warn': 'thunderstorm',       // Thunderstorm warning
-        'ts_nowarn': 'thunderstorm',     // Thunderstorm no warning
-        'ts_severe': 'thunderstorm',     // Severe thunderstorm
-        'ts_watch': 'thunderstorm',      // Thunderstorm watch
-        'ts': 'thunderstorm',            // Thunderstorm
-        'ts_possible': 'thunderstorm',   // Possible thunderstorm
-
-        // Vicinity codes (weather in the vicinity)
-        'vctsra': 'thunderstorm',        // Thunderstorm in vicinity
-        'vcts': 'thunderstorm',          // Thunderstorm in vicinity
-        'tsintv': 'thunderstorm',        // Thunderstorm in vicinity
-        'tsno': 'thunderstorm',          // Thunder snow
-        'tsvr': 'thunderstorm',          // Severe thunderstorm
-        'tssn': 'thunderstorm',          // Thunderstorm with snow
-
-        // Night versions
-        'nskc': 'clear-night',
-        'nfew': 'partly-cloudy-night',
-        'nsct': 'partly-cloudy-night',
-        'nbkn': 'partly-cloudy-night',
-        'novc': 'cloudy',
-        'nwind_skc': 'wind',
-        'nwind_few': 'wind',
-        'nwind_sct': 'wind',
-        'nwind_bkn': 'wind',
-        'nwind_ovc': 'wind',
-        'nsnow': 'snow',
-        'nrain_snow': 'sleet',
-        'nrain_sleet': 'sleet',
-        'nsnow_sleet': 'sleet',
-        'nfzra': 'sleet',
-        'nrain_fzra': 'sleet',
-        'nsnow_fzra': 'sleet',
-        'nsleet': 'sleet',
-        'nrain': 'rain',
-        'nrain_showers': 'rain',
-        'nrain_showers_hi': 'rain',
-        'ntsra': 'thunderstorm',
-        'ntsra_sct': 'thunderstorm',
-        'ntsra_hi': 'thunderstorm',
-        'ntornado': 'thunderstorm',
-        'nhurricane': 'thunderstorm',
-        'ntropical_storm': 'rain',
-        'ndust': 'fog',
-        'nsmoke': 'fog',
-        'nhaze': 'fog',
-        'nhot': 'clear-night',
-        'ncold': 'clear-night',
-        'nblizzard': 'snow',
-        'nfog': 'fog'
+        'fog': 'fog'
     };
 
-    // First try the icon code directly
-    if (nwsIconMap[iconCode]) {
-        return nwsIconMap[iconCode];
+    // Check if we have a direct match
+    if (baseConditions[iconCode]) {
+        const mappedIcon = baseConditions[iconCode];
+        console.log(`Direct mapping: ${iconCode} -> ${mappedIcon}`);
+        return mappedIcon;
     }
 
-    // Check for partially matching codes (for vicinity and other variations)
-    for (const key in nwsIconMap) {
-        if (iconCode.includes(key)) {
-            console.log(`Found partial match: ${key} in ${iconCode}`);
-            return nwsIconMap[key];
-        }
+    // For night prefixed codes, check the base code
+    if (iconCode.startsWith('n') && baseConditions[iconCode.substring(1)]) {
+        const baseCode = iconCode.substring(1);
+        const mappedIcon = baseConditions[baseCode];
+        console.log(`Night prefix mapping: ${iconCode} -> ${mappedIcon}`);
+        return mappedIcon;
     }
 
     // Pattern-based matching for codes not explicitly listed
+    // Check for night-specific conditions first
+    if (timeOfDay === 'night') {
+        if (iconCode.includes('ts') || iconCode.includes('tsra')) {
+            return 'thunderstorm';
+        } else if (iconCode.includes('rain')) {
+            return 'rain';
+        } else if (iconCode.includes('snow')) {
+            return 'snow';
+        } else if (iconCode.includes('sleet') || iconCode.includes('fzra')) {
+            return 'sleet';
+        } else if (iconCode.includes('fog') || iconCode.includes('dust') || iconCode.includes('smoke')) {
+            return 'fog';
+        } else if (iconCode.includes('wind')) {
+            return 'wind';
+        } else if (iconCode.includes('cloud') || iconCode.includes('ovc') || iconCode.includes('bkn')) {
+            return 'cloudy';
+        } else if (iconCode.includes('few') || iconCode.includes('sct')) {
+            return 'partly-cloudy-night';
+        } else if (iconCode.includes('skc') || iconCode.includes('clear')) {
+            return 'clear-night';
+        }
+        
+        // Night-specific fallback
+        console.log('Using night fallback for icon code:', iconCode);
+        return 'partly-cloudy-night';
+    }
+    
+    // Day condition pattern matching
     if (iconCode.includes('ts') || iconCode.includes('tsra')) {
         return 'thunderstorm';
     } else if (iconCode.includes('rain')) {
@@ -688,9 +672,9 @@ function mapNWSIconToGeneric(nwsIconUrl) {
     } else if (iconCode.includes('cloud') || iconCode.includes('ovc') || iconCode.includes('bkn')) {
         return 'cloudy';
     } else if (iconCode.includes('few') || iconCode.includes('sct')) {
-        return timeOfDay === 'day' ? 'partly-cloudy-day' : 'partly-cloudy-night';
+        return 'partly-cloudy-day';
     } else if (iconCode.includes('skc') || iconCode.includes('clear')) {
-        return timeOfDay === 'day' ? 'clear-day' : 'clear-night';
+        return 'clear-day';
     }
 
     // Default fallback

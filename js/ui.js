@@ -162,7 +162,7 @@ export function displayWeatherData(data, locationName) {
         setWeatherIcon(current.icon || 'cloudy', weatherIconElement);
         
         // Set background based on weather
-        setWeatherBackground(current.icon || 'cloudy');
+        setWeatherBackground(current.icon || 'cloudy', current.isDaytime);
         
         // Update station info display if element exists
         updateStationInfo(data);
