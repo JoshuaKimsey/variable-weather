@@ -38,10 +38,11 @@ function initUpdateSystem() {
 }
 
 /**
- * Display the current app version in the UI
+ * Display the current app version in the UI with GitHub link
  */
 function displayAppVersion() {
     const footerElement = document.querySelector('.attribution-footer');
+    const GITHUB_URL = 'https://github.com/JoshuaKimsey/variable-weather';
     
     if (footerElement) {
         // Create version display element if it doesn't exist
@@ -54,7 +55,8 @@ function displayAppVersion() {
             footerElement.appendChild(versionDisplay);
         }
         
-        versionDisplay.textContent = `v${APP_VERSION}`;
+        // Create a link element for the version
+        versionDisplay.innerHTML = `<a href="${GITHUB_URL}" target="_blank" rel="noopener" class="version-link">v${APP_VERSION}</a>`;
         
         // Add some styling
         const style = document.createElement('style');
@@ -64,6 +66,17 @@ function displayAppVersion() {
                 color: #aaa;
                 text-align: center;
                 margin-top: 5px;
+            }
+            
+            .version-link {
+                color: #aaa;
+                text-decoration: none;
+                transition: color 0.2s ease;
+            }
+            
+            .version-link:hover {
+                color: #1e88e5;
+                text-decoration: underline;
             }
         `;
         document.head.appendChild(style);
