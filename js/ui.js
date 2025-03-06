@@ -53,6 +53,21 @@ export function setupEventListeners(searchCallback) {
             searchCallback();
         }
     });
+    
+    // Set up geolocation button
+    const geoButton = document.getElementById('geo-button');
+    if (geoButton) {
+        geoButton.addEventListener('click', () => {
+            // Call the getUserLocation function from the window object
+            // This allows it to be defined in main.js but used here
+            if (typeof window.getUserLocation === 'function') {
+                window.getUserLocation();
+            } else {
+                console.error('getUserLocation function not available');
+                showError('Geolocation functionality is not available');
+            }
+        });
+    }
 }
 
 /**

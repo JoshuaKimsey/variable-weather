@@ -197,10 +197,19 @@ body {
     margin: 0 auto;
 }
 
-/* Search box styles */
+/* Search container to hold both the search box and geo button */
+.search-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 30px;
+    width: 100%;
+}
+
+/* Main search box with input and search button */
 .search-box {
     display: flex;
-    margin-bottom: 30px;
+    flex: 1;
 }
 
 .search-box input {
@@ -212,6 +221,167 @@ body {
     box-shadow: 0 5px 15px var(--shadow-color);
     font-size: 16px;
     outline: none;
+}
+
+/* Standalone style for geolocation button */
+#geo-button {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    font-size: 18px;
+}
+
+#geo-button:hover {
+    background-color: #1565c0;
+    transform: scale(1.05);
+}
+
+#geo-button:active {
+    transform: scale(0.95);
+}
+
+/* Style for search button */
+.search-box button#search-button {
+    border: none;
+    border-radius: 0 50px 50px 0;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.search-box button#search-button:hover {
+    background-color: #1565c0;
+}
+
+/* Style for geolocation loading text */
+.geo-loading-text {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    margin-top: 10px;
+    color: white;
+}
+
+.geo-loading-text i {
+    margin-right: 8px;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.7;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.geo-prompt {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    animation: fadeIn 0.3s ease;
+}
+
+.geo-prompt-content {
+    background-color: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    padding: 25px;
+    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.2);
+}
+
+.geo-prompt-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.geo-prompt-header i {
+    font-size: 24px;
+    color: var(--primary-color);
+    margin-right: 12px;
+}
+
+.geo-prompt-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 20px;
+}
+
+.geo-prompt p {
+    margin-bottom: 20px;
+    color: #555;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.geo-prompt-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.geo-prompt-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.geo-prompt-yes {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.geo-prompt-yes:hover {
+    background-color: #1565c0;
+}
+
+.geo-prompt-no {
+    background-color: #e0e0e0;
+    color: #555;
+}
+
+.geo-prompt-no:hover {
+    background-color: #d0d0d0;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .search-box button {
