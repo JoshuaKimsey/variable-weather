@@ -1,9 +1,20 @@
 /**
- * Weather icon creation functions
- * Contains all functions needed to create animated weather icons
+ * Weather Icon System
+ * 
+ * This module handles the creation and rendering of animated weather icons
+ * for different weather conditions, with day and night variants.
+ * Icons are dynamically generated with random variations for a more
+ * natural appearance.
  */
 
-// Export icon creation functions
+//----------------------------------------------------------------------
+// EXPORTS AND MAIN INTERFACES
+//----------------------------------------------------------------------
+
+// Clean up any old animations when this module loads
+cleanupOldCloudAnimations();
+
+// Export the icon mapping for external use
 export const weatherIcons = {
     // NWS icons - Basic icons
     'skc': createClearDayIcon, // clear day
@@ -91,12 +102,12 @@ export const weatherIcons = {
 
 /**
  * Set weather icon based on icon code
+ * @param {string} iconCode - The weather icon code
+ * @param {HTMLElement} element - DOM element to append the icon to
  */
 export function setWeatherIcon(iconCode, element) {
     // Clear previous icon
     element.innerHTML = '';
-
-    //console.log(`Setting weather icon for code: ${iconCode}`);
 
     // Create and add the appropriate icon
     if (weatherIcons[iconCode]) {
@@ -109,7 +120,9 @@ export function setWeatherIcon(iconCode, element) {
 }
 
 /**
- * Set forecast icon 
+ * Set forecast icon (smaller variant)
+ * @param {string} iconCode - The weather icon code
+ * @param {HTMLElement} element - DOM element to append the icon to
  */
 export function setForecastIcon(iconCode, element) {
     if (weatherIcons[iconCode]) {
@@ -119,7 +132,311 @@ export function setForecastIcon(iconCode, element) {
     }
 }
 
-// Weather Icon Creation Functions
+//----------------------------------------------------------------------
+// CLOUD GENERATION UTILITIES
+//----------------------------------------------------------------------
+
+/**
+ * Generate a random cloud with unique variations
+ * 
+ * @param {Object} options - Configuration options
+ * @param {number} options.baseWidth - Base width for the cloud
+ * @param {number} options.baseHeight - Base height for the cloud
+ * @param {string} options.color - Base color for the cloud
+ * @param {number} options.top - Top position (percentage)
+ * @param {number} options.left - Left position (percentage)
+ * @param {number} options.zIndex - Z-index for the cloud
+ * @param {boolean} options.animate - Whether to animate the cloud
+ * @param {number} options.minPuffs - Minimum number of puffs to add
+ * @param {number} options.maxPuffs - Maximum number of puffs to add
+ * @param {number} options.variance - Variance factor for randomness (0-1)
+ * @param {string} options.boxShadow - Optional box shadow for the cloud
+ * @returns {HTMLElement} - The generated cloud element
+ */
+function generateRandomCloud(options) {
+    // Default options
+    const defaults = {
+        baseWidth: 100,
+        baseHeight: 50,
+        color: '#FFFFFF',
+        top: 50,
+        left: 50,
+        zIndex: 1,
+        animate: true,
+        minPuffs: 3,
+        maxPuffs: 5,
+        variance: 0.2,
+        boxShadow: null
+    };
+
+    // Merge default options with provided options
+    const config = {...defaults, ...options};
+    
+    // Apply randomness to dimensions within variance
+    const varianceFactor = (1 - config.variance) + (Math.random() * config.variance * 2);
+    const width = config.baseWidth * varianceFactor;
+    const height = config.baseHeight * (0.9 + Math.random() * 0.2); // Less variance for height
+    
+    // Create the cloud base
+    const cloud = document.createElement('div');
+    cloud.className = 'animation-element cloud';
+    cloud.style.width = `${width}px`;
+    cloud.style.height = `${height}px`;
+    cloud.style.backgroundColor = config.color;
+    cloud.style.borderRadius = `${Math.max(height, width) * 0.5}px`;
+    cloud.style.position = 'absolute';
+    cloud.style.top = `${config.top}%`;
+    cloud.style.left = `${config.left}%`;
+    cloud.style.zIndex = config.zIndex;
+    
+    // Apply box shadow if provided
+    if (config.boxShadow) {
+        cloud.style.boxShadow = config.boxShadow;
+    }
+    
+    // Add animation with improved looping
+    if (config.animate) {
+        // Generate unique animation ID to prevent conflicts
+        const animId = Math.random().toString(36).substring(2, 10);
+        
+        // Create custom keyframes for this specific cloud to ensure smooth animation
+        const style = document.createElement('style');
+        
+        // Create a custom animation name for this cloud instance
+        const animationName = `cloudFloat_${animId}`;
+        
+        // Define horizontal and vertical movement ranges
+        const xRange = 10; // Total horizontal movement in pixels
+        const yRange = 5;  // Total vertical movement in pixels
+        
+        // Add keyframes with proper easing for smooth looping
+        style.innerHTML = `
+            @keyframes ${animationName} {
+                0% { transform: translate(0, 0); }
+                50% { transform: translate(${xRange}px, -${yRange}px); }
+                100% { transform: translate(0, 0); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Set animation with longer duration and proper timing function
+        const animationDuration = 10 + Math.random() * 10; // 30-60s
+        cloud.style.animation = `${animationName} ${animationDuration}s infinite ease-in-out`;
+        
+        // Randomize animation start point to prevent all clouds moving in sync
+        cloud.style.animationDelay = `${Math.random() * -animationDuration}s`;
+    }
+    
+    // Continue with creating cloud puffs as before...
+    // Determine number of puffs to add
+    const numPuffs = Math.floor(Math.random() * (config.maxPuffs - config.minPuffs + 1)) + config.minPuffs;
+    
+    // Create puff reference points - distribute along the top of the cloud
+    const puffPositions = [];
+    
+    // Always include puffs at the extremes and middle for good coverage
+    puffPositions.push({left: 10 + Math.random() * 10, bottom: 50 + Math.random() * 20}); // Left edge
+    puffPositions.push({left: 45 + Math.random() * 10, bottom: 50 + Math.random() * 30}); // Middle
+    puffPositions.push({left: 80 + Math.random() * 10, bottom: 50 + Math.random() * 20}); // Right edge
+    
+    // Add additional random puffs if needed
+    for (let i = 3; i < numPuffs; i++) {
+        const leftPos = 15 + Math.random() * 70; // Avoid extreme edges
+        const bottomPos = 40 + Math.random() * 30;
+        
+        // Check if too close to existing puffs
+        const tooClose = puffPositions.some(pos => {
+            const distance = Math.sqrt(Math.pow(pos.left - leftPos, 2) + Math.pow(pos.bottom - bottomPos, 2));
+            return distance < 15; // Minimum distance between puff centers
+        });
+        
+        // If not too close, add to positions
+        if (!tooClose) {
+            puffPositions.push({left: leftPos, bottom: bottomPos});
+        } else {
+            // Try again
+            i--;
+        }
+    }
+    
+    // Create puffs based on the positions
+    puffPositions.forEach(pos => {
+        const puff = document.createElement('div');
+        puff.className = 'cloud-puff';
+        
+        // Random size for each puff, with the center puff being largest
+        const isPuffNearCenter = Math.abs(pos.left - 50) < 20;
+        const puffSizeFactor = isPuffNearCenter ? 
+                            (0.9 + Math.random() * 0.2) : 
+                            (0.6 + Math.random() * 0.3);
+        
+        const puffSize = Math.max(width, height) * 0.6 * puffSizeFactor;
+        
+        puff.style.width = `${puffSize}px`;
+        puff.style.height = `${puffSize}px`;
+        puff.style.position = 'absolute';
+        puff.style.backgroundColor = config.color;
+        puff.style.borderRadius = '50%';
+        puff.style.bottom = `${pos.bottom}%`;
+        puff.style.left = `${pos.left}%`;
+        
+        // Random subtle opacity variation for texture (if not a night cloud)
+        if (!config.color.includes('#AAA') && !config.color.includes('#555')) {
+            puff.style.opacity = 0.9 + Math.random() * 0.1;
+        }
+        
+        // Apply the same box shadow if provided
+        if (config.boxShadow) {
+            puff.style.boxShadow = config.boxShadow;
+        }
+        
+        cloud.appendChild(puff);
+    });
+    
+    return cloud;
+}
+
+/**
+ * Remove old animation-related styles that could cause conflicts
+ * 
+ * This function should be called when updating the icon system to ensure
+ * that old animation keyframes don't conflict with the new ones.
+ */
+function cleanupOldCloudAnimations() {
+    // Find and remove any existing cloudFloat animation styles
+    const oldStyles = document.querySelectorAll('style');
+    oldStyles.forEach(style => {
+        if (style.innerHTML.includes('@keyframes cloudFloat')) {
+            style.remove();
+        }
+    });
+}
+
+/**
+ * Generate a cloud group with multiple random clouds
+ * 
+ * @param {Object} options - Configuration options
+ * @param {number} options.numClouds - Number of clouds to generate
+ * @param {number} options.containerSize - Size of the container element
+ * @param {boolean} options.isNight - Whether it's nighttime (affects coloring)
+ * @param {number} options.coverage - Cloud coverage factor (0-1)
+ * @param {boolean} options.isDark - Whether to use darker clouds (for storms)
+ * @returns {DocumentFragment} - Fragment containing the generated clouds
+ */
+function generateCloudGroup(options) {
+    // Default options
+    const defaults = {
+        numClouds: 3,
+        containerSize: 150,
+        isNight: false,
+        coverage: 0.7, // 0.3=sparse, 0.7=moderate, 1.0=full coverage
+        isDark: false
+    };
+
+    // Merge default options with provided options
+    const config = {...defaults, ...options};
+    
+    // Create document fragment to hold all clouds
+    const fragment = document.createDocumentFragment();
+    
+    // Determine cloud coloring based on time and type
+    let cloudColor;
+    let boxShadow = null;
+    
+    if (config.isDark) {
+        // Dark storm clouds
+        cloudColor = '#555555';
+    } else if (config.isNight) {
+        // Night clouds - darker and more blue/gray
+        cloudColor = '#A5B0C3';
+    } else {
+        // Day clouds - white with optional slight shadow for depth
+        cloudColor = '#FFFFFF';
+        boxShadow = '0 0 20px rgba(255, 255, 255, 0.3)';
+    }
+    
+    // UPDATED POSITIONING STRATEGIES - Shifted more to the left and center for all types
+    const positionStrategies = {
+        // Sparse coverage (few clouds) - for partly cloudy
+        sparse: [
+            {top: 30, left: 20, z: 3, size: 0.9},  // Centered main cloud
+            {top: 40, left: 10, z: 2, size: 0.7},  // Left cloud
+            {top: 45, left: 35, z: 1, size: 0.8}   // Right cloud
+        ],
+        // Moderate coverage - for normal cloudy
+        moderate: [
+            {top: 25, left: 20, z: 3, size: 1.0},  // Main cloud centered
+            {top: 35, left: 10, z: 2, size: 0.9},  // Left cloud
+            {top: 50, left: 5, z: 1, size: 0.8},  // Far left
+            {top: 20, left: 15, z: 2, size: 0.85}, // Top left-center
+            {top: 30, left: 35, z: 1, size: 0.75}  // Right cloud
+        ],
+        // Full coverage - for heavy precipitation
+        full: [
+            {top: 25, left: 20, z: 4, size: 1.1},  // Main large cloud
+            {top: 30, left: 7, z: 3, size: 1.0},  // Left side
+            {top: 35, left: 30, z: 3, size: 0.9},  // Right side
+            {top: 45, left: 12, z: 2, size: 0.95}, // Lower left
+            {top: 20, left: 15, z: 2, size: 1.0},  // Upper center
+            {top: 40, left: 25, z: 1, size: 0.85}  // Center-right
+        ]
+    };
+    
+    // Select positioning strategy based on coverage
+    let positions;
+    if (config.coverage <= 0.4) {
+        positions = positionStrategies.sparse;
+    } else if (config.coverage <= 0.8) {
+        positions = positionStrategies.moderate;
+    } else {
+        positions = positionStrategies.full;
+    }
+    
+    // Limit clouds to the specified number, but at least 1
+    const numClouds = Math.max(1, Math.min(config.numClouds, positions.length));
+    
+    // Generate clouds based on position strategies
+    for (let i = 0; i < numClouds; i++) {
+        const position = positions[i];
+        
+        // Calculate cloud size based on container and relative size factor
+        const cloudWidth = config.containerSize * 0.7 * position.size;
+        const cloudHeight = cloudWidth * 0.5;
+        
+        // Add some randomness to positioning - slightly reduced to maintain alignment
+        const topPos = position.top + (Math.random() * 8 - 4);
+        const leftPos = position.left + (Math.random() * 5 - 2.5);
+        
+        // Create the cloud
+        const cloud = generateRandomCloud({
+            baseWidth: cloudWidth,
+            baseHeight: cloudHeight,
+            color: cloudColor,
+            top: topPos,
+            left: leftPos,
+            zIndex: position.z,
+            animate: true,
+            minPuffs: 3,
+            maxPuffs: 5,
+            variance: 0.2,
+            boxShadow: boxShadow
+        });
+        
+        fragment.appendChild(cloud);
+    }
+    
+    return fragment;
+}
+
+//----------------------------------------------------------------------
+// SUN AND MOON ICON FUNCTIONS
+//----------------------------------------------------------------------
+
+/**
+ * Create a clear day icon with sun
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
 function createClearDayIcon(element, isForecast = false) {
     const size = isForecast ? 60 : 150;
     const container = document.createElement('div');
@@ -127,7 +444,7 @@ function createClearDayIcon(element, isForecast = false) {
     container.style.height = `${size}px`;
     container.style.position = 'relative';
 
-    // Use SVG for better control
+    // Create SVG for better control
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("width", "100%");
@@ -224,8 +541,11 @@ function createClearDayIcon(element, isForecast = false) {
     element.appendChild(container);
 }
 
-// Replace the existing createClearNightIcon function in weatherIcons.js with this improved version
-
+/**
+ * Create a clear night icon with moon and stars
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
 function createClearNightIcon(element, isForecast = false) {
     const size = isForecast ? 60 : 150;
     const container = document.createElement('div');
@@ -389,10 +709,6 @@ function createClearNightIcon(element, isForecast = false) {
     moonCircle.setAttribute("fill", `url(#${gradientId})`);
     moonCircle.setAttribute("filter", `url(#${filterId})`);
 
-    // We'll create the crescent overlay in the clipGroup section below
-
-    // Small details on moon surface have been moved to the clip group section
-
     // Create a group with clip path for the moon and crescent
     const clipGroup = document.createElementNS(svgNS, "g");
     clipGroup.setAttribute("clip-path", `url(#${clipPathId})`);
@@ -451,314 +767,15 @@ function createClearNightIcon(element, isForecast = false) {
     element.appendChild(container);
 }
 
-function createRainIcon(element, isForecast = false) {
-    const size = isForecast ? 60 : 150;
-    const container = document.createElement('div');
-    container.style.width = `${size}px`;
-    container.style.height = `${size}px`;
-    container.style.position = 'relative';
+//----------------------------------------------------------------------
+// CLOUD-BASED ICON FUNCTIONS
+//----------------------------------------------------------------------
 
-    // Cloud
-    const cloud = document.createElement('div');
-    cloud.style.width = `${size * 0.8}px`;
-    cloud.style.height = `${size * 0.4}px`;
-    cloud.style.backgroundColor = '#CCCCCC';
-    cloud.style.borderRadius = `${size * 0.4}px`;
-    cloud.style.position = 'absolute';
-    cloud.style.top = '20%';
-    cloud.style.left = '10%';
-
-    // Cloud details
-    const cloudDetail1 = document.createElement('div');
-    cloudDetail1.style.width = `${size * 0.4}px`;
-    cloudDetail1.style.height = `${size * 0.4}px`;
-    cloudDetail1.style.backgroundColor = '#CCCCCC';
-    cloudDetail1.style.borderRadius = '50%';
-    cloudDetail1.style.position = 'absolute';
-    cloudDetail1.style.top = '-50%';
-    cloudDetail1.style.left = '20%';
-
-    const cloudDetail2 = document.createElement('div');
-    cloudDetail2.style.width = `${size * 0.5}px`;
-    cloudDetail2.style.height = `${size * 0.5}px`;
-    cloudDetail2.style.backgroundColor = '#CCCCCC';
-    cloudDetail2.style.borderRadius = '50%';
-    cloudDetail2.style.position = 'absolute';
-    cloudDetail2.style.top = '-60%';
-    cloudDetail2.style.left = '50%';
-
-    cloud.appendChild(cloudDetail1);
-    cloud.appendChild(cloudDetail2);
-
-    // Raindrops
-    const numDrops = isForecast ? 5 : 10;
-    for (let i = 0; i < numDrops; i++) {
-        const drop = document.createElement('div');
-        drop.style.width = `${size * 0.03}px`;
-        drop.style.height = `${size * 0.1}px`;
-        drop.style.backgroundColor = '#61A8FF';
-        drop.style.borderRadius = `${size * 0.03}px`;
-        drop.style.position = 'absolute';
-        drop.style.top = `${Math.random() * 30 + 60}%`;
-        drop.style.left = `${Math.random() * 80 + 10}%`;
-        drop.style.animation = `rainDrop ${Math.random() * 0.5 + 1}s infinite linear`;
-
-        // Set animation delay
-        drop.style.animationDelay = `${Math.random()}s`;
-
-        container.appendChild(drop);
-    }
-
-    container.appendChild(cloud);
-    element.appendChild(container);
-
-    // Add animation for raindrops
-    const style = document.createElement('style');
-    style.innerHTML = `
-        @keyframes rainDrop {
-            0% { transform: translateY(-10px); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(${size * 0.5}px); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-function createSnowIcon(element, isForecast = false) {
-    const size = isForecast ? 60 : 150;
-    const container = document.createElement('div');
-    container.style.width = `${size}px`;
-    container.style.height = `${size}px`;
-    container.style.position = 'relative';
-
-    // Cloud (same as rain icon)
-    const cloud = document.createElement('div');
-    cloud.style.width = `${size * 0.8}px`;
-    cloud.style.height = `${size * 0.4}px`;
-    cloud.style.backgroundColor = '#CCCCCC';
-    cloud.style.borderRadius = `${size * 0.4}px`;
-    cloud.style.position = 'absolute';
-    cloud.style.top = '20%';
-    cloud.style.left = '10%';
-
-    // Cloud details
-    const cloudDetail1 = document.createElement('div');
-    cloudDetail1.style.width = `${size * 0.4}px`;
-    cloudDetail1.style.height = `${size * 0.4}px`;
-    cloudDetail1.style.backgroundColor = '#CCCCCC';
-    cloudDetail1.style.borderRadius = '50%';
-    cloudDetail1.style.position = 'absolute';
-    cloudDetail1.style.top = '-50%';
-    cloudDetail1.style.left = '20%';
-
-    const cloudDetail2 = document.createElement('div');
-    cloudDetail2.style.width = `${size * 0.5}px`;
-    cloudDetail2.style.height = `${size * 0.5}px`;
-    cloudDetail2.style.backgroundColor = '#CCCCCC';
-    cloudDetail2.style.borderRadius = '50%';
-    cloudDetail2.style.position = 'absolute';
-    cloudDetail2.style.top = '-60%';
-    cloudDetail2.style.left = '50%';
-
-    cloud.appendChild(cloudDetail1);
-    cloud.appendChild(cloudDetail2);
-
-    // Snowflakes
-    const numFlakes = isForecast ? 5 : 10;
-    for (let i = 0; i < numFlakes; i++) {
-        const snowflake = document.createElement('div');
-        snowflake.textContent = '❄';
-        snowflake.style.position = 'absolute';
-        snowflake.style.color = 'white';
-        snowflake.style.fontSize = `${size * 0.1}px`;
-        snowflake.style.top = `${Math.random() * 30 + 60}%`;
-        snowflake.style.left = `${Math.random() * 80 + 10}%`;
-        snowflake.style.animation = `snowfall ${Math.random() * 2 + 3}s infinite linear`;
-        snowflake.style.animationDelay = `${Math.random() * 2}s`;
-        container.appendChild(snowflake);
-    }
-
-    container.appendChild(cloud);
-    element.appendChild(container);
-
-    // Add animation for snowflakes
-    const style = document.createElement('style');
-    style.innerHTML = `
-        @keyframes snowfall {
-            0% { transform: translateY(-10px) rotate(0deg); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(${size * 0.5}px) rotate(360deg); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-function createSleetIcon(element, isForecast = false) {
-    const size = isForecast ? 60 : 150;
-    const container = document.createElement('div');
-    container.style.width = `${size}px`;
-    container.style.height = `${size}px`;
-    container.style.position = 'relative';
-
-    // Cloud (same as rain icon)
-    const cloud = document.createElement('div');
-    cloud.style.width = `${size * 0.8}px`;
-    cloud.style.height = `${size * 0.4}px`;
-    cloud.style.backgroundColor = '#CCCCCC';
-    cloud.style.borderRadius = `${size * 0.4}px`;
-    cloud.style.position = 'absolute';
-    cloud.style.top = '20%';
-    cloud.style.left = '10%';
-
-    // Cloud details
-    const cloudDetail1 = document.createElement('div');
-    cloudDetail1.style.width = `${size * 0.4}px`;
-    cloudDetail1.style.height = `${size * 0.4}px`;
-    cloudDetail1.style.backgroundColor = '#CCCCCC';
-    cloudDetail1.style.borderRadius = '50%';
-    cloudDetail1.style.position = 'absolute';
-    cloudDetail1.style.top = '-50%';
-    cloudDetail1.style.left = '20%';
-
-    const cloudDetail2 = document.createElement('div');
-    cloudDetail2.style.width = `${size * 0.5}px`;
-    cloudDetail2.style.height = `${size * 0.5}px`;
-    cloudDetail2.style.backgroundColor = '#CCCCCC';
-    cloudDetail2.style.borderRadius = '50%';
-    cloudDetail2.style.position = 'absolute';
-    cloudDetail2.style.top = '-60%';
-    cloudDetail2.style.left = '50%';
-
-    cloud.appendChild(cloudDetail1);
-    cloud.appendChild(cloudDetail2);
-
-    // Mix of rain and snow elements
-    const numElements = isForecast ? 6 : 12;
-    for (let i = 0; i < numElements; i++) {
-        if (i % 2 === 0) {
-            // Raindrop for sleet
-            const drop = document.createElement('div');
-            drop.style.width = `${size * 0.03}px`;
-            drop.style.height = `${size * 0.1}px`;
-            drop.style.backgroundColor = '#61A8FF';
-            drop.style.borderRadius = `${size * 0.03}px`;
-            drop.style.position = 'absolute';
-            drop.style.top = `${Math.random() * 30 + 60}%`;
-            drop.style.left = `${Math.random() * 80 + 10}%`;
-            drop.style.animation = `rainDrop ${Math.random() * 0.5 + 1}s infinite linear`;
-            drop.style.animationDelay = `${Math.random() * 2}s`;
-            container.appendChild(drop);
-        } else {
-            // Small ice pellet for sleet
-            const pellet = document.createElement('div');
-            pellet.style.width = `${size * 0.05}px`;
-            pellet.style.height = `${size * 0.05}px`;
-            pellet.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-            pellet.style.borderRadius = '50%';
-            pellet.style.position = 'absolute';
-            pellet.style.top = `${Math.random() * 30 + 60}%`;
-            pellet.style.left = `${Math.random() * 80 + 10}%`;
-            pellet.style.animation = `sleetPellet ${Math.random() * 1 + 2}s infinite linear`;
-            pellet.style.animationDelay = `${Math.random() * 2}s`;
-            container.appendChild(pellet);
-        }
-    }
-
-    container.appendChild(cloud);
-    element.appendChild(container);
-
-    // Add animations
-    const style = document.createElement('style');
-    style.innerHTML = `
-        @keyframes sleetPellet {
-            0% { transform: translateY(-10px); opacity: 0; }
-            10% { opacity: 0.8; }
-            90% { opacity: 0.8; }
-            100% { transform: translateY(${size * 0.5}px); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-function createWindIcon(element, isForecast = false) {
-    const size = isForecast ? 60 : 150;
-    const container = document.createElement('div');
-    container.style.width = `${size}px`;
-    container.style.height = `${size}px`;
-    container.style.position = 'relative';
-
-    // Create multiple wind lines
-    for (let i = 0; i < 5; i++) {
-        const windLine = document.createElement('div');
-        windLine.style.height = `${size * 0.05}px`;
-        windLine.style.borderRadius = `${size * 0.025}px`;
-        windLine.style.backgroundColor = '#CCCCCC';
-        windLine.style.position = 'absolute';
-        windLine.style.top = `${20 + i * 15}%`;
-        windLine.style.left = '10%';
-        windLine.style.animation = `windBlow 3s infinite ${i * 0.2}s`;
-
-        // Vary the length of each line
-        if (i % 2 === 0) {
-            windLine.style.width = `${size * 0.6}px`;
-        } else {
-            windLine.style.width = `${size * 0.4}px`;
-        }
-
-        container.appendChild(windLine);
-    }
-
-    element.appendChild(container);
-
-    // Add animation for wind lines
-    const style = document.createElement('style');
-    style.innerHTML = `
-        @keyframes windBlow {
-            0% { transform: scaleX(0.3); opacity: 0.3; transform-origin: left; }
-            50% { transform: scaleX(1); opacity: 1; transform-origin: left; }
-            100% { transform: scaleX(0.3); opacity: 0.3; transform-origin: left; }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-function createFogIcon(element, isForecast = false) {
-    const size = isForecast ? 60 : 150;
-    const container = document.createElement('div');
-    container.style.width = `${size}px`;
-    container.style.height = `${size}px`;
-    container.style.position = 'relative';
-
-    // Create fog layers
-    for (let i = 0; i < 5; i++) {
-        const fogLayer = document.createElement('div');
-        fogLayer.style.width = `${size * 0.8}px`;
-        fogLayer.style.height = `${size * 0.1}px`;
-        fogLayer.style.backgroundColor = 'rgba(204, 204, 204, 0.8)';
-        fogLayer.style.borderRadius = `${size * 0.05}px`;
-        fogLayer.style.position = 'absolute';
-        fogLayer.style.top = `${30 + i * 15}%`;
-        fogLayer.style.left = '10%';
-        fogLayer.style.animation = `fogFloat 4s infinite alternate ${i * 0.3}s ease-in-out`;
-
-        container.appendChild(fogLayer);
-    }
-
-    element.appendChild(container);
-
-    // Add animation for fog layers
-    const style = document.createElement('style');
-    style.innerHTML = `
-        @keyframes fogFloat {
-            0% { transform: translateX(-5%); opacity: 0.7; }
-            100% { transform: translateX(5%); opacity: 0.9; }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
+/**
+ * Create a cloudy icon with randomly generated clouds
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
 function createCloudyIcon(element, isForecast = false) {
     const size = isForecast ? 60 : 150;
     const container = document.createElement('div');
@@ -766,62 +783,60 @@ function createCloudyIcon(element, isForecast = false) {
     container.style.height = `${size}px`;
     container.style.position = 'relative';
 
-    // Create multiple clouds
-    for (let i = 0; i < 3; i++) {
-        const cloud = document.createElement('div');
-        const cloudSize = size * (0.4 + i * 0.2);
+    // Use cloud generator to create random clouds with high coverage
+    const clouds = generateCloudGroup({
+        numClouds: isForecast ? 3 : 5,
+        containerSize: size,
+        isNight: false,
+        coverage: 0.9, // High coverage for cloudy
+        isDark: false
+    });
 
-        cloud.style.width = `${cloudSize}px`;
-        cloud.style.height = `${cloudSize * 0.6}px`;
-        cloud.style.backgroundColor = i === 0 ? '#AAAAAA' : '#CCCCCC';
-        cloud.style.borderRadius = '50px';
-        cloud.style.position = 'absolute';
-        cloud.style.animation = `cloudFloat 8s infinite alternate ${i * 0.5}s ease-in-out`;
-
-        // Position clouds
-        if (i === 0) {
-            cloud.style.top = '50%';
-            cloud.style.left = '25%';
-            cloud.style.zIndex = '1';
-        } else if (i === 1) {
-            cloud.style.top = '30%';
-            cloud.style.left = '35%';
-            cloud.style.zIndex = '2';
-        } else {
-            cloud.style.top = '40%';
-            cloud.style.left = '15%';
-            cloud.style.zIndex = '3';
-        }
-
-        // Add cloud puffs
-        for (let j = 0; j < 3; j++) {
-            const cloudPuff = document.createElement('div');
-            cloudPuff.style.width = `${cloudSize * 0.5}px`;
-            cloudPuff.style.height = `${cloudSize * 0.5}px`;
-            cloudPuff.style.backgroundColor = i === 0 ? '#AAAAAA' : '#CCCCCC';
-            cloudPuff.style.borderRadius = '50%';
-            cloudPuff.style.position = 'absolute';
-            cloudPuff.style.bottom = '50%';
-            cloudPuff.style.left = `${j * 30}%`;
-            cloud.appendChild(cloudPuff);
-        }
-
-        container.appendChild(cloud);
-    }
-
+    container.appendChild(clouds);
     element.appendChild(container);
-
-    // Add animation for clouds
-    const style = document.createElement('style');
-    style.innerHTML = `
-        @keyframes cloudFloat {
-            0% { transform: translateX(-5%) translateY(0); }
-            100% { transform: translateX(5%) translateY(-10%); }
-        }
-    `;
-    document.head.appendChild(style);
 }
 
+/**
+ * Create a cloudy night icon with randomly generated clouds
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
+function createCloudyNightIcon(element, isForecast = false) {
+    const size = isForecast ? 60 : 150;
+    const container = document.createElement('div');
+    container.style.width = `${size}px`;
+    container.style.height = `${size}px`;
+    container.style.position = 'relative';
+
+    // Add a few stars in the background
+    for (let i = 0; i < 8; i++) {
+        const star = document.createElement('div');
+        star.className = 'animation-element star';
+        star.style.top = `${Math.random() * 30}%`; // Only in top portion
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.opacity = Math.random() * 0.3 + 0.1; // Very faint stars
+        star.style.animationDuration = `${Math.random() * 3 + 2}s`;
+        container.appendChild(star);
+    }
+
+    // Use cloud generator to create random clouds with night coloring
+    const clouds = generateCloudGroup({
+        numClouds: isForecast ? 3 : 5,
+        containerSize: size,
+        isNight: true,
+        coverage: 0.9, // High coverage for cloudy
+        isDark: false
+    });
+
+    container.appendChild(clouds);
+    element.appendChild(container);
+}
+
+/**
+ * Create a partly cloudy day icon with sun and randomly generated clouds
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
 function createPartlyCloudyDayIcon(element, isForecast = false) {
     const size = isForecast ? 60 : 150;
     const container = document.createElement('div');
@@ -829,7 +844,7 @@ function createPartlyCloudyDayIcon(element, isForecast = false) {
     container.style.height = `${size}px`;
     container.style.position = 'relative';
 
-    // Create the SVG sun (smaller version of the clear day sun)
+    // Create the SVG sun
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("width", "70%");
@@ -840,7 +855,7 @@ function createPartlyCloudyDayIcon(element, isForecast = false) {
     svg.style.left = "0%";
     svg.style.zIndex = "1";
 
-    // Create a unique ID for the filter to avoid conflicts if multiple icons are on the page
+    // Create a unique ID for the filter to avoid conflicts
     const filterId = `sun-glow-${Math.random().toString(36).substr(2, 9)}`;
 
     // Create a group for the sun and rays (for animation)
@@ -905,7 +920,7 @@ function createPartlyCloudyDayIcon(element, isForecast = false) {
     sunGroup.appendChild(sunCircle);
     svg.appendChild(sunGroup);
 
-    // Create the cloud
+    // Create the cloud container
     const cloudContainer = document.createElement('div');
     cloudContainer.style.width = '100%';
     cloudContainer.style.height = '100%';
@@ -914,41 +929,16 @@ function createPartlyCloudyDayIcon(element, isForecast = false) {
     cloudContainer.style.left = '0';
     cloudContainer.style.zIndex = '2';
 
-    const cloud = document.createElement('div');
-    cloud.style.width = `${size * 0.7}px`;
-    cloud.style.height = `${size * 0.35}px`;
-    cloud.style.backgroundColor = '#FFFFFF';
-    cloud.style.borderRadius = `${size * 0.3}px`;
-    cloud.style.position = 'absolute';
-    cloud.style.bottom = '20%';
-    cloud.style.right = '5%';
-    cloud.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.3)';
-    cloud.style.animation = 'float-cloud 8s infinite alternate ease-in-out';
+    // Use cloud generator to create random clouds (fewer for partly cloudy)
+    const clouds = generateCloudGroup({
+        numClouds: isForecast ? 2 : 3,
+        containerSize: size,
+        isNight: false,
+        coverage: 0.4, // Sparse coverage for partly cloudy
+        isDark: false
+    });
 
-    // Add cloud puffs
-    for (let i = 0; i < 3; i++) {
-        const cloudPuff = document.createElement('div');
-        cloudPuff.style.width = `${size * 0.35}px`;
-        cloudPuff.style.height = `${size * 0.35}px`;
-        cloudPuff.style.backgroundColor = '#FFFFFF';
-        cloudPuff.style.borderRadius = '50%';
-        cloudPuff.style.position = 'absolute';
-        cloudPuff.style.bottom = '50%';
-        cloudPuff.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.3)';
-
-        // Position puffs
-        if (i === 0) {
-            cloudPuff.style.left = '10%';
-        } else if (i === 1) {
-            cloudPuff.style.left = '40%';
-        } else {
-            cloudPuff.style.left = '65%';
-        }
-
-        cloud.appendChild(cloudPuff);
-    }
-
-    cloudContainer.appendChild(cloud);
+    cloudContainer.appendChild(clouds);
 
     // Add elements to container
     container.appendChild(svg);
@@ -975,19 +965,17 @@ function createPartlyCloudyDayIcon(element, isForecast = false) {
             0%, 100% { opacity: 0.9; }
             50% { opacity: 1; }
         }
-        
-        @keyframes float-cloud {
-            0% { transform: translateX(-5px); }
-            100% { transform: translateX(5px); }
-        }
     `;
     document.head.appendChild(style);
 
     element.appendChild(container);
 }
 
-// Replace the existing createPartlyCloudyNightIcon function in weatherIcons.js with this improved version
-
+/**
+ * Create a partly cloudy night icon with moon, stars, and randomly generated clouds
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
 function createPartlyCloudyNightIcon(element, isForecast = false) {
     const size = isForecast ? 60 : 150;
     const container = document.createElement('div');
@@ -995,18 +983,18 @@ function createPartlyCloudyNightIcon(element, isForecast = false) {
     container.style.height = `${size}px`;
     container.style.position = 'relative';
 
-    // Stars layer - added first so they appear behind everything
+    // Stars layer
     const starsLayer = document.createElement('div');
     starsLayer.style.position = 'absolute';
     starsLayer.style.width = '100%';
     starsLayer.style.height = '100%';
     starsLayer.style.top = '0';
     starsLayer.style.left = '0';
-    starsLayer.style.zIndex = '1'; // Lower z-index for stars
+    starsLayer.style.zIndex = '1';
 
-    // Improved stars - fewer than in clear night
+    // Add stars - more than in cloudy night
     const starColors = ['#FFFFFF', '#F5F5F5', '#FFFDE7', '#FFF9C4'];
-    const starCount = isForecast ? 3 : 8;
+    const starCount = isForecast ? 6 : 15;
 
     for (let i = 0; i < starCount; i++) {
         const star = document.createElement('div');
@@ -1025,19 +1013,19 @@ function createPartlyCloudyNightIcon(element, isForecast = false) {
         star.style.boxShadow = `0 0 ${starSize * 0.5}px ${starColors[colorIndex]}`;
 
         star.style.borderRadius = '50%';
+        
+        // Position stars away from the moon
+        let validPosition = false;
+        let topPos, leftPos;
 
-        // Ensure stars don't overlap with where the moon and clouds will be
-        // Keep stars mostly in the top and edges of the container
-        let topPos = Math.random() * 60; // Mostly in the top half
-        let leftPos;
-        if (topPos < 30) {
-            // If star is higher up, allow it to be anywhere horizontally
+        while (!validPosition) {
+            topPos = Math.random() * 100;
             leftPos = Math.random() * 100;
-        } else {
-            // If star is lower, keep it toward the edges
-            leftPos = Math.random() < 0.5 ?
-                Math.random() * 30 :  // Left edge
-                70 + Math.random() * 30; // Right edge
+            
+            // Avoid placing stars in the moon area (top left)
+            if (!(topPos < 50 && leftPos < 50 && Math.sqrt(Math.pow(topPos - 25, 2) + Math.pow(leftPos - 25, 2)) < 20)) {
+                validPosition = true;
+            }
         }
 
         star.style.top = `${topPos}%`;
@@ -1050,17 +1038,16 @@ function createPartlyCloudyNightIcon(element, isForecast = false) {
         starsLayer.appendChild(star);
     }
 
-    // Add stars layer to container
     container.appendChild(starsLayer);
 
-    // Moon layer (with middle z-index)
+    // Moon layer
     const moonLayer = document.createElement('div');
     moonLayer.style.position = 'absolute';
-    moonLayer.style.width = '70%';  // Moon is smaller than in clear night
-    moonLayer.style.height = '70%';
-    moonLayer.style.top = '0';
-    moonLayer.style.left = '0';
-    moonLayer.style.zIndex = '2'; // Middle z-index for moon
+    moonLayer.style.width = '40%';
+    moonLayer.style.height = '40%';
+    moonLayer.style.top = '10%';
+    moonLayer.style.left = '10%';
+    moonLayer.style.zIndex = '2';
 
     // Create SVG for the moon
     const svgNS = "http://www.w3.org/2000/svg";
@@ -1070,13 +1057,13 @@ function createPartlyCloudyNightIcon(element, isForecast = false) {
     svg.setAttribute("viewBox", "0 0 100 100");
 
     // Create a unique filter ID for this instance
-    const filterId = `pc-moon-glow-${Math.random().toString(36).substr(2, 9)}`;
+    const filterId = `moon-glow-${Math.random().toString(36).substr(2, 9)}`;
 
     // Create defs section for filters
     const defs = document.createElementNS(svgNS, "defs");
 
     // Create radial gradient for the moon
-    const gradientId = `pc-moon-gradient-${Math.random().toString(36).substr(2, 9)}`;
+    const gradientId = `moon-gradient-${Math.random().toString(36).substr(2, 9)}`;
     const gradient = document.createElementNS(svgNS, "radialGradient");
     gradient.setAttribute("id", gradientId);
     gradient.setAttribute("cx", "50%");
@@ -1100,19 +1087,6 @@ function createPartlyCloudyNightIcon(element, isForecast = false) {
     gradient.appendChild(stop3);
     defs.appendChild(gradient);
 
-    // Create a clip path for the moon
-    const clipPathId = `pc-moon-clip-${Math.random().toString(36).substr(2, 9)}`;
-    const clipPath = document.createElementNS(svgNS, "clipPath");
-    clipPath.setAttribute("id", clipPathId);
-
-    const clipCircle = document.createElementNS(svgNS, "circle");
-    clipCircle.setAttribute("cx", "50");
-    clipCircle.setAttribute("cy", "40");
-    clipCircle.setAttribute("r", "20");
-
-    clipPath.appendChild(clipCircle);
-    defs.appendChild(clipPath);
-
     // Create glow filter for the moon
     const filter = document.createElementNS(svgNS, "filter");
     filter.setAttribute("id", filterId);
@@ -1125,133 +1099,267 @@ function createPartlyCloudyNightIcon(element, isForecast = false) {
     feGaussianBlur.setAttribute("stdDeviation", "2");
     feGaussianBlur.setAttribute("result", "blur");
 
-    const feComposite = document.createElementNS(svgNS, "feComposite");
-    feComposite.setAttribute("in", "SourceGraphic");
-    feComposite.setAttribute("in2", "blur");
-    feComposite.setAttribute("operator", "over");
-
     filter.appendChild(feGaussianBlur);
-    filter.appendChild(feComposite);
     defs.appendChild(filter);
 
-    // Create moon group
-    const moonGroup = document.createElementNS(svgNS, "g");
-
-    // Create a group with clip path for the moon and crescent
-    const clipGroup = document.createElementNS(svgNS, "g");
-    clipGroup.setAttribute("clip-path", `url(#${clipPathId})`);
-
-    // Full moon circle
+    // Create moon circle
     const moonCircle = document.createElementNS(svgNS, "circle");
     moonCircle.setAttribute("cx", "50");
-    moonCircle.setAttribute("cy", "40");
-    moonCircle.setAttribute("r", "20");
+    moonCircle.setAttribute("cy", "50");
+    moonCircle.setAttribute("r", "30");
     moonCircle.setAttribute("fill", `url(#${gradientId})`);
     moonCircle.setAttribute("filter", `url(#${filterId})`);
 
-    clipGroup.appendChild(moonCircle);
+    // Create crescent shape with a slightly offset circle mask
+    const clipPathId = `moon-clip-${Math.random().toString(36).substr(2, 9)}`;
+    const clipPath = document.createElementNS(svgNS, "clipPath");
+    clipPath.setAttribute("id", clipPathId);
 
-    // Overlay circle to create crescent (now will be clipped to moon's boundaries)
-    const crescentOverlay = document.createElementNS(svgNS, "circle");
-    crescentOverlay.setAttribute("cx", "62");
-    crescentOverlay.setAttribute("cy", "40");
-    crescentOverlay.setAttribute("r", "17");
-    crescentOverlay.setAttribute("fill", "#1C2331");
+    const clipCircle = document.createElementNS(svgNS, "circle");
+    clipCircle.setAttribute("cx", "50");
+    clipCircle.setAttribute("cy", "50");
+    clipCircle.setAttribute("r", "30");
+    clipPath.appendChild(clipCircle);
+    defs.appendChild(clipPath);
 
-    clipGroup.appendChild(crescentOverlay);
+    const moonGroup = document.createElementNS(svgNS, "g");
+    moonGroup.setAttribute("clip-path", `url(#${clipPathId})`);
 
-    // Add craters after overlay circle but still inside clip path
-    const crater1 = document.createElementNS(svgNS, "circle");
-    crater1.setAttribute("cx", "40");
-    crater1.setAttribute("cy", "42");
-    crater1.setAttribute("r", "2");
-    crater1.setAttribute("fill", "rgba(255, 250, 230, 0.3)");
-
-    const crater2 = document.createElementNS(svgNS, "circle");
-    crater2.setAttribute("cx", "38");
-    crater2.setAttribute("cy", "34");
-    crater2.setAttribute("r", "2.5");
-    crater2.setAttribute("fill", "rgba(255, 250, 230, 0.2)");
-
-    // Add all elements to the proper groups
-    clipGroup.appendChild(crater1);
-    clipGroup.appendChild(crater2);
-    moonGroup.appendChild(clipGroup);
+    // Add darkened circle to create crescent
+    const darkCircle = document.createElementNS(svgNS, "circle");
+    darkCircle.setAttribute("cx", "70");
+    darkCircle.setAttribute("cy", "50");
+    darkCircle.setAttribute("r", "25");
+    darkCircle.setAttribute("fill", "#1a2338");
+    
+    moonGroup.appendChild(moonCircle);
+    moonGroup.appendChild(darkCircle);
 
     svg.appendChild(defs);
     svg.appendChild(moonGroup);
-
     moonLayer.appendChild(svg);
     container.appendChild(moonLayer);
 
-    // Cloud layer (with highest z-index)
+    // Cloud layer - uses cloud generator with night coloring and sparse coverage
     const cloudLayer = document.createElement('div');
     cloudLayer.style.position = 'absolute';
     cloudLayer.style.width = '100%';
     cloudLayer.style.height = '100%';
     cloudLayer.style.top = '0';
     cloudLayer.style.left = '0';
-    cloudLayer.style.zIndex = '3'; // Highest z-index for clouds
+    cloudLayer.style.zIndex = '3';
 
-    // Create the cloud
-    const cloud = document.createElement('div');
-    cloud.style.width = `${size * 0.7}px`;
-    cloud.style.height = `${size * 0.4}px`;
-    cloud.style.backgroundColor = '#A5B0C3'; // Slightly lighter gray for night clouds
-    cloud.style.borderRadius = `${size * 0.3}px`;
-    cloud.style.position = 'absolute';
-    cloud.style.bottom = '20%';
-    cloud.style.right = '10%';
-    // No box shadow for flat appearance
-    cloud.style.animation = 'float-cloud 8s infinite alternate ease-in-out';
+    // Use cloud generator
+    const clouds = generateCloudGroup({
+        numClouds: isForecast ? 2 : 3,
+        containerSize: size,
+        isNight: true,
+        coverage: 0.4, // Sparse coverage for partly cloudy
+        isDark: false
+    });
 
-    // Add cloud puffs
-    for (let i = 0; i < 3; i++) {
-        const cloudPuff = document.createElement('div');
-        cloudPuff.style.width = `${size * 0.35}px`;
-        cloudPuff.style.height = `${size * 0.35}px`;
-        cloudPuff.style.backgroundColor = '#A5B0C3';
-        cloudPuff.style.borderRadius = '50%';
-        cloudPuff.style.position = 'absolute';
-        cloudPuff.style.bottom = '50%';
-        // No box shadow for flat appearance
-
-        // Position puffs
-        if (i === 0) {
-            cloudPuff.style.left = '10%';
-        } else if (i === 1) {
-            cloudPuff.style.left = '40%';
-        } else {
-            cloudPuff.style.left = '65%';
-        }
-
-        cloud.appendChild(cloudPuff);
-    }
-
-    cloudLayer.appendChild(cloud);
+    cloudLayer.appendChild(clouds);
     container.appendChild(cloudLayer);
 
-    // Add animations if not already added
-    if (!document.getElementById('pc-night-animations')) {
-        const animStyle = document.createElement('style');
-        animStyle.id = 'pc-night-animations';
-        animStyle.textContent = `
-            @keyframes twinkle-star {
-                0%, 100% { opacity: 0.2; transform: scale(1); }
-                50% { opacity: 1; transform: scale(1.5); }
-            }
-            
-            @keyframes float-cloud {
-                0% { transform: translateX(-5px) translateY(0); }
-                100% { transform: translateX(5px) translateY(-5px); }
-            }
-        `;
-        document.head.appendChild(animStyle);
-    }
+    // Add animations
+    const animStyle = document.createElement('style');
+    animStyle.innerHTML = `
+        @keyframes twinkle-star {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+        }
+    `;
+    document.head.appendChild(animStyle);
 
     element.appendChild(container);
 }
 
+//----------------------------------------------------------------------
+// PRECIPITATION ICON FUNCTIONS
+//----------------------------------------------------------------------
+
+/**
+ * Create a rain icon with clouds and animated raindrops
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
+function createRainIcon(element, isForecast = false) {
+    const size = isForecast ? 60 : 150;
+    const container = document.createElement('div');
+    container.style.width = `${size}px`;
+    container.style.height = `${size}px`;
+    container.style.position = 'relative';
+
+    // Use cloud generator with darker gray clouds for rain
+    const clouds = generateCloudGroup({
+        numClouds: isForecast ? 2 : 3,
+        containerSize: size,
+        isNight: false,
+        coverage: 0.8, // High coverage for rain
+        isDark: false
+    });
+
+    // Add raindrops
+    const numDrops = isForecast ? 6 : 14;
+    for (let i = 0; i < numDrops; i++) {
+        const drop = document.createElement('div');
+        drop.style.width = `${size * 0.03}px`;
+        drop.style.height = `${size * 0.1}px`;
+        drop.style.backgroundColor = '#61A8FF';
+        drop.style.borderRadius = `${size * 0.03}px`;
+        drop.style.position = 'absolute';
+        drop.style.top = `${Math.random() * 30 + 60}%`;
+        drop.style.left = `${Math.random() * 80 + 10}%`;
+        drop.style.animation = `rainDrop ${Math.random() * 0.5 + 1}s infinite linear`;
+
+        // Set animation delay
+        drop.style.animationDelay = `${Math.random()}s`;
+
+        container.appendChild(drop);
+    }
+
+    container.appendChild(clouds);
+    element.appendChild(container);
+
+    // Add animation for raindrops
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes rainDrop {
+            0% { transform: translateY(-10px); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(${size * 0.5}px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+/**
+ * Create a snow icon with clouds and animated snowflakes
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
+function createSnowIcon(element, isForecast = false) {
+    const size = isForecast ? 60 : 150;
+    const container = document.createElement('div');
+    container.style.width = `${size}px`;
+    container.style.height = `${size}px`;
+    container.style.position = 'relative';
+
+    // Use cloud generator
+    const clouds = generateCloudGroup({
+        numClouds: isForecast ? 2 : 3,
+        containerSize: size,
+        isNight: false,
+        coverage: 0.8, // High coverage for snow
+        isDark: false
+    });
+
+    // Add snowflakes
+    const numFlakes = isForecast ? 5 : 10;
+    for (let i = 0; i < numFlakes; i++) {
+        const snowflake = document.createElement('div');
+        snowflake.textContent = '❄';
+        snowflake.style.position = 'absolute';
+        snowflake.style.color = 'white';
+        snowflake.style.fontSize = `${size * 0.1}px`;
+        snowflake.style.top = `${Math.random() * 30 + 60}%`;
+        snowflake.style.left = `${Math.random() * 80 + 10}%`;
+        snowflake.style.animation = `snowfall ${Math.random() * 2 + 3}s infinite linear`;
+        snowflake.style.animationDelay = `${Math.random() * 2}s`;
+        container.appendChild(snowflake);
+    }
+
+    container.appendChild(clouds);
+    element.appendChild(container);
+
+    // Add animation for snowflakes
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes snowfall {
+            0% { transform: translateY(-10px) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(${size * 0.5}px) rotate(360deg); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+/**
+ * Create a sleet icon with clouds and mixed precipitation (rain + snow)
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
+function createSleetIcon(element, isForecast = false) {
+    const size = isForecast ? 60 : 150;
+    const container = document.createElement('div');
+    container.style.width = `${size}px`;
+    container.style.height = `${size}px`;
+    container.style.position = 'relative';
+
+    // Use cloud generator
+    const clouds = generateCloudGroup({
+        numClouds: isForecast ? 2 : 3,
+        containerSize: size,
+        isNight: false,
+        coverage: 0.8, // High coverage for sleet
+        isDark: false
+    });
+
+    // Mix of rain and snow elements
+    const numElements = isForecast ? 6 : 12;
+    for (let i = 0; i < numElements; i++) {
+        if (i % 2 === 0) {
+            // Raindrop for sleet
+            const drop = document.createElement('div');
+            drop.style.width = `${size * 0.03}px`;
+            drop.style.height = `${size * 0.1}px`;
+            drop.style.backgroundColor = '#61A8FF';
+            drop.style.borderRadius = `${size * 0.03}px`;
+            drop.style.position = 'absolute';
+            drop.style.top = `${Math.random() * 30 + 60}%`;
+            drop.style.left = `${Math.random() * 80 + 10}%`;
+            drop.style.animation = `rainDrop ${Math.random() * 0.5 + 1}s infinite linear`;
+            drop.style.animationDelay = `${Math.random() * 2}s`;
+            container.appendChild(drop);
+        } else {
+            // Small ice pellet for sleet
+            const pellet = document.createElement('div');
+            pellet.style.width = `${size * 0.05}px`;
+            pellet.style.height = `${size * 0.05}px`;
+            pellet.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+            pellet.style.borderRadius = '50%';
+            pellet.style.position = 'absolute';
+            pellet.style.top = `${Math.random() * 30 + 60}%`;
+            pellet.style.left = `${Math.random() * 80 + 10}%`;
+            pellet.style.animation = `sleetPellet ${Math.random() * 1 + 2}s infinite linear`;
+            pellet.style.animationDelay = `${Math.random() * 2}s`;
+            container.appendChild(pellet);
+        }
+    }
+
+    container.appendChild(clouds);
+    element.appendChild(container);
+
+    // Add animations
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes sleetPellet {
+            0% { transform: translateY(-10px); opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { transform: translateY(${size * 0.5}px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+/**
+ * Create a thunderstorm icon with dark clouds, lightning and rain
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
 function createThunderstormIcon(element, isForecast = false) {
     const size = isForecast ? 60 : 150;
     const container = document.createElement('div');
@@ -1259,39 +1367,16 @@ function createThunderstormIcon(element, isForecast = false) {
     container.style.height = `${size}px`;
     container.style.position = 'relative';
 
-    // Cloud (darker for thunderstorm)
-    const cloud = document.createElement('div');
-    cloud.style.width = `${size * 0.8}px`;
-    cloud.style.height = `${size * 0.4}px`;
-    cloud.style.backgroundColor = '#555555';
-    cloud.style.borderRadius = `${size * 0.4}px`;
-    cloud.style.position = 'absolute';
-    cloud.style.top = '20%';
-    cloud.style.left = '10%';
+    // Use cloud generator with dark storm clouds
+    const clouds = generateCloudGroup({
+        numClouds: isForecast ? 2 : 4,
+        containerSize: size,
+        isNight: false,
+        coverage: 0.8, // High coverage for thunderstorm
+        isDark: true // Dark storm clouds
+    });
 
-    // Cloud details
-    const cloudDetail1 = document.createElement('div');
-    cloudDetail1.style.width = `${size * 0.4}px`;
-    cloudDetail1.style.height = `${size * 0.4}px`;
-    cloudDetail1.style.backgroundColor = '#555555';
-    cloudDetail1.style.borderRadius = '50%';
-    cloudDetail1.style.position = 'absolute';
-    cloudDetail1.style.top = '-50%';
-    cloudDetail1.style.left = '20%';
-
-    const cloudDetail2 = document.createElement('div');
-    cloudDetail2.style.width = `${size * 0.5}px`;
-    cloudDetail2.style.height = `${size * 0.5}px`;
-    cloudDetail2.style.backgroundColor = '#555555';
-    cloudDetail2.style.borderRadius = '50%';
-    cloudDetail2.style.position = 'absolute';
-    cloudDetail2.style.top = '-60%';
-    cloudDetail2.style.left = '50%';
-
-    cloud.appendChild(cloudDetail1);
-    cloud.appendChild(cloudDetail2);
-
-    // Improved Lightning bolt - using SVG for better control
+    // Improved Lightning bolt using SVG
     const lightning = document.createElement('div');
     lightning.style.position = 'absolute';
     lightning.style.top = '50%';
@@ -1316,8 +1401,8 @@ function createThunderstormIcon(element, isForecast = false) {
     svg.appendChild(path);
     lightning.appendChild(svg);
 
-    // Raindrops (fewer than in rain icon)
-    const numDrops = isForecast ? 3 : 6;
+    // Add raindrops (fewer than in rain icon)
+    const numDrops = isForecast ? 4 : 8;
     for (let i = 0; i < numDrops; i++) {
         const drop = document.createElement('div');
         drop.style.width = `${size * 0.03}px`;
@@ -1340,7 +1425,7 @@ function createThunderstormIcon(element, isForecast = false) {
         container.appendChild(drop);
     }
 
-    container.appendChild(cloud);
+    container.appendChild(clouds);
     container.appendChild(lightning);
     element.appendChild(container);
 
@@ -1360,6 +1445,300 @@ function createThunderstormIcon(element, isForecast = false) {
             10% { opacity: 1; }
             90% { opacity: 1; }
             100% { transform: translateY(${size * 0.4}px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+//----------------------------------------------------------------------
+// WIND AND FOG ICON FUNCTIONS
+//----------------------------------------------------------------------
+
+/**
+ * Create a wind icon with flowing curves and particles
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
+function createWindIcon(element, isForecast = false) {
+    const size = isForecast ? 60 : 150;
+    const container = document.createElement('div');
+    container.style.width = `${size}px`;
+    container.style.height = `${size}px`;
+    container.style.position = 'relative';
+    
+    // Create SVG element for better curve control
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("width", "100%");
+    svg.setAttribute("height", "100%");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    
+    // Create defs for gradients
+    const defs = document.createElementNS(svgNS, "defs");
+    
+    // Add gradient for wind lines
+    const windGradient = document.createElementNS(svgNS, "linearGradient");
+    windGradient.setAttribute("id", "windGradient");
+    windGradient.setAttribute("x1", "0%");
+    windGradient.setAttribute("y1", "0%");
+    windGradient.setAttribute("x2", "100%");
+    windGradient.setAttribute("y2", "0%");
+    
+    const stop1 = document.createElementNS(svgNS, "stop");
+    stop1.setAttribute("offset", "0%");
+    stop1.setAttribute("stop-color", "#A5B0C3");
+    stop1.setAttribute("stop-opacity", "0.3");
+    
+    const stop2 = document.createElementNS(svgNS, "stop");
+    stop2.setAttribute("offset", "50%");
+    stop2.setAttribute("stop-color", "#C8D4E6");
+    stop2.setAttribute("stop-opacity", "0.9");
+    
+    const stop3 = document.createElementNS(svgNS, "stop");
+    stop3.setAttribute("offset", "100%");
+    stop3.setAttribute("stop-color", "#A5B0C3");
+    stop3.setAttribute("stop-opacity", "0.3");
+    
+    windGradient.appendChild(stop1);
+    windGradient.appendChild(stop2);
+    windGradient.appendChild(stop3);
+    defs.appendChild(windGradient);
+    
+    // Add filter for soft glow
+    const filter = document.createElementNS(svgNS, "filter");
+    filter.setAttribute("id", "windGlow");
+    filter.setAttribute("x", "-20%");
+    filter.setAttribute("y", "-20%");
+    filter.setAttribute("width", "140%");
+    filter.setAttribute("height", "140%");
+    
+    const feGaussianBlur = document.createElementNS(svgNS, "feGaussianBlur");
+    feGaussianBlur.setAttribute("stdDeviation", "1");
+    feGaussianBlur.setAttribute("result", "blur");
+    filter.appendChild(feGaussianBlur);
+    
+    defs.appendChild(filter);
+    svg.appendChild(defs);
+    
+    // Create wind path geometries - more flowing and natural
+    const windPaths = [
+        // First wind stream (top)
+        {
+            d: "M10,25 C30,22 50,28 90,20",
+            width: 3.5,
+            animDelay: 0,
+            animDuration: 4
+        },
+        // Second wind stream (upper middle)
+        {
+            d: "M5,40 C30,35 55,45 95,35",
+            width: 4,
+            animDelay: 0.5,
+            animDuration: 3.5
+        },
+        // Third wind stream (middle)
+        {
+            d: "M8,55 C35,50 60,60 92,50",
+            width: 4.5,
+            animDelay: 1,
+            animDuration: 4.5
+        },
+        // Fourth wind stream (lower middle)
+        {
+            d: "M6,70 C40,65 70,75 92,65",
+            width: 4,
+            animDelay: 1.5,
+            animDuration: 4
+        },
+        // Fifth wind stream (bottom)
+        {
+            d: "M12,85 C40,80 70,90 88,80",
+            width: 3.5,
+            animDelay: 0.8,
+            animDuration: 3.8
+        }
+    ];
+    
+    // Create and add wind streams to SVG
+    windPaths.forEach((pathData, index) => {
+        // Create the main path for each wind stream
+        const windPath = document.createElementNS(svgNS, "path");
+        windPath.setAttribute("d", pathData.d);
+        windPath.setAttribute("fill", "none");
+        windPath.setAttribute("stroke", "url(#windGradient)");
+        windPath.setAttribute("stroke-width", pathData.width);
+        windPath.setAttribute("stroke-linecap", "round");
+        windPath.setAttribute("filter", "url(#windGlow)");
+        windPath.setAttribute("class", `wind-path-${index}`);
+        
+        // Add animation for the wind stream
+        const animate = document.createElementNS(svgNS, "animate");
+        animate.setAttribute("attributeName", "stroke-dashoffset");
+        animate.setAttribute("from", "200");
+        animate.setAttribute("to", "0");
+        animate.setAttribute("dur", `${pathData.animDuration}s`);
+        animate.setAttribute("begin", `${pathData.animDelay}s`);
+        animate.setAttribute("repeatCount", "indefinite");
+        
+        windPath.appendChild(animate);
+        
+        // Set dash pattern for animation
+        windPath.setAttribute("stroke-dasharray", "25, 15");
+        
+        svg.appendChild(windPath);
+        
+        // Add small particle groups being blown along the path
+        if (!isForecast) { // Only add particles for the main icon, not forecast icons
+            addParticlesAlongPath(svg, pathData.d, index, pathData.animDuration - 0.5);
+        }
+    });
+    
+    container.appendChild(svg);
+    
+    // Add keyframes for particle animation
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes moveAlongPath0 {
+            0% { offset-distance: 0%; opacity: 0; }
+            10% { opacity: 0.7; }
+            90% { opacity: 0.7; }
+            100% { offset-distance: 100%; opacity: 0; }
+        }
+        @keyframes moveAlongPath1 {
+            0% { offset-distance: 0%; opacity: 0; }
+            10% { opacity: 0.7; }
+            90% { opacity: 0.7; }
+            100% { offset-distance: 100%; opacity: 0; }
+        }
+        @keyframes moveAlongPath2 {
+            0% { offset-distance: 0%; opacity: 0; }
+            10% { opacity: 0.7; }
+            90% { opacity: 0.7; }
+            100% { offset-distance: 100%; opacity: 0; }
+        }
+        @keyframes moveAlongPath3 {
+            0% { offset-distance: 0%; opacity: 0; }
+            10% { opacity: 0.7; }
+            90% { opacity: 0.7; }
+            100% { offset-distance: 100%; opacity: 0; }
+        }
+        @keyframes moveAlongPath4 {
+            0% { offset-distance: 0%; opacity: 0; }
+            10% { opacity: 0.7; }
+            90% { opacity: 0.7; }
+            100% { offset-distance: 100%; opacity: 0; }
+        }
+        @keyframes spinParticle {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    element.appendChild(container);
+}
+
+/**
+ * Add particle groups that follow a defined SVG path
+ * @param {SVGElement} svg - SVG element to append particles to
+ * @param {string} pathDef - SVG path definition
+ * @param {number} pathIndex - Index of the path (for unique animations)
+ * @param {number} duration - Animation duration in seconds
+ */
+function addParticlesAlongPath(svg, pathDef, pathIndex, duration) {
+    const svgNS = "http://www.w3.org/2000/svg";
+    
+    // Create a hidden path for particles to follow
+    const guidePath = document.createElementNS(svgNS, "path");
+    guidePath.setAttribute("d", pathDef);
+    guidePath.setAttribute("fill", "none");
+    guidePath.setAttribute("stroke", "none");
+    guidePath.setAttribute("id", `guide-path-${pathIndex}`);
+    svg.appendChild(guidePath);
+    
+    // Add particle groups along the path
+    const numParticles = 3; // Number of particle groups per path
+    
+    for (let i = 0; i < numParticles; i++) {
+        const particleGroup = document.createElementNS(svgNS, "g");
+        particleGroup.setAttribute("class", "particle-group");
+        
+        // Use motion path for movement
+        particleGroup.style.offsetPath = `path('${pathDef}')`;
+        particleGroup.style.animation = `moveAlongPath${pathIndex} ${duration}s infinite linear`;
+        particleGroup.style.animationDelay = `${i * (duration / numParticles)}s`;
+        
+        // Create particles in the group (small circles and lines)
+        const shapes = [
+            { type: 'circle', cx: 0, cy: 0, r: 1.2 },
+            { type: 'circle', cx: 2, cy: 1, r: 0.8 },
+            { type: 'circle', cx: -1, cy: 1, r: 0.6 },
+            { type: 'line', x1: -2, y1: 0, x2: 2, y2: 0 },
+            { type: 'line', x1: 0, y1: -2, x2: 0, y2: 2 },
+        ];
+        
+        shapes.forEach(shape => {
+            let element;
+            if (shape.type === 'circle') {
+                element = document.createElementNS(svgNS, "circle");
+                element.setAttribute("cx", shape.cx);
+                element.setAttribute("cy", shape.cy);
+                element.setAttribute("r", shape.r);
+                element.setAttribute("fill", "#E8F1FF");
+            } else {
+                element = document.createElementNS(svgNS, "line");
+                element.setAttribute("x1", shape.x1);
+                element.setAttribute("y1", shape.y1);
+                element.setAttribute("x2", shape.x2);
+                element.setAttribute("y2", shape.y2);
+                element.setAttribute("stroke", "#E8F1FF");
+                element.setAttribute("stroke-width", "0.5");
+            }
+            
+            // Add subtle rotation animation to particles
+            element.style.animation = `spinParticle ${Math.random() * 2 + 3}s infinite linear`;
+            particleGroup.appendChild(element);
+        });
+        
+        svg.appendChild(particleGroup);
+    }
+}
+
+/**
+ * Create a fog icon with animated fog layers
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
+function createFogIcon(element, isForecast = false) {
+    const size = isForecast ? 60 : 150;
+    const container = document.createElement('div');
+    container.style.width = `${size}px`;
+    container.style.height = `${size}px`;
+    container.style.position = 'relative';
+
+    // Create fog layers
+    for (let i = 0; i < 5; i++) {
+        const fogLayer = document.createElement('div');
+        fogLayer.style.width = `${size * 0.8}px`;
+        fogLayer.style.height = `${size * 0.1}px`;
+        fogLayer.style.backgroundColor = 'rgba(204, 204, 204, 0.8)';
+        fogLayer.style.borderRadius = `${size * 0.05}px`;
+        fogLayer.style.position = 'absolute';
+        fogLayer.style.top = `${30 + i * 15}%`;
+        fogLayer.style.left = '10%';
+        fogLayer.style.animation = `fogFloat 4s infinite alternate ${i * 0.3}s ease-in-out`;
+
+        container.appendChild(fogLayer);
+    }
+
+    element.appendChild(container);
+
+    // Add animation for fog layers
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes fogFloat {
+            0% { transform: translateX(-5%); opacity: 0.7; }
+            100% { transform: translateX(5%); opacity: 0.9; }
         }
     `;
     document.head.appendChild(style);

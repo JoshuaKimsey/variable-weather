@@ -83,14 +83,14 @@ export function setWeatherBackground(iconCode, isDaytime = true) {
  * @param {string} iconCode - The weather icon code to match against
  */
 function applyNightBackgroundByPattern(iconCode) {
-    // Patterns for night conditions
+    // Patterns for night conditions (updated with the new night backgrounds)
     const nightPatterns = [
         { pattern: ['rain', 'shower'], handler: setBackgroundRainNight, message: 'Using night rain background (pattern match)' },
         { pattern: ['cloud', 'ovc', 'bkn', 'few', 'sct'], handler: setBackgroundCloudyNight, message: 'Using night cloudy background (pattern match)' },
         { pattern: ['thunder', 'tsra'], handler: setBackgroundThunderstorm, message: 'Using thunderstorm background' },
-        { pattern: ['fog', 'haze', 'smoke'], handler: setBackgroundFog, message: 'Using fog background' },
-        { pattern: ['snow', 'blizzard'], handler: setBackgroundSnow, message: 'Using snow background' },
-        { pattern: ['sleet', 'fzra'], handler: setBackgroundSleet, message: 'Using sleet background' },
+        { pattern: ['fog', 'haze', 'smoke'], handler: setBackgroundFogNight, message: 'Using night fog background (pattern match)' },
+        { pattern: ['snow', 'blizzard'], handler: setBackgroundSnowNight, message: 'Using night snow background (pattern match)' },
+        { pattern: ['sleet', 'fzra'], handler: setBackgroundSleetNight, message: 'Using night sleet background (pattern match)' },
         { pattern: ['wind'], handler: setBackgroundWindNight, message: 'Using night wind background' },
         { pattern: ['clear', 'skc'], handler: setBackgroundClearNight, message: 'Using clear night background' }
     ];
@@ -729,6 +729,240 @@ function setBackgroundWindNight() {
     document.head.appendChild(style);
 }
 
+/**
+ * Snow conditions during nighttime
+ * Dark blue-gray gradient with animated snowflakes and stars
+ */
+function setBackgroundSnowNight() {
+    // Dark blue-gray gradient for night sky
+    document.body.style.background = 'linear-gradient(to bottom, #0c1220 0%, #1a2338 50%, #2c3e60 100%)';
+    
+    // Add sparse stars in the background
+    for (let i = 0; i < 20; i++) {
+        const star = document.createElement('div');
+        star.className = 'animation-element star';
+        star.style.top = `${Math.random() * 70}%`; // Keep stars mostly in the upper portion
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.opacity = Math.random() * 0.4 + 0.1; // Faint stars
+        star.style.animationDuration = `${Math.random() * 3 + 2}s`;
+        weatherBackground.appendChild(star);
+    }
+
+    // Add snowflakes with adjusted colors for night
+    for (let i = 0; i < 50; i++) {
+        const snowflake = document.createElement('div');
+        snowflake.className = 'animation-element snowflake';
+        snowflake.textContent = '❄';
+        snowflake.style.left = `${Math.random() * 100}%`;
+        snowflake.style.opacity = Math.random() * 0.5 + 0.5; // More visible against dark
+        snowflake.style.fontSize = `${Math.random() * 15 + 5}px`;
+        snowflake.style.color = 'rgba(220, 240, 255, 0.8)'; // Slightly blue-tinted white
+        snowflake.style.animationDuration = `${Math.random() * 3 + 5}s`;
+        snowflake.style.animationDelay = `${Math.random() * 5}s`;
+        snowflake.style.textShadow = '0 0 2px rgba(255, 255, 255, 0.3)'; // Subtle glow
+        weatherBackground.appendChild(snowflake);
+    }
+    
+    // Add a subtle fog layer at the bottom for depth
+    const fogLayer = document.createElement('div');
+    fogLayer.style.position = 'absolute';
+    fogLayer.style.bottom = '0';
+    fogLayer.style.left = '0';
+    fogLayer.style.width = '100%';
+    fogLayer.style.height = '30%';
+    fogLayer.style.background = 'linear-gradient(to top, rgba(40, 55, 90, 0.6) 0%, rgba(40, 55, 90, 0) 100%)';
+    fogLayer.style.zIndex = '1';
+    weatherBackground.appendChild(fogLayer);
+}
+
+/**
+ * Sleet or mixed precipitation during nighttime
+ * Dark blue-purple gradient with mixed precipitation and stars
+ */
+function setBackgroundSleetNight() {
+    // Dark blue-purple gradient for night sky
+    document.body.style.background = 'linear-gradient(to bottom, #0c1220 0%, #1c2840 70%, #2a3a55 100%)';
+    
+    // Add sparse stars in the background
+    for (let i = 0; i < 15; i++) {
+        const star = document.createElement('div');
+        star.className = 'animation-element star';
+        star.style.top = `${Math.random() * 40}%`; // Keep stars in the upper portion
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.opacity = Math.random() * 0.3 + 0.1; // Very faint stars - weather is not clear
+        star.style.animationDuration = `${Math.random() * 3 + 2}s`;
+        weatherBackground.appendChild(star);
+    }
+    
+    // Dark cloud layer
+    const cloudLayer = document.createElement('div');
+    cloudLayer.style.position = 'absolute';
+    cloudLayer.style.top = '10%';
+    cloudLayer.style.left = '0';
+    cloudLayer.style.width = '100%';
+    cloudLayer.style.height = '40%';
+    cloudLayer.style.background = 'rgba(25, 30, 45, 0.7)';
+    cloudLayer.style.borderRadius = '50% 50% 0 0 / 100% 100% 0 0';
+    cloudLayer.style.transform = 'scaleX(1.5)';
+    cloudLayer.style.zIndex = '1';
+    weatherBackground.appendChild(cloudLayer);
+
+    // Mix of rain and snow elements with night colors
+    for (let i = 0; i < 70; i++) {
+        if (i % 2 === 0) {
+            // Rain droplet for sleet - with blue tint for night
+            const droplet = document.createElement('div');
+            droplet.className = 'animation-element droplet';
+            droplet.style.left = `${Math.random() * 100}%`;
+            droplet.style.opacity = Math.random() * 0.5 + 0.5;
+            droplet.style.backgroundColor = 'rgba(150, 190, 255, 0.7)'; // Blueish for night
+            droplet.style.width = '1.5px';
+            droplet.style.height = `${Math.random() * 20 + 10}px`;
+            droplet.style.animationDuration = `${Math.random() * 0.5 + 0.7}s`;
+            droplet.style.animationDelay = `${Math.random() * 2}s`;
+            droplet.style.boxShadow = '0 0 2px rgba(150, 190, 255, 0.3)'; // Subtle glow
+            weatherBackground.appendChild(droplet);
+        } else {
+            // Snowflake or ice pellet for sleet
+            if (Math.random() > 0.5) {
+                // Small ice pellet
+                const pellet = document.createElement('div');
+                pellet.style.position = 'absolute';
+                pellet.style.width = '3px';
+                pellet.style.height = '3px';
+                pellet.style.backgroundColor = 'rgba(200, 230, 255, 0.8)';
+                pellet.style.borderRadius = '50%';
+                pellet.style.left = `${Math.random() * 100}%`;
+                pellet.style.top = `${Math.random() * 30 + 40}%`;
+                pellet.style.boxShadow = '0 0 2px rgba(200, 230, 255, 0.4)';
+                pellet.style.animation = `sleetPellet ${Math.random() * 1 + 1.5}s infinite linear`;
+                pellet.style.animationDelay = `${Math.random() * 2}s`;
+                weatherBackground.appendChild(pellet);
+            } else {
+                // Small snowflake character
+                const snowflake = document.createElement('div');
+                snowflake.className = 'animation-element snowflake';
+                snowflake.textContent = '❄';
+                snowflake.style.color = 'rgba(200, 230, 255, 0.8)';
+                snowflake.style.left = `${Math.random() * 100}%`;
+                snowflake.style.top = `${Math.random() * 30 + 40}%`;
+                snowflake.style.fontSize = `${Math.random() * 8 + 4}px`;
+                snowflake.style.opacity = Math.random() * 0.6 + 0.4;
+                snowflake.style.textShadow = '0 0 2px rgba(200, 230, 255, 0.4)';
+                snowflake.style.animationDuration = `${Math.random() * 2 + 2}s`;
+                snowflake.style.animationDelay = `${Math.random() * 3}s`;
+                weatherBackground.appendChild(snowflake);
+            }
+        }
+    }
+    
+    // Add a subtle fog layer at the bottom
+    const fogLayer = document.createElement('div');
+    fogLayer.style.position = 'absolute';
+    fogLayer.style.bottom = '0';
+    fogLayer.style.left = '0';
+    fogLayer.style.width = '100%';
+    fogLayer.style.height = '25%';
+    fogLayer.style.background = 'linear-gradient(to top, rgba(35, 45, 70, 0.7) 0%, rgba(35, 45, 70, 0) 100%)';
+    fogLayer.style.zIndex = '2';
+    weatherBackground.appendChild(fogLayer);
+}
+
+/**
+ * Foggy conditions during nighttime
+ * Dark blue-gray gradient with animated fog layers and subtle stars
+ */
+function setBackgroundFogNight() {
+    // Dark gray-blue gradient
+    document.body.style.background = 'linear-gradient(to bottom, #131824 0%, #1c2535 60%, #2a354a 100%)';
+    
+    // Add very few stars - only visible through gaps in fog
+    for (let i = 0; i < 8; i++) {
+        const star = document.createElement('div');
+        star.className = 'animation-element star';
+        star.style.top = `${Math.random() * 30}%`; 
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.opacity = Math.random() * 0.15 + 0.05; // Very faint stars
+        star.style.animationDuration = `${Math.random() * 3 + 2}s`;
+        weatherBackground.appendChild(star);
+    }
+    
+    // Subtle moonlight effect at the top
+    const moonGlow = document.createElement('div');
+    moonGlow.style.position = 'absolute';
+    moonGlow.style.top = '0';
+    moonGlow.style.left = '40%';
+    moonGlow.style.width = '20%';
+    moonGlow.style.height = '10%';
+    moonGlow.style.background = 'radial-gradient(circle, rgba(200, 215, 255, 0.2) 0%, rgba(200, 215, 255, 0) 70%)';
+    moonGlow.style.borderRadius = '50%';
+    moonGlow.style.zIndex = '1';
+    weatherBackground.appendChild(moonGlow);
+
+    // Add multiple fog layers with varied opacity and motion
+    const fogLayers = [
+        { height: '30%', top: '0%', opacity: 0.5, duration: 60, direction: 1 },
+        { height: '25%', top: '20%', opacity: 0.6, duration: 45, direction: -1 },
+        { height: '20%', top: '40%', opacity: 0.7, duration: 50, direction: 1 },
+        { height: '30%', top: '60%', opacity: 0.8, duration: 40, direction: -1 },
+        { height: '20%', top: '80%', opacity: 0.9, duration: 55, direction: 1 }
+    ];
+    
+    fogLayers.forEach((layer, index) => {
+        const fog = document.createElement('div');
+        fog.style.position = 'absolute';
+        fog.style.height = layer.height;
+        fog.style.top = layer.top;
+        fog.style.left = layer.direction > 0 ? '-50%' : '0%';
+        fog.style.width = '150%';
+        fog.style.background = `linear-gradient(to ${layer.direction > 0 ? 'right' : 'left'}, 
+                              rgba(50, 60, 80, 0) 0%, 
+                              rgba(50, 60, 80, ${layer.opacity}) 20%, 
+                              rgba(50, 60, 80, ${layer.opacity}) 80%, 
+                              rgba(50, 60, 80, 0) 100%)`;
+        fog.style.animation = `fogNightMove${index} ${layer.duration}s infinite linear`;
+        fog.style.zIndex = '2';
+        weatherBackground.appendChild(fog);
+        
+        // Create keyframes for this specific fog layer
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes fogNightMove${index} {
+                0% { transform: translateX(0%); }
+                100% { transform: translateX(${layer.direction > 0 ? '100%' : '-100%'}); }
+            }
+        `;
+        document.head.appendChild(style);
+    });
+
+    // Add some floating fog particles
+    for (let i = 0; i < 20; i++) {
+        const fogParticle = document.createElement('div');
+        fogParticle.style.position = 'absolute';
+        fogParticle.style.width = `${Math.random() * 100 + 50}px`;
+        fogParticle.style.height = `${Math.random() * 40 + 20}px`;
+        fogParticle.style.borderRadius = '50%';
+        fogParticle.style.backgroundColor = 'rgba(60, 70, 90, 0.3)';
+        fogParticle.style.top = `${Math.random() * 80 + 10}%`;
+        fogParticle.style.left = `${Math.random() * 100}%`;
+        fogParticle.style.animation = `fogParticleFloat ${Math.random() * 20 + 40}s infinite alternate ease-in-out`;
+        fogParticle.style.animationDelay = `${Math.random() * 20}s`;
+        fogParticle.style.zIndex = '3';
+        weatherBackground.appendChild(fogParticle);
+    }
+    
+    // Add animation for fog particles
+    const particleStyle = document.createElement('style');
+    particleStyle.innerHTML = `
+        @keyframes fogParticleFloat {
+            0% { transform: translateX(-30px) translateY(0); opacity: 0.2; }
+            50% { opacity: 0.5; }
+            100% { transform: translateX(30px) translateY(-20px); opacity: 0.2; }
+        }
+    `;
+    document.head.appendChild(particleStyle);
+}
+
 //----------------------------------------------------------------------
 // HELPER FUNCTIONS
 //----------------------------------------------------------------------
@@ -846,6 +1080,23 @@ const WEATHER_BACKGROUND_MAPPING = {
     'ntropical_storm': setBackgroundRainNight, // tropical storm night
     'novc': setBackgroundCloudyNight, // overcast clouds night
     'nwind': setBackgroundWindNight, // wind night
+
+    // Night versions for snow
+    'nsnow': setBackgroundSnowNight,
+    'nblizzard': setBackgroundSnowNight,
+    
+    // Night versions for sleet/freezing rain
+    'nsleet': setBackgroundSleetNight,
+    'nfzra': setBackgroundSleetNight,
+    'nrain_snow': setBackgroundSleetNight,
+    'nrain_sleet': setBackgroundSleetNight,
+    'nsnow_sleet': setBackgroundSleetNight,
+    
+    // Night version for fog
+    'nfog': setBackgroundFogNight,
+    'ndust': setBackgroundFogNight,
+    'nsmoke': setBackgroundFogNight,
+    'nhaze': setBackgroundFogNight,
     
     // Pirate Weather backgrounds (fallback)
     'clear-day': setBackgroundClearDay,

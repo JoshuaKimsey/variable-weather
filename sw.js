@@ -1,6 +1,9 @@
-// Service Worker for Weather App
+// Service Worker for Weather App with update support
 
-const CACHE_NAME = 'variable-weather-cache';
+// App version - keep this in sync with the main app version
+const SW_VERSION = '0.0.1';
+const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
+
 const ASSETS = [
   '/variable-weather/',
   '/variable-weather/index.html',
@@ -14,6 +17,7 @@ const ASSETS = [
   '/variable-weather/js/config.js',
   '/variable-weather/js/weatherIcons.js',
   '/variable-weather/js/weatherBackgrounds.js',
+  '/variable-weather/js/pwaUpdates.js',
   // Add fonts, images, and other assets as needed
   '/variable-weather/resources/bootstrap/css/bootstrap.min.css',
   '/variable-weather/resources/font-awesome/all.min.css',
@@ -24,7 +28,8 @@ const ASSETS = [
 
 // Install event - cache the app shell
 self.addEventListener('install', event => {
-  console.log('[Service Worker] Install');
+  console.log('[Service Worker] Installing new version:', SW_VERSION);
+  
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -32,14 +37,27 @@ self.addEventListener('install', event => {
         return cache.addAll(ASSETS);
       })
       .then(() => {
-        return self.skipWaiting();
+        // Skip waiting is commented out to allow the user to control updates
+        // return self.skipWaiting();
+        console.log('[Service Worker] Installed and waiting for activation');
       })
   );
+  
+  // Notify clients about the new version
+  self.clients.matchAll().then(clients => {
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'VERSION_CHANGE',
+        version: SW_VERSION
+      });
+    });
+  });
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', event => {
-  console.log('[Service Worker] Activate');
+  console.log('[Service Worker] Activating new version:', SW_VERSION);
+  
   event.waitUntil(
     caches.keys().then(keyList => {
       return Promise.all(keyList.map(key => {
@@ -49,19 +67,27 @@ self.addEventListener('activate', event => {
         }
       }));
     })
-      .then(() => {
-        return self.clients.claim();
-      })
+    .then(() => {
+      console.log('[Service Worker] Version', SW_VERSION, 'now active');
+      return self.clients.claim();
+    })
   );
+});
+
+// Listen for the skipWaiting message
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[Service Worker] Skip waiting and activate now');
+    self.skipWaiting();
+  }
 });
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', event => {
-
   // API requests - network first, then cache, with timeout
   if (event.request.url.includes('api.weather.gov') ||
-    event.request.url.includes('api.pirateweather.net') ||
-    event.request.url.includes('nominatim.openstreetmap.org')) {
+      event.request.url.includes('api.pirateweather.net') ||
+      event.request.url.includes('nominatim.openstreetmap.org')) {
     // For API requests, use a network-first strategy with timeout
     const timeoutPromise = new Promise((resolve) => {
       setTimeout(() => {
