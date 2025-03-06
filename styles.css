@@ -204,29 +204,35 @@ body {
     gap: 10px;
     margin-bottom: 30px;
     width: 100%;
+    max-width: 100%;
+    padding: 0 15px; /* Add padding to prevent edge cutting */
 }
 
 /* Main search box with input and search button */
 .search-box {
     display: flex;
     flex: 1;
+    min-width: 0; /* Allow the search box to shrink below its content size */
 }
 
 .search-box input {
     flex: 1;
-    padding: 12px 20px;
+    padding: 12px 15px; /* Slightly reduced padding on mobile */
     border: none;
     border-radius: 50px 0 0 50px;
     background-color: rgba(255, 255, 255, 0.8);
     box-shadow: 0 5px 15px var(--shadow-color);
     font-size: 16px;
     outline: none;
+    min-width: 0; /* Allow input to shrink */
+    text-overflow: ellipsis; /* Add ellipsis for text that doesn't fit */
 }
 
 /* Standalone style for geolocation button */
 #geo-button {
-    width: 50px;
-    height: 50px;
+    width: 45px; /* Slightly smaller on mobile */
+    height: 45px; /* Slightly smaller on mobile */
+    min-width: 45px; /* Ensure minimum width */
     border: none;
     border-radius: 50%;
     background-color: var(--primary-color);
@@ -237,7 +243,8 @@ body {
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 5px 15px var(--shadow-color);
-    font-size: 18px;
+    font-size: 16px;
+    flex-shrink: 0; /* Prevent button from shrinking */
 }
 
 #geo-button:hover {
@@ -255,9 +262,10 @@ body {
     border-radius: 0 50px 50px 0;
     background-color: var(--primary-color);
     color: white;
-    padding: 0 25px;
+    padding: 0 15px; /* Reduced padding on mobile */
     cursor: pointer;
     transition: all 0.3s ease;
+    flex-shrink: 0; /* Prevent button from shrinking */
 }
 
 .search-box button#search-button:hover {
@@ -412,6 +420,47 @@ body {
 .required-marker {
     color: #f44336;
     margin-left: 3px;
+}
+
+/* Media queries for better responsive behavior */
+@media (max-width: 480px) {
+    .search-container {
+        padding: 0 10px;
+        gap: 5px;
+    }
+    
+    .search-box input {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+    
+    .search-box button#search-button {
+        padding: 0 12px;
+    }
+    
+    #geo-button {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+    }
+}
+
+/* For extremely small screens */
+@media (max-width: 350px) {
+    .search-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .search-box {
+        width: 100%;
+    }
+    
+    #geo-button {
+        align-self: flex-end;
+        margin-top: -5px; /* Pulls it up a bit to save vertical space */
+    }
 }
 
 /*-----------------------------------------------
