@@ -25,7 +25,7 @@
 ## Features
 
 - **Beautiful Animated Visuals** - Dynamic backgrounds and icons that change based on current conditions
-- **Detailed Information** - Current conditions, 7 day forecasts, and severe weather alerts. With more to come!
+- **Detailed Information** - Current conditions, 7 day forecasts, weather alerts, and radar. With more to come!
 - **Dual API System** - Uses National Weather Service data for US locations and Pirate Weather API globally
 - **Smart Location Detection** - Automatic geolocation with manual search options
 - **Progressive Web App (PWA)** - Install on any device with automatic updates
@@ -83,8 +83,8 @@ When a new version is available, and it has not already automatically updated, y
 ## Technology
 
 - **Frontend**: HTML5, CSS3, & Plain JavaScript (ES6+)
-- **Weather Data**: National Weather Service API, Pirate Weather API
-- **Geocoding**: OpenStreetMap Nominatim API
+- **Weather Data**: National Weather Service API, Pirate Weather API, Rain Viewer
+- **Geocoding**: OpenStreetMap Nominatim API, Leaflet
 - **Animation**: CSS Animations, SVG Graphics
 
 ## API Keys
@@ -117,5 +117,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Inspired by [Breezy Weather](https://github.com/breezy-weather/breezy-weather)
 - Weather data provided by [National Weather Service](https://www.weather.gov/) and [Pirate Weather](https://pirateweather.net/)
+- Radar data provided by [Rain Viewer](https://www.rainviewer.com/)
+- Mapping data provided by [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors via [Leaflet](https://leafletjs.com/)
 - Icons and animations created with CSS and SVG
 - Special thanks to Anthropic's <a href="https://claude.ai">Claude 3.7 Sonnet</a> for helping in the building and creation of this app

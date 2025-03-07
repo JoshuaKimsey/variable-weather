@@ -108,14 +108,19 @@ export const weatherIcons = {
 export function setWeatherIcon(iconCode, element) {
     // Clear previous icon
     element.innerHTML = '';
-
+    
+    // Create a wrapper to ensure proper positioning
+    const wrapper = document.createElement('div');
+    wrapper.className = 'weather-icon-wrapper';
+    element.appendChild(wrapper);
+    
     // Create and add the appropriate icon
     if (weatherIcons[iconCode]) {
-        weatherIcons[iconCode](element);
+        weatherIcons[iconCode](wrapper);
     } else {
         // Fallback for unknown icon codes
         console.warn(`Unknown icon code: ${iconCode}. Using cloudy icon as fallback.`);
-        createCloudyIcon(element);
+        createCloudyIcon(wrapper);
     }
 }
 
@@ -125,10 +130,18 @@ export function setWeatherIcon(iconCode, element) {
  * @param {HTMLElement} element - DOM element to append the icon to
  */
 export function setForecastIcon(iconCode, element) {
+    // Clear previous icon
+    element.innerHTML = '';
+    
+    // Create a wrapper to ensure proper positioning
+    const wrapper = document.createElement('div');
+    wrapper.className = 'weather-icon-wrapper';
+    element.appendChild(wrapper);
+    
     if (weatherIcons[iconCode]) {
-        weatherIcons[iconCode](element, true);
+        weatherIcons[iconCode](wrapper, true);
     } else {
-        createCloudyIcon(element, true);
+        createCloudyIcon(wrapper, true);
     }
 }
 

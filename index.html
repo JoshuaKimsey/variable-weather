@@ -7,7 +7,8 @@
     <title>Variable Weather</title>
 
     <!-- PWA Meta Tags -->
-    <meta name="description" content="A free and open source weather app, designed to make it easy to get the weather information you need. Inspired by Breezy Weather.">
+    <meta name="description"
+        content="A free and open source weather app, designed to make it easy to get the weather information you need. Inspired by Breezy Weather.">
     <meta name="theme-color" content="#4A90E2">
     <meta name="license" content="https://spdx.org/licenses/BSD-3-Clause.html">
     <link rel="license" href="https://spdx.org/licenses/BSD-3-Clause.html">
@@ -71,7 +72,8 @@
     <div class="weather-background" id="weather-background"></div>
 
     <div class="container">
-        <div id="weather-container">
+        <!-- Weather Data Card -->
+        <div id="weather-container" class="weather-card">
             <div class="error-message" id="error-message"></div>
 
             <div id="weather-content">
@@ -129,19 +131,32 @@
                             <!-- Forecast cards will be added dynamically -->
                         </div>
                     </div>
-
-                    <!-- API Attribution Footer -->
-                    <div class="attribution-footer">
-                        <div class="search-container">
-                            <div class="search-box">
-                                <input type="text" id="location-input" placeholder="Enter location (city, state, country)">
-                                <button id="search-button" aria-label="Search"><i class="fas fa-search"></i></button>
-                            </div>
-                            <button id="geo-button" aria-label="Get My Location" title="Use my current location"><i class="fas fa-location-arrow"></i></button>
-                        </div>
-                        <div id="api-indicator" class="api-indicator">Data provided by National Weather Service</div>
-                    </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Radar Card -->
+        <div id="radar-container" class="weather-card">
+            <div class="radar-section">
+                <h3>Weather Radar</h3>
+                <div class="radar-container" id="radar-view">
+                    <!-- Radar content will be generated dynamically by radarView.js -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Attribution Card -->
+        <div id="search-container" class="weather-card">
+            <div class="search-attribution-content">
+                <div class="search-container">
+                    <div class="search-box">
+                        <input type="text" id="location-input" placeholder="Enter location (city, state, country)">
+                        <button id="search-button" aria-label="Search"><i class="fas fa-search"></i></button>
+                    </div>
+                    <button id="geo-button" aria-label="Get My Location" title="Use my current location"><i
+                            class="fas fa-location-arrow"></i></button>
+                </div>
+                <div id="api-indicator" class="api-indicator">Data provided by National Weather Service</div>
             </div>
         </div>
     </div>
@@ -160,7 +175,8 @@
                     <li>Weather data outside the United States</li>
                     <li>Fallback when National Weather Service is unavailable</li>
                 </ul>
-                <p>You can get a free key from <a href="https://pirateweather.net/getting-started" target="_blank" class="settings-link">pirateweather.net</a>.</p>
+                <p>You can get a free key from <a href="https://pirateweather.net/getting-started" target="_blank"
+                        class="settings-link">pirateweather.net</a>.</p>
                 <div class="settings-form-group">
                     <label for="pirate-api-key">Pirate Weather API Key:<span class="required-marker">*</span></label>
                     <input type="text" id="pirate-api-key" placeholder="Enter your API key">

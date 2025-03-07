@@ -45,43 +45,71 @@ body {
 }
 
 /*-----------------------------------------------
- * 2. LAYOUT & CONTAINERS
+ * 2. LAYOUT & CONTAINERS - UPDATED
  *-----------------------------------------------*/
-.container {
+ .container {
     max-width: 1200px;
     padding: 20px;
 }
 
-#weather-container {
+/* Shared card styles */
+.weather-card {
     position: relative;
     border-radius: 20px;
     overflow: hidden;
     padding: 30px;
-    margin-top: 20px;
+    margin-bottom: 20px; /* Add spacing between cards */
     background-color: rgba(100, 100, 100, 0.55);
     backdrop-filter: blur(10px);
     box-shadow: 0 10px 30px var(--shadow-color);
 }
 
-/* Attribution footer */
-.attribution-footer {
-    margin-top: 30px;
-    padding-top: 15px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
-    text-align: center;
+/* First card (main weather) gets top margin */
+#weather-container {
+    margin-top: 20px;
 }
 
+/* Radar card specific styles */
+#radar-container {
+    /* No special padding for radar section now that it's in its own card */
+    padding-bottom: 20px;
+}
+
+#radar-container .radar-section {
+    margin-top: 0; /* Remove top margin since it's in its own card now */
+}
+
+/* Search and attribution card */
+#search-container {
+    padding: 20px 30px; /* Less padding for this card */
+}
+
+.search-attribution-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Remove margin from search container now that it's in a dedicated card */
+.search-container {
+    margin-bottom: 0;
+}
+
+/* API indicator centered in its own card */
 .api-indicator {
+    text-align: center;
     font-size: 0.8rem;
     color: #cccccc;
     font-style: italic;
     margin-bottom: 0;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /*-----------------------------------------------
  * 3. WEATHER DISPLAY ELEMENTS
  *-----------------------------------------------*/
-.weather-info {
+ .weather-info {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
@@ -190,11 +218,69 @@ body {
     text-decoration-style: solid;
 }
 
+/* Improved Weather Icon Styling */
 .weather-icon {
     flex: 0 0 250px;
     height: 250px;
     position: relative;
     margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Wrapper to ensure proper positioning of weather elements */
+.weather-icon-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Ensure icon container children are properly positioned */
+.weather-icon > div {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+}
+
+/* Base positioning for animation elements */
+.animation-element {
+    position: absolute;
+    pointer-events: none;
+    /* Default positioning is centered, specific positions applied by animation code */
+}
+
+/* Force cloud element positioning to be relative to its container */
+.cloud {
+    position: absolute !important;
+    /* Allow specific top/left values from animation code */
+}
+
+/* Forecast icons styling - smaller variant */
+.forecast-icon {
+    height: 60px;
+    width: 60px;
+    margin: 0 auto 25px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Ensure forecast icons are properly sized and positioned */
+.forecast-icon > div {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
 }
 
 /* Search container to hold both the search box and geo button */
@@ -270,197 +356,6 @@ body {
 
 .search-box button#search-button:hover {
     background-color: #1565c0;
-}
-
-/* Style for geolocation loading text */
-.geo-loading-text {
-    display: flex;
-    align-items: center;
-    font-size: 16px;
-    margin-top: 10px;
-    color: white;
-}
-
-.geo-loading-text i {
-    margin-right: 8px;
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.2);
-        opacity: 0.7;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-.geo-prompt {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000;
-    animation: fadeIn 0.3s ease;
-}
-
-.geo-prompt-content {
-    background-color: white;
-    border-radius: 12px;
-    width: 90%;
-    max-width: 400px;
-    padding: 25px;
-    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.2);
-}
-
-.geo-prompt-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.geo-prompt-header i {
-    font-size: 24px;
-    color: var(--primary-color);
-    margin-right: 12px;
-}
-
-.geo-prompt-header h3 {
-    margin: 0;
-    color: #333;
-    font-size: 20px;
-}
-
-.geo-prompt p {
-    margin-bottom: 20px;
-    color: #555;
-    font-size: 16px;
-    line-height: 1.5;
-}
-
-.geo-prompt-buttons {
-    display: flex;
-    gap: 10px;
-}
-
-.geo-prompt-btn {
-    flex: 1;
-    padding: 12px;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.geo-prompt-yes {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-.geo-prompt-yes:hover {
-    background-color: #1565c0;
-}
-
-.geo-prompt-no {
-    background-color: #e0e0e0;
-    color: #555;
-}
-
-.geo-prompt-no:hover {
-    background-color: #d0d0d0;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-.search-box button {
-    border: none;
-    border-radius: 0 50px 50px 0;
-    background-color: var(--primary-color);
-    color: white;
-    padding: 0 25px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.search-box button:hover {
-    background-color: #1565c0;
-}
-
-.api-key-info {
-    margin: 10px 0 15px 20px;
-    font-size: 0.9rem;
-    color: #555;
-}
-
-.settings-link {
-    color: var(--primary-color);
-    text-decoration: underline;
-}
-
-.required-marker {
-    color: #f44336;
-    margin-left: 3px;
-}
-
-/* Media queries for better responsive behavior */
-@media (max-width: 480px) {
-    .search-container {
-        padding: 0 10px;
-        gap: 5px;
-    }
-    
-    .search-box input {
-        padding: 10px 12px;
-        font-size: 14px;
-    }
-    
-    .search-box button#search-button {
-        padding: 0 12px;
-    }
-    
-    #geo-button {
-        width: 40px;
-        height: 40px;
-        min-width: 40px;
-    }
-}
-
-/* For extremely small screens */
-@media (max-width: 350px) {
-    .search-container {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-    }
-    
-    .search-box {
-        width: 100%;
-    }
-    
-    #geo-button {
-        align-self: flex-end;
-        margin-top: -5px; /* Pulls it up a bit to save vertical space */
-    }
 }
 
 /*-----------------------------------------------
@@ -1204,31 +1099,350 @@ body {
 }
 
 /*-----------------------------------------------
- * 11. RESPONSIVE ADJUSTMENTS
+ * 11. RESPONSIVE ADJUSTMENTS - UPDATED
  *-----------------------------------------------*/
-@media (max-width: 768px) {
-    .weather-info {
-        flex-direction: column;
+ @media (max-width: 768px) {
+    .weather-card {
+        padding: 20px; /* Reduce padding on smaller screens */
     }
     
-    .weather-icon {
-        margin-top: 30px;
-    }
-    
-    .detail-card {
-        min-width: 45%;
-    }
-}
-
-@media (max-width: 576px) {
-    .settings-modal {
-        width: 95%;
+    #search-container {
+        padding: 15px 20px; /* Even less padding for search on mobile */
     }
 }
 
 @media (max-width: 480px) {
-    .alert-metadata {
-        flex-direction: column;
-        gap: 5px;
+    .container {
+        padding: 12px; /* Reduce container padding on very small screens */
+    }
+    
+    .weather-card {
+        padding: 15px; /* Further reduce card padding */
+        margin-bottom: 15px; /* Less space between cards */
+        border-radius: 15px; /* Slightly smaller border radius */
+    }
+    
+    .search-container {
+        padding: 0 5px; /* Reduce padding in search area */
+    }
+}
+
+/*-----------------------------------------------
+ * 12. RADAR VIEW STYLES
+ *-----------------------------------------------*/
+ .radar-section {
+    margin-top: 30px;
+    margin-bottom: 30px;
+}
+
+.radar-section h3 {
+    margin-bottom: 15px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.radar-container {
+    position: relative;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px var(--shadow-color);
+}
+
+.radar-map {
+    height: 400px;
+    width: 100%;
+    z-index: 1;
+    border-radius: 15px 15px 0 0;
+}
+
+/* Loading indicator styles */
+.radar-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    border-radius: 15px;
+}
+
+.radar-loading-spinner {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.radar-loading-spinner div {
+    width: 10px;
+    height: 10px;
+    margin: 0 5px;
+    background-color: white;
+    border-radius: 50%;
+    display: inline-block;
+    animation: bounce 1.5s infinite ease-in-out both;
+}
+
+.radar-loading-spinner div:nth-child(1) {
+    animation-delay: -0.3s;
+}
+
+.radar-loading-spinner div:nth-child(2) {
+    animation-delay: -0.15s;
+}
+
+.radar-loading-text {
+    color: white;
+    font-size: 14px;
+}
+
+/* Improved radar controls layout */
+.radar-controls {
+    padding: 10px 15px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0 0 15px 15px;
+    position: relative;
+}
+
+/* New wrapper to organize the timeline and play button */
+.radar-timeline-wrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+}
+
+/* Container for the timeline and timestamps */
+.radar-timeline-controls {
+    flex: 1;
+    min-width: 0; /* Allows flexbox children to shrink below content size */
+}
+
+/* Play/pause button styles */
+.radar-play-pause {
+    width: 36px;
+    height: 36px;
+    min-width: 36px; /* Prevent shrinking */
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px; /* Align with the timeline */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0; /* Prevent button from shrinking */
+}
+
+.radar-play-pause:hover {
+    background-color: #1565c0;
+    transform: scale(1.05);
+}
+
+/* Timeline container */
+.radar-timeline {
+    height: 6px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    position: relative;
+    overflow: visible;
+    width: 100%;
+    margin: 5px 0;
+}
+
+/* Frame marker styles */
+.radar-frame-marker {
+    position: absolute;
+    width: 2px;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.5);
+    top: 0;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    /* Positioning is handled in JS */
+}
+
+.radar-frame-marker:hover {
+    background-color: #aaa;
+}
+
+.radar-frame-marker.active {
+    background-color: white;
+}
+
+/* Timestamps container */
+.radar-timestamps-row {
+    position: relative;
+    height: 20px;
+    width: 100%;
+    margin-bottom: 4px;
+    box-sizing: border-box;
+}
+
+/* Improved timestamp styling */
+.radar-timestamp {
+    position: absolute;
+    transform: translateX(-50%); /* Center by default, but overridden for edge timestamps */
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 1px 4px;
+    border-radius: 3px;
+    white-space: nowrap;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Styling for the first timestamp (left aligned) */
+.radar-timestamp:first-child {
+    transform: none; /* No centering for first timestamp */
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* Styling for the last timestamp (right aligned) */
+.radar-timestamp:last-child {
+    transform: translateX(-100%); /* Right align last timestamp */
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* Current position indicator */
+.radar-position-indicator {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background-color: white;
+    border-radius: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+    pointer-events: none;
+    transition: left 0.2s ease-out;
+}
+
+/* Timestamp display on map */
+.radar-timestamp-display {
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-bottom: 10px !important; /* Override Leaflet control margins */
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+    text-align: center;
+    min-width: 100px;
+    z-index: 1000 !important; /* Ensure it's above other controls */
+    transition: opacity 0.3s ease;
+}
+
+.radar-timestamp-display strong {
+    font-size: 14px;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.radar-error {
+    padding: 10px 15px;
+    background-color: #ffebee;
+    color: #c62828;
+    border-radius: 0 0 15px 15px;
+    font-size: 14px;
+    display: none;
+}
+
+.leaflet-container .leaflet-control-attribution {
+    padding: 3px 8px;
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    margin-right: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .radar-map {
+        height: 300px;
+    }
+    
+    .radar-controls {
+        padding: 8px 10px;
+    }
+    
+    .radar-play-pause {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        margin-top: 8px;
+    }
+
+    .radar-timestamp-display {
+        padding: 4px 6px;
+        font-size: 10px;
+        min-width: 80px;
+        margin-top: 10px !important; /* For top positioning */
+        margin-right: 10px !important; /* For right positioning */
+        margin-bottom: 0 !important; /* Remove bottom margin on mobile */
+    }
+    
+    .radar-timestamp-display strong {
+        font-size: 12px;
+        margin-bottom: 0;
+    }
+    
+    /* Make date more compact on mobile */
+    .radar-timestamp-display .date-display {
+        display: inline-block;
+        margin-left: 4px;
+    }
+    
+    /* Override Leaflet's attribution position to prevent it from covering content */
+    .leaflet-container .leaflet-control-attribution {
+        margin-bottom: 4px !important;
+    }
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 480px) {
+    .radar-timestamp {
+        font-size: 10px;
+        padding: 1px 3px;
+        max-width: 50px; /* Narrower on small screens */
+    }
+    
+    .radar-timestamps-row {
+        height: 16px;
+    }
+    
+    .radar-play-pause {
+        margin-top: 4px;
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
+    }
+    
+    .radar-timeline {
+        margin: 4px 0;
+    }
+
+    .radar-timestamp-display {
+        padding: 4px 6px;
+        font-size: 10px;
+        min-width: 80px;
+    }
+    
+    .radar-timestamp-display strong {
+        font-size: 12px;
     }
 }

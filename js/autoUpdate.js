@@ -46,7 +46,7 @@ function scheduleNextUpdate(updateCallback) {
         performUpdate(updateCallback);
     }, UPDATE_INTERVAL);
     
-    console.log(`Next weather update scheduled in ${UPDATE_INTERVAL / 60000} minutes`);
+    // console.log(`Next weather update scheduled in ${UPDATE_INTERVAL / 60000} minutes`);
 }
 
 /**
@@ -54,7 +54,7 @@ function scheduleNextUpdate(updateCallback) {
  * @param {Function} updateCallback - Function to call to update the weather
  */
 function performUpdate(updateCallback) {
-    console.log('Performing automatic weather update...');
+    // console.log('Performing automatic weather update...');
     
     // Call the update callback
     if (updateCallback && typeof updateCallback === 'function') {

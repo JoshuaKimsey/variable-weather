@@ -17,6 +17,7 @@ import { updateURLParameters } from './utils.js';
 import { initBackgrounds } from './weatherBackgrounds.js';
 import { initApiSettings } from './apiSettings.js';
 import { initUnits } from './units.js';
+import { initRadarView, refreshRadarData, isRadarViewInitialized } from './radarView.js';
 
 /**
  * Initialize the application
@@ -34,6 +35,11 @@ function initApp() {
     // Then initialize API settings that might use the units system
     initApiSettings();
 
+    // Initialize the radar view
+    setTimeout(() => {
+        initRadarView('radar-view');
+    }, 100); // Small delay to ensure other components are loaded
+
     // Set up event listeners
     setupEventListeners(searchLocation);
 
@@ -47,6 +53,12 @@ function initApp() {
 
         if (lat && lon) {
             fetchWeather(lat, lon, locationName);
+            
+            // Also refresh radar data if available
+            if (typeof refreshRadarData === 'function' && isRadarViewInitialized()) {
+                // console.log("Attempting radar update");
+                refreshRadarData();
+            }
         } else {
             fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
         }
@@ -117,7 +129,7 @@ function getUserLocation() {
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
             
-            console.log(`Location found: ${lat}, ${lon}`);
+            // console.log(`Location found: ${lat}, ${lon}`);
             
             // Remember that user enabled geolocation
             localStorage.setItem('geolocation_enabled', 'true');

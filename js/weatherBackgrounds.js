@@ -38,11 +38,11 @@ export function setWeatherBackground(iconCode, isDaytime = true) {
     // Reset background color
     document.body.style.background = '';
     
-    console.log('Setting weather background for:', iconCode);
+    // console.log('Setting weather background for:', iconCode);
     
     // Determine if it's night time
     const isNight = isDaytime === false;
-    console.log('Night time detected:', isNight);
+    // console.log('Night time detected:', isNight);
     
     // First check for common icon codes that need time-specific handling
     const timeSpecificChecks = [
@@ -65,7 +65,7 @@ export function setWeatherBackground(iconCode, isDaytime = true) {
     
     // Try direct mapping from the icon code to background function
     if (WEATHER_BACKGROUND_MAPPING[iconCode]) {
-        console.log('Using direct background mapping for:', iconCode);
+        // console.log('Using direct background mapping for:', iconCode);
         WEATHER_BACKGROUND_MAPPING[iconCode]();
         return;
     }

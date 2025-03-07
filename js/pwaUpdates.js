@@ -9,7 +9,7 @@
  */
 
 // App version - change this with each release
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 
 // Configuration
 const CHECK_INTERVAL = 60 * 60 * 1000; // Check for updates every hour (in milliseconds)
@@ -25,7 +25,7 @@ function initUpdateSystem() {
     // Expose the version in the window object for debugging
     window.appVersion = APP_VERSION;
     
-    console.log(`Weather App Version: ${APP_VERSION}`);
+    console.log(`Variable Weather Version: ${APP_VERSION}`);
     
     // Display current version in the UI
     displayAppVersion();

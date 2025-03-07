@@ -1,7 +1,7 @@
 // Service Worker for Weather App with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.0.0';
+const SW_VERSION = '1.1.0';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 const ASSETS = [
@@ -18,6 +18,7 @@ const ASSETS = [
   '/variable-weather/js/weatherIcons.js',
   '/variable-weather/js/weatherBackgrounds.js',
   '/variable-weather/js/pwaUpdates.js',
+  '/variable-weather/js/radarView.js',
   // Add fonts, images, and other assets as needed
   '/variable-weather/resources/bootstrap/css/bootstrap.min.css',
   '/variable-weather/resources/font-awesome/all.min.css',

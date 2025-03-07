@@ -6,15 +6,26 @@ import { resetLastUpdateTime } from './autoUpdate.js';
 import { getPirateWeatherApiKey, API_ENDPOINTS } from './config.js';
 import { displayWeatherData, showLoading, hideLoading, hideError, showError } from './ui.js';
 import { getCountryCode, isUSLocation, formatLocationName, calculateDistance } from './utils.js';
+import { updateRadarLocation } from './radarView.js';
 
 /**
  * Fetch weather data from the appropriate API
  */
-export function fetchWeather(lat, lon, locationName = null) {
+export function fetchWeather(lat, lon, locationName) {
     // Reset the last update time whenever we fetch new weather data
     resetLastUpdateTime();
 
     showLoading();
+    
+    // Update radar location when fetching new weather data
+    try {
+        // Check if the function exists and is loaded
+        if (typeof updateRadarLocation === 'function') {
+            updateRadarLocation(lat, lon);
+        }
+    } catch (error) {
+        console.log('Radar view not yet initialized');
+    }
 
     // Determine if the location is in the US
     const countryCode = locationName ? getCountryCode(locationName) : 'us'; // Default to US if unknown
@@ -279,14 +290,14 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         observationData.properties.temperature && 
         observationData.properties.temperature.value !== null;
     
-    console.log("Has valid observation data:", hasValidObservation);
+    // console.log("Has valid observation data:", hasValidObservation);
     
     // If we have observation data, log it for debugging
     if (hasValidObservation) {
-        console.log("Current observation data:", observationData.properties);
+        // console.log("Current observation data:", observationData.properties);
     }
     
-    console.log("Current forecast data:", currentForecast);
+    // console.log("Current forecast data:", currentForecast);
     
     // Temperature
     if (hasValidObservation) {
@@ -322,7 +333,7 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         if (currentObservation.textDescription) {
             // Extract the actual observation text and check if it contains forecast-like language
             const textDescription = currentObservation.textDescription;
-            console.log("Original observation textDescription:", textDescription);
+            // console.log("Original observation textDescription:", textDescription);
             
             // Check for forecast-like phrases that shouldn't be in an observation
             const forecastPhrases = ['likely', 'chance', 'possible', 'expect', 'will be', 'tonight', 'tomorrow'];
@@ -330,7 +341,7 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
                 textDescription.toLowerCase().includes(phrase));
             
             if (containsForecastLanguage) {
-                console.log("Warning: Observation contains forecast-like language, using plain description");
+                // console.log("Warning: Observation contains forecast-like language, using plain description");
                 // Try to clean up the description to make it more observation-like
                 let cleanedDescription = textDescription;
                 
@@ -390,10 +401,10 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
             }
         }
 
-        console.log('Weather icon source:', isThunderstorm ? 'text detection' : 
-            (currentObservation.icon ? 'observation icon' : 'forecast icon'));
-          console.log('Weather icon value:', weatherData.currently.icon);
-          console.log('Current time of day:', weatherData.currently.isDaytime ? 'Day' : 'Night');
+        // console.log('Weather icon source:', isThunderstorm ? 'text detection' : 
+            // (currentObservation.icon ? 'observation icon' : 'forecast icon'));
+        //   console.log('Weather icon value:', weatherData.currently.icon);
+        //   console.log('Current time of day:', weatherData.currently.isDaytime ? 'Day' : 'Night');
         
         // Wind speed
         if (currentObservation.windSpeed && currentObservation.windSpeed.value !== null) {
@@ -473,19 +484,19 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
     }
     
     // Add debugging for current conditions
-    console.log("Final processed current conditions:", {
-        temp: weatherData.currently.temperature,
-        icon: weatherData.currently.icon,
-        summary: weatherData.currently.summary,
-        pressure: weatherData.currently.pressure,
-        visibility: weatherData.currently.visibility,
-        windSpeed: weatherData.currently.windSpeed,
-        humidity: weatherData.currently.humidity,
-        source: hasValidObservation ? "observation data" : "forecast data"
-    });
+    // console.log("Final processed current conditions:", {
+    //     temp: weatherData.currently.temperature,
+    //     icon: weatherData.currently.icon,
+    //     summary: weatherData.currently.summary,
+    //     pressure: weatherData.currently.pressure,
+    //     visibility: weatherData.currently.visibility,
+    //     windSpeed: weatherData.currently.windSpeed,
+    //     humidity: weatherData.currently.humidity,
+    //     source: hasValidObservation ? "observation data" : "forecast data"
+    // });
     
     // Add debugging for observation metadata
-    console.log("Observation metadata:", weatherData.observation);
+    // console.log("Observation metadata:", weatherData.observation);
     
     // Process daily forecast data (same as before)
     // NWS provides separate day and night forecasts, so we need to combine them
@@ -533,7 +544,7 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
 function mapNWSIconToGeneric(nwsIconUrl) {
     if (!nwsIconUrl) return 'cloudy'; // Default fallback
 
-    console.log('Mapping NWS icon URL:', nwsIconUrl);
+    // console.log('Mapping NWS icon URL:', nwsIconUrl);
 
     // Extract the icon code from the URL
     // Example: https://api.weather.gov/icons/land/day/tsra,40?size=medium
@@ -546,7 +557,7 @@ function mapNWSIconToGeneric(nwsIconUrl) {
     for (let i = 0; i < parts.length; i++) {
         if (parts[i] === 'day' || parts[i] === 'night') {
             timeOfDay = parts[i];
-            console.log('Time of day from URL:', timeOfDay);
+            // console.log('Time of day from URL:', timeOfDay);
             // The next part should contain the icon code
             if (i + 1 < parts.length) {
                 const codePart = parts[i + 1];
@@ -563,7 +574,7 @@ function mapNWSIconToGeneric(nwsIconUrl) {
                 } else {
                     iconCode = codePart;
                 }
-                console.log('Extracted icon code:', iconCode);
+                // console.log('Extracted icon code:', iconCode);
                 break;
             }
         }
@@ -616,7 +627,7 @@ function mapNWSIconToGeneric(nwsIconUrl) {
     // Check if we have a direct match
     if (baseConditions[iconCode]) {
         const mappedIcon = baseConditions[iconCode];
-        console.log(`Direct mapping: ${iconCode} -> ${mappedIcon}`);
+        // console.log(`Direct mapping: ${iconCode} -> ${mappedIcon}`);
         return mappedIcon;
     }
 
@@ -624,7 +635,7 @@ function mapNWSIconToGeneric(nwsIconUrl) {
     if (iconCode.startsWith('n') && baseConditions[iconCode.substring(1)]) {
         const baseCode = iconCode.substring(1);
         const mappedIcon = baseConditions[baseCode];
-        console.log(`Night prefix mapping: ${iconCode} -> ${mappedIcon}`);
+        // console.log(`Night prefix mapping: ${iconCode} -> ${mappedIcon}`);
         return mappedIcon;
     }
 
@@ -652,7 +663,7 @@ function mapNWSIconToGeneric(nwsIconUrl) {
         }
         
         // Night-specific fallback
-        console.log('Using night fallback for icon code:', iconCode);
+        // console.log('Using night fallback for icon code:', iconCode);
         return 'partly-cloudy-night';
     }
     
