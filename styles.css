@@ -45,7 +45,7 @@ body {
 }
 
 /*-----------------------------------------------
- * 2. LAYOUT & CONTAINERS - UPDATED
+ * 2. LAYOUT & CONTAINERS
  *-----------------------------------------------*/
  .container {
     max-width: 1200px;
@@ -95,15 +95,78 @@ body {
     margin-bottom: 0;
 }
 
+/* Attribution footer to hold API indicator and version */
+.attribution-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 /* API indicator centered in its own card */
 .api-indicator {
     text-align: center;
     font-size: 0.8rem;
     color: #cccccc;
     font-style: italic;
-    margin-bottom: 0;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 5px;
+}
+
+/* App version styling */
+.app-version {
+    font-size: 0.7rem;
+    color: #aaa;
+    text-align: center;
+    margin-top: 5px;
+}
+
+.version-link {
+    color: #aaa;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.version-link:hover {
+    color: #1e88e5;
+    text-decoration: underline;
+}
+
+/* Mobile adjustments for layout elements */
+@media (max-width: 768px) {
+    .weather-card {
+        padding: 20px; /* Reduce padding on smaller screens */
+    }
+    
+    #search-container {
+        padding: 15px 20px; /* Even less padding for search on mobile */
+    }
+    
+    .attribution-footer {
+        margin-top: 5px;
+        padding-top: 5px;
+    }
+    
+    .app-version {
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 12px; /* Reduce container padding on very small screens */
+    }
+    
+    .weather-card {
+        padding: 15px; /* Further reduce card padding */
+        margin-bottom: 15px; /* Less space between cards */
+        border-radius: 15px; /* Slightly smaller border radius */
+    }
+    
+    .search-container {
+        padding: 0 5px; /* Reduce padding in search area */
+    }
 }
 
 /*-----------------------------------------------
