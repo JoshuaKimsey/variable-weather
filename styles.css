@@ -116,21 +116,23 @@ body {
 
 /* App version styling */
 .app-version {
-    font-size: 0.7rem;
-    color: #aaa;
+    font-size: 0.8rem;
+    color: #cccccc;
     text-align: center;
     margin-top: 5px;
 }
 
 .version-link {
-    color: #aaa;
-    text-decoration: none;
-    transition: color 0.2s ease;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+    transition: all 0.2s ease;
 }
 
 .version-link:hover {
-    color: #1e88e5;
-    text-decoration: underline;
+    color: #fff;
+    text-decoration-style: solid;
 }
 
 /* Mobile adjustments for layout elements */

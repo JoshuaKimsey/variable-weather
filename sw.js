@@ -1,7 +1,7 @@
 // Service Worker for Weather App with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.2.0';
+const SW_VERSION = '1.2.1';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 const ASSETS = [
