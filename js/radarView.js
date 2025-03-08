@@ -11,13 +11,14 @@ const SMOOTHING = 1; // 0: False, 1: True
 const SNOW_VIEW = 1; // 0: False, 1: True
 const DEFAULT_OPACITY = 0.8;
 const FRAMES_TO_KEEP = 11; // Number of recent frames to use in animation
+const ANIMATION_SPEED = 1000; // time per frame in ms
+const RETURN_TO_LATEST_ON_STOP = true; // Set to true to jump to latest frame when stopping animation
 
 // Module state
 let map = null;
 let radarFrames = [];
 let animationPosition = 0;
-let animationTimer = null;
-let animationSpeed = 1000 // time per frame in ms
+let animationTimer = null; 
 let currentOverlay = null;
 let isPlaying = false;
 let mapInitialized = false;
@@ -384,17 +385,15 @@ function fetchRadarData() {
             reject(new Error('Map not initialized'));
             return;
         }
-
+        
         // Show loading indicator
         if (loadingIndicator) {
             loadingIndicator.style.display = 'flex';
         }
-
-        // console.log('Fetching radar data from RainViewer API...');
-
+        
         // Add a timestamp to prevent caching
         const urlWithTimestamp = `${RAINVIEWER_API_URL}?t=${Date.now()}`;
-
+        
         fetch(urlWithTimestamp)
             .then(response => {
                 if (!response.ok) {
@@ -404,50 +403,52 @@ function fetchRadarData() {
                 return response.json();
             })
             .then(data => {
-                // console.log('Radar data received:', data);
-
                 if (!data || !data.radar || !data.radar.past || data.radar.past.length === 0) {
                     console.error('Invalid or empty radar data format:', data);
                     throw new Error('Invalid radar data format received');
                 }
-
+                
                 processRadarData(data);
-
+                
                 // Hide loading indicator
                 if (loadingIndicator) {
                     loadingIndicator.style.display = 'none';
                 }
-
+                
                 // Show the latest frame only (don't start animation)
                 if (radarFrames.length > 0) {
-                    // console.log('Showing latest radar frame');
-                    // Show the latest frame (last in the array)
+                    // Set the animation position to the latest frame
                     animationPosition = radarFrames.length - 1;
-                    showFrame(animationPosition);
-
-                    // Make sure play button shows correct state
-                    if (playPauseButton) {
-                        playPauseButton.innerHTML = '<i class="fas fa-play"></i>';
-                        playPauseButton.setAttribute('aria-label', 'Play radar animation');
-                    }
-                    isPlaying = false;
+                    
+                    // Start preloading all frames
+                    preloadRadarFrames().then(() => {
+                        // After preloading, display the latest frame
+                        showFrame(animationPosition);
+                        
+                        // Make sure play button shows correct state
+                        if (playPauseButton) {
+                            playPauseButton.innerHTML = '<i class="fas fa-play"></i>';
+                            playPauseButton.setAttribute('aria-label', 'Play radar animation');
+                        }
+                        isPlaying = false;
+                    });
                 } else {
                     console.warn('No radar frames available after processing');
                     showRadarError('radar-view', 'No radar data available for this location.');
                 }
-
+                
                 // Resolve the promise
                 resolve();
             })
             .catch(error => {
                 console.error('Error fetching radar data:', error);
                 showRadarError('radar-view', 'Failed to load radar data. Please try again later.');
-
+                
                 // Hide loading indicator
                 if (loadingIndicator) {
                     loadingIndicator.style.display = 'none';
                 }
-
+                
                 // Reject the promise
                 reject(error);
             });
@@ -491,27 +492,27 @@ function processRadarData(data) {
  */
 function updateTimeline() {
     if (!timelineContainer) return;
-
+    
     // Remove any existing timeline content
     timelineContainer.innerHTML = '';
-
+    
     // Find the timestamp row that was created in createRadarControls
     const timestampsRow = document.querySelector('.radar-timestamps-row');
     if (timestampsRow) {
         timestampsRow.innerHTML = '';
     }
-
+    
     // Create timestamps for frames with better spacing
     if (radarFrames.length > 0) {
         // Determine how many timestamps to show based on screen width
         const containerWidth = timelineContainer.offsetWidth;
         // Assume each timestamp needs ~60px of space minimum to avoid overlap
-        const minSpaceBetweenTimestamps = 60;
+        const minSpaceBetweenTimestamps = 60; 
         const maxTimestamps = Math.max(3, Math.floor(containerWidth / minSpaceBetweenTimestamps));
-
+        
         // Calculate step size - ensure we show at least first, last, and some middle timestamps
         let step = Math.ceil(radarFrames.length / maxTimestamps);
-
+        
         // At minimum, we want timestamps at the beginning, middle and end
         // For very short frame sequences, just show all frames
         if (radarFrames.length <= 6) {
@@ -519,30 +520,28 @@ function updateTimeline() {
         } else if (radarFrames.length <= 20) {
             step = 5; // Show every other frame
         }
-
-        // console.log(`Showing timestamps with step size: ${step}, max: ${maxTimestamps}`);
-
+        
         // Create timestamps at calculated intervals 
         for (let i = 0; i < radarFrames.length; i += step) {
             // Skip some middle frames if we have too many
             if (i !== 0 && i !== radarFrames.length - 1 && i % (step * 2) !== 0 && radarFrames.length > 12) {
                 continue;
             }
-
+            
             const timeLabel = document.createElement('div');
             timeLabel.className = 'radar-timestamp';
-
+            
             // Format the time
             const timeString = radarFrames[i].timestamp.toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit'
             });
-
+            
             timeLabel.textContent = timeString;
-
+            
             // Calculate position as percentage
             const position = (i / (radarFrames.length - 1)) * 100;
-
+            
             // Apply specific positioning rules to prevent edge overflow
             if (i === 0) {
                 // First timestamp
@@ -556,77 +555,83 @@ function updateTimeline() {
                 // Middle timestamps use standard positioning
                 timeLabel.style.left = `${position}%`;
             }
-
+            
             if (timestampsRow) {
                 timestampsRow.appendChild(timeLabel);
             }
         }
-
+        
         // Always ensure the last timestamp is shown
         if (step > 1 && radarFrames.length > 1) {
             const lastIndex = radarFrames.length - 1;
-
+            
             // Check if the last timestamp wasn't already added
             if (lastIndex % step !== 0) {
                 const lastTimeLabel = document.createElement('div');
                 lastTimeLabel.className = 'radar-timestamp';
-
+                
                 const timeString = radarFrames[lastIndex].timestamp.toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit'
                 });
-
+                
                 lastTimeLabel.textContent = timeString;
                 lastTimeLabel.style.left = '100%';
                 lastTimeLabel.style.transform = 'translateX(-100%)'; // Align right edge
-
+                
                 if (timestampsRow) {
                     timestampsRow.appendChild(lastTimeLabel);
                 }
             }
         }
     }
-
+    
     // Create the progress bar with evenly spaced markers
     radarFrames.forEach((frame, index) => {
         const marker = document.createElement('div');
         marker.className = 'radar-frame-marker';
         marker.setAttribute('data-index', index);
-
+        
         // Position the marker
         marker.style.left = `${(index / (radarFrames.length - 1)) * 100}%`;
-
+        
         // Format time for tooltip
-        const timeString = frame.timestamp.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
+        const timeString = frame.timestamp.toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
         });
-
+        
         // Add time tooltip
         marker.title = timeString;
-
-        // Make marker clickable
+        
+        // Make marker clickable with fix for last frame issue
         marker.addEventListener('click', () => {
             stopAnimation();
-            animationPosition = index;
-            showFrame(index);
+            
+            // Only change frames if we're not already at this position
+            // This fixes the issue with the radar disappearing when clicking on the timeline
+            if (animationPosition !== index) {
+                animationPosition = index;
+                showFrame(index);
+            }
+            
             updateTimelineSelection();
         });
-
+        
         timelineContainer.appendChild(marker);
     });
-
+    
     // Create current position indicator that will move along the timeline
     const positionIndicator = document.createElement('div');
     positionIndicator.id = 'radar-position-indicator';
     positionIndicator.className = 'radar-position-indicator';
     timelineContainer.appendChild(positionIndicator);
-
+    
     // Default to showing the latest frame (at initial load)
     if (animationPosition === 0 && radarFrames.length > 0) {
         animationPosition = radarFrames.length - 1;
     }
-
+    
     // Initial selection
     updateTimelineSelection();
 }
@@ -662,6 +667,158 @@ function updateTimelineSelection() {
 }
 
 /**
+ * Preload radar frames for smoother animation
+ * Add this function to radarView.js
+ */
+function preloadRadarFrames() {
+    if (!map || radarFrames.length === 0) {
+        return Promise.resolve();
+    }
+    
+    //console.log(`Preloading ${radarFrames.length} radar frames...`);
+    
+    // Create a visual indicator of preload progress
+    updatePreloadingUI(true);
+    
+    // Store preloaded layers
+    const preloadedLayers = [];
+    let loadedCount = 0;
+    
+    // Get current center and zoom for preloading the visible area
+    const currentCenter = map.getCenter();
+    const currentZoom = map.getZoom();
+    
+    // Calculate the visible tile coordinates
+    const centerPoint = map.project(currentCenter, currentZoom).divideBy(256).floor();
+    const bounds = map.getBounds();
+    const northEast = map.project(bounds.getNorthEast(), currentZoom).divideBy(256).floor();
+    const southWest = map.project(bounds.getSouthWest(), currentZoom).divideBy(256).floor();
+    
+    // Define the area of tiles to preload (the visible area + margin)
+    const tileRange = {
+        min: {
+            x: Math.max(0, southWest.x - 1),
+            y: Math.max(0, northEast.y - 1)
+        },
+        max: {
+            x: southWest.x + 1,
+            y: northEast.y + 1
+        }
+    };
+    
+    // Create a promise for each frame's preloading
+    const preloadPromises = radarFrames.map((frame, index) => {
+        return new Promise((resolve) => {
+            // Create the tile URL pattern for this frame
+            const tileUrl = `https://tilecache.rainviewer.com/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+            
+            // Create a tile layer but don't add it to the map yet
+            const layer = L.tileLayer(tileUrl, {
+                opacity: 0,  // Invisible during preload
+                zIndex: 1,   // Lower z-index
+                tileSize: 256
+            });
+            
+            // Store for later use
+            preloadedLayers[index] = layer;
+            
+            // Create an array to hold the tile-loading promises
+            const tilePromises = [];
+            
+            // Manually create Image objects for critical tiles
+            for (let x = tileRange.min.x; x <= tileRange.max.x; x++) {
+                for (let y = tileRange.min.y; y <= tileRange.max.y; y++) {
+                    const tilePromise = new Promise((tileResolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            tileResolve();
+                        };
+                        img.onerror = () => {
+                            tileResolve(); // Resolve anyway to continue
+                        };
+                        // Generate the actual tile URL
+                        const url = tileUrl
+                            .replace('{z}', currentZoom)
+                            .replace('{x}', x)
+                            .replace('{y}', y);
+                        img.src = url;
+                    });
+                    tilePromises.push(tilePromise);
+                }
+            }
+            
+            // When critical tiles are loaded, update progress and resolve
+            Promise.all(tilePromises).then(() => {
+                loadedCount++;
+                updatePreloadProgress(loadedCount, radarFrames.length);
+                resolve(layer);
+            });
+            
+            // Set a timeout to avoid waiting too long for any single frame
+            setTimeout(() => {
+                if (!layer._loaded) {
+                    loadedCount++;
+                    updatePreloadProgress(loadedCount, radarFrames.length);
+                    resolve(layer);
+                }
+            }, 3000); // 3 second timeout per frame
+        });
+    });
+    
+    // Return a promise that resolves when all frames are preloaded (or timeout)
+    return Promise.all(preloadPromises)
+        .then(() => {
+            //console.log('All radar frames preloaded');
+            // Store preloaded layers for later use
+            window.preloadedRadarLayers = preloadedLayers;
+            updatePreloadingUI(false);
+            return preloadedLayers;
+        })
+        .catch(error => {
+            console.error('Error preloading radar frames:', error);
+            updatePreloadingUI(false);
+            return [];
+        });
+}
+
+/**
+ * Update the UI to show preloading progress
+ * @param {boolean} isLoading - Whether the radar is currently preloading
+ */
+function updatePreloadingUI(isLoading) {
+    const playButton = document.querySelector('.radar-play-pause');
+    if (!playButton) return;
+    
+    if (isLoading) {
+        playButton.classList.add('radar-loading');
+        playButton.setAttribute('disabled', 'disabled');
+        playButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        playButton.setAttribute('aria-label', 'Loading radar data...');
+    } else {
+        playButton.classList.remove('radar-loading');
+        playButton.removeAttribute('disabled');
+        playButton.innerHTML = '<i class="fas fa-play"></i>';
+        playButton.setAttribute('aria-label', 'Play radar animation');
+    }
+}
+
+/**
+ * Update the preload progress indicator
+ * @param {number} loaded - Number of frames loaded
+ * @param {number} total - Total number of frames
+ */
+function updatePreloadProgress(loaded, total) {
+    // We could update a progress bar here if we added one
+    // For now, we'll update the play button text
+    const playButton = document.querySelector('.radar-play-pause');
+    if (!playButton) return;
+    
+    const percent = Math.floor((loaded / total) * 100);
+    playButton.setAttribute('aria-label', `Loading: ${percent}%`);
+}
+
+
+/**
  * Show a specific radar frame with smooth transition
  * @param {number} index - Index of frame to show
  */
@@ -669,39 +826,54 @@ function showFrame(index) {
     if (!map || !radarFrames.length || index >= radarFrames.length) {
         return;
     }
-
+    
     // Get the frame
     const frame = radarFrames[index];
-
-    // Format for tile URL according to RainViewer docs
-    const tileUrl = `https://tilecache.rainviewer.com/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
-
+    
     // Store the old overlay for removal later
     const oldOverlay = currentOverlay;
-
-    // Create a new tile layer and add it on top of the old one
-    const newOverlay = L.tileLayer(tileUrl, {
-        opacity: DEFAULT_OPACITY,
-        zIndex: 11, // Higher z-index to ensure it appears above the old layer
-        tileSize: 256,
-    });
-
-    // Add the new layer to the map
-    newOverlay.addTo(map);
-
-    // Update current overlay reference
-    currentOverlay = newOverlay;
-
-    // Remove the old overlay only after the new one is added
+    
+    // Check if we have preloaded layers
+    if (window.preloadedRadarLayers && window.preloadedRadarLayers[index]) {
+        // Use preloaded layer
+        const newOverlay = window.preloadedRadarLayers[index];
+        newOverlay.setOpacity(DEFAULT_OPACITY);
+        newOverlay.setZIndex(11);
+        
+        if (!newOverlay._map) {
+            newOverlay.addTo(map);
+        }
+        
+        // Update current overlay reference
+        currentOverlay = newOverlay;
+    } else {
+        // Fallback to creating new layer if preloaded layer isn't available
+        const tileUrl = `https://tilecache.rainviewer.com/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+        
+        // Create a new tile layer and add it to the map
+        const newOverlay = L.tileLayer(tileUrl, {
+            opacity: DEFAULT_OPACITY,
+            zIndex: 11, // Higher z-index to ensure it appears above the old layer
+            tileSize: 256,
+        });
+        
+        // Add the new layer to the map
+        newOverlay.addTo(map);
+        
+        // Update current overlay reference
+        currentOverlay = newOverlay;
+    }
+    
+    // Remove the old overlay only after the new one is added (with a small delay)
     if (oldOverlay) {
         setTimeout(() => {
             map.removeLayer(oldOverlay);
-        }, 125);
+        }, 90);
     }
-
+    
     // Update the timestamp display
     updateTimestampDisplay(frame.timestamp);
-
+    
     // Update timeline selection
     updateTimelineSelection();
 }
@@ -747,41 +919,64 @@ function updateTimestampDisplay(timestamp) {
 function startAnimation() {
     // Stop any existing animation
     stopAnimation();
-
+    
+    // If we automatically jumped to the latest frame on stop, we need to
+    // set the position back to the beginning for a fresh animation
+    if (RETURN_TO_LATEST_ON_STOP) {
+        // Start from the beginning of the animation if we're at the end
+        if (animationPosition === radarFrames.length - 1) {
+            animationPosition = 0;
+            // Show the first frame immediately before starting the interval
+            showFrame(animationPosition);
+        }
+    }
+    
     // Update button state
     if (playPauseButton) {
         playPauseButton.innerHTML = '<i class="fas fa-pause"></i>';
         playPauseButton.setAttribute('aria-label', 'Pause radar animation');
     }
-
+    
     isPlaying = true;
-
+    
     // Start the animation timer
     animationTimer = setInterval(() => {
+        // Move to the next frame in the sequence
         animationPosition = (animationPosition + 1) % radarFrames.length;
         showFrame(animationPosition);
-    }, animationSpeed); // Slightly slower frame rate (800ms) for direct approach
-
-    // console.log('Radar animation started');
+    }, 800); // Slightly slower frame rate (800ms) for direct approach
 }
 
 /**
  * Stop the radar animation
+ * Optionally returns to the latest frame based on configuration
  */
 function stopAnimation() {
     if (animationTimer) {
         clearInterval(animationTimer);
         animationTimer = null;
     }
-
+    
     // Update button state
     if (playPauseButton) {
         playPauseButton.innerHTML = '<i class="fas fa-play"></i>';
         playPauseButton.setAttribute('aria-label', 'Play radar animation');
     }
-
+    
     isPlaying = false;
-    // console.log('Radar animation stopped');
+    
+    // If configured to return to latest frame when stopping
+    if (RETURN_TO_LATEST_ON_STOP && radarFrames.length > 0) {
+        // Only change and show frame if we're not already on the latest frame
+        // This prevents the disappearing radar issue when already on the last frame
+        if (animationPosition !== radarFrames.length - 1) {
+            // Set position to the latest frame (last in the array)
+            animationPosition = radarFrames.length - 1;
+            
+            // Show the latest frame
+            showFrame(animationPosition);
+        }
+    }
 }
 
 /**
@@ -789,7 +984,7 @@ function stopAnimation() {
  */
 function toggleAnimation() {
     if (isPlaying) {
-        stopAnimation();
+        stopAnimation(); // This will now handle returning to latest frame if configured
     } else {
         startAnimation();
     }

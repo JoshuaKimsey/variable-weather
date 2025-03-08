@@ -271,6 +271,7 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         daily: {
             data: []
         },
+        hourlyForecast: [],
         alerts: alerts,
         source: 'nws',
         timezone: cityState || (locationName ? formatLocationName(locationName) : 'US Location'),
@@ -532,6 +533,24 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         const nextDay = {...lastDay};
         nextDay.time = lastDay.time + 86400; // Add one day in seconds
         weatherData.daily.data.push(nextDay);
+    }
+
+    if (hourlyData && hourlyData.properties && Array.isArray(hourlyData.properties.periods)) {
+        const hourlyPeriods = hourlyData.properties.periods;
+        
+        // Take first 12 periods (or all if less than 12)
+        const periodsToUse = Math.min(12, hourlyPeriods.length);
+        
+        for (let i = 0; i < periodsToUse; i++) {
+            const period = hourlyPeriods[i];
+            
+            weatherData.hourlyForecast.push({
+                time: new Date(period.startTime).getTime() / 1000, // Convert to Unix timestamp
+                temperature: period.temperature,
+                icon: mapNWSIconToGeneric(period.icon),
+                summary: period.shortForecast
+            });
+        }
     }
     
     return weatherData;

@@ -25,7 +25,7 @@
 ## Features
 
 - **Beautiful Animated Visuals** - Dynamic backgrounds and icons that change based on current conditions
-- **Detailed Information** - Current conditions, 7 day forecasts, weather alerts, and radar. With more to come!
+- **Detailed Information** - Current conditions, 7 day & hourly forecasts, weather alerts, and weather radar.
 - **Dual API System** - Uses National Weather Service data for US locations and Pirate Weather API globally
 - **Smart Location Detection** - Automatic geolocation with manual search options
 - **Progressive Web App (PWA)** - Install on any device with automatic updates
@@ -33,6 +33,7 @@
 - **Unit Conversion** - Toggle between imperial (°F) and metric (°C) units
 - **Responsive Design** - Optimized for all devices from mobile to desktop
 - **Weather Alerts** - Color-coded severity indicators for active weather alerts
+- **More To Come** - More features are to be added... Stay tuned! 
 
 ## Installation
 

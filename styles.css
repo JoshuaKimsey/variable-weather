@@ -351,7 +351,7 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 30px;
+    margin-bottom: 0px;
     width: 100%;
     max-width: 100%;
     padding: 0 15px; /* Add padding to prevent edge cutting */
@@ -476,6 +476,8 @@ body {
     overflow-x: auto;
     gap: 15px;
     padding: 10px 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
 .forecast-card {
@@ -503,6 +505,162 @@ body {
 .forecast-card .temp {
     font-size: 1.2rem;
     font-weight: 600;
+}
+
+/* Hourly forecast styles */
+.hourly-forecast-section h3 {
+    margin-bottom: 20px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.hourly-forecast-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 15px;
+    padding: 10px 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.hourly-forecast-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.hourly-forecast-container::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.hourly-forecast-card {
+    flex: 1;
+    min-width: 120px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 5px 15px var(--shadow-color);
+}
+
+.hourly-forecast-card .time {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.hourly-forecast-card .forecast-icon {
+    height: 60px;
+    width: 60px;
+    margin: 0 auto 25px;
+    position: relative;
+}
+
+.hourly-forecast-card .temp {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+/* Weather-themed scrollbar styles */
+/* Add these to your styles.css file */
+
+/* Base scrollbar styles */
+.hourly-forecast-container::-webkit-scrollbar,
+.forecast-container::-webkit-scrollbar {
+    height: 8px;
+    border-radius: 4px;
+}
+
+.hourly-forecast-container::-webkit-scrollbar-track,
+.forecast-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.hourly-forecast-container::-webkit-scrollbar-thumb,
+.forecast-container::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: background 0.3s ease;
+}
+
+/* Weather-specific scrollbar themes */
+.weather-sunny::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #ff9800, #ffeb3b);
+}
+
+.weather-sunny::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #f57c00, #ffd600);
+}
+
+.weather-rainy::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #29b6f6, #81d4fa);
+}
+
+.weather-rainy::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #0288d1, #4fc3f7);
+}
+
+.weather-cloudy::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #78909c, #b0bec5);
+}
+
+.weather-cloudy::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #546e7a, #90a4ae);
+}
+
+.weather-snowy::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #cfd8dc, #eceff1);
+}
+
+.weather-snowy::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #b0bec5, #ffffff);
+}
+
+.weather-fog::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #9e9e9e, #e0e0e0);
+}
+
+.weather-fog::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #757575, #bdbdbd);
+}
+
+.weather-storm::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #5c6bc0, #9575cd);
+}
+
+.weather-storm::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #3949ab, #7e57c2);
+}
+
+/* Firefox scrollbar compatibility */
+.hourly-forecast-container,
+.forecast-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+/* These classes override the Firefox scrollbar-color */
+.weather-sunny {
+    scrollbar-color: #ffb74d transparent;
+}
+
+.weather-rainy {
+    scrollbar-color: #4fc3f7 transparent;
+}
+
+.weather-cloudy {
+    scrollbar-color: #90a4ae transparent;
+}
+
+.weather-snowy {
+    scrollbar-color: #e0e0e0 transparent;
+}
+
+.weather-fog {
+    scrollbar-color: #bdbdbd transparent;
+}
+
+.weather-storm {
+    scrollbar-color: #7986cb transparent;
 }
 
 /*-----------------------------------------------
@@ -1507,5 +1665,26 @@ body {
     
     .radar-timestamp-display strong {
         font-size: 12px;
+    }
+}
+
+.radar-play-pause.radar-loading {
+    background-color: #999;
+    cursor: wait;
+    animation: pulse-loading 1.5s infinite ease-in-out;
+}
+
+.radar-play-pause:disabled {
+    opacity: 0.7;
+}
+
+@keyframes pulse-loading {
+    0%, 100% {
+        transform: scale(1);
+        background-color: #999;
+    }
+    50% {
+        transform: scale(1.05);
+        background-color: #777;
     }
 }

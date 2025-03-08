@@ -109,6 +109,8 @@ export function refreshWeatherWithCurrentUnits() {
         if (visibilityElement && data.currently) {
             visibilityElement.textContent = formatVisibility(data.currently.visibility);
         }
+
+        updateHourlyForecastUnits(data.hourly?.data || data.hourlyForecast);
         
         // Update forecast if available
         updateForecastUnits(data.daily?.data);
@@ -116,7 +118,7 @@ export function refreshWeatherWithCurrentUnits() {
 }
 
 /**
- * Updates the forecast cards with the appropriate units
+ * Updates the 7-day forecast cards with the appropriate units
  */
 function updateForecastUnits(forecastData) {
     if (!forecastData) return;
@@ -137,6 +139,34 @@ function updateForecastUnits(forecastData) {
                     tempElement.textContent = `${Math.round(highTempC)}° / ${Math.round(lowTempC)}°`;
                 } else {
                     tempElement.textContent = `${Math.round(highTemp)}° / ${Math.round(lowTemp)}°`;
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Updates the hourly forecast cards with the appropriate units
+ */
+function updateHourlyForecastUnits(hourlyData) {
+    if (!hourlyData) return;
+    
+    const hourlyForecastContainer = document.getElementById('hourly-forecast-items');
+    if (!hourlyForecastContainer) return;
+    
+    const hourlyCards = hourlyForecastContainer.querySelectorAll('.hourly-forecast-card');
+    
+    hourlyCards.forEach((card, index) => {
+        if (index < hourlyData.length) {
+            const tempElement = card.querySelector('.temp');
+            if (tempElement) {
+                const temp = hourlyData[index].temperature;
+                
+                if (currentDisplayUnits === 'metric') {
+                    const tempC = (temp - 32) * (5/9);
+                    tempElement.textContent = `${Math.round(tempC)}°`;
+                } else {
+                    tempElement.textContent = `${Math.round(temp)}°`;
                 }
             }
         }

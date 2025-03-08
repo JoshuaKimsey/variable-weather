@@ -135,6 +135,16 @@
             </div>
         </div>
 
+        <!-- Hourly Forecast Card -->
+        <div id="hourly-forecast-container" class="weather-card">
+            <div class="hourly-forecast-section">
+                <h3>Hourly Forecast</h3>
+                <div class="hourly-forecast-container" id="hourly-forecast-items">
+                    <!-- Hourly forecast cards will be added dynamically -->
+                </div>
+            </div>
+        </div>
+
         <!-- Radar Card -->
         <div id="radar-container" class="weather-card">
             <div class="radar-section">
@@ -153,7 +163,8 @@
                         <input type="text" id="location-input" placeholder="Enter location (city, state, country)">
                         <button id="search-button" aria-label="Search"><i class="fas fa-search"></i></button>
                     </div>
-                    <button id="geo-button" aria-label="Get My Location" title="Use my current location"><i class="fas fa-location-arrow"></i></button>
+                    <button id="geo-button" aria-label="Get My Location" title="Use my current location"><i
+                            class="fas fa-location-arrow"></i></button>
                 </div>
                 <!-- API attribution section -->
                 <div class="attribution-footer">
