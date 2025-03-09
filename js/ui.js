@@ -1,6 +1,16 @@
 /**
  * UI-related functions for the weather application
+ * 
+ * This module manages all UI components, including:
+ * - Weather data display
+ * - Weather details and forecast cards
+ * - Alert system
+ * - Loading and error states
  */
+
+//==============================================================================
+// 1. IMPORTS AND DOM ELEMENTS
+//==============================================================================
 
 import { setWeatherIcon, setForecastIcon } from './weatherIcons.js';
 import { setWeatherBackground } from './weatherBackgrounds.js';
@@ -13,6 +23,10 @@ let locationInput, searchButton, weatherData, loadingIndicator, errorMessage,
     temperatureElement, weatherDescriptionElement, weatherIconElement,
     windSpeedElement, humidityElement, pressureElement, visibilityElement,
     forecastContainer, stationInfoElement;
+
+//==============================================================================
+// 2. INITIALIZATION AND SETUP
+//==============================================================================
 
 /**
  * Initialize UI elements
@@ -70,42 +84,9 @@ export function setupEventListeners(searchCallback) {
     }
 }
 
-/**
- * Format observation time in a user-friendly way
- */
-export function formatObservationTime(date) {
-    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-        return 'unknown time';
-    }
-
-    try {
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-
-        if (diffMins < 5) {
-            return 'just now';
-        } else if (diffMins < 60) {
-            return `${diffMins} minutes ago`;
-        } else if (diffMins < 120) {
-            return '1 hour ago';
-        } else if (diffMins < 1440) { // less than a day
-            const hours = Math.floor(diffMins / 60);
-            return `${hours} hours ago`;
-        } else {
-            // Format as date/time if more than a day
-            return date.toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit'
-            });
-        }
-    } catch (error) {
-        console.error('Error formatting observation time:', error);
-        return 'unknown time';
-    }
-}
+//==============================================================================
+// 3. CORE DISPLAY FUNCTIONS
+//==============================================================================
 
 /**
  * Display weather data with all necessary error handling
@@ -159,7 +140,7 @@ export function displayWeatherData(data, locationName) {
         visibilityElement.textContent = formatVisibility(current.visibility || 10);
 
         // Set weather icon
-        setWeatherIcon(current.icon || 'cloudy', weatherIconElement);
+        setWeatherIcon(current.icon || 'cloudy', weatherIconElement, current.isDaytime);
 
         // Set background based on weather
         setWeatherBackground(current.icon || 'cloudy', current.isDaytime);
@@ -188,6 +169,77 @@ export function displayWeatherData(data, locationName) {
         showError('Error displaying weather data: ' + error.message);
     }
 }
+
+/**
+ * Format observation time in a user-friendly way
+ */
+export function formatObservationTime(date) {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+        return 'unknown time';
+    }
+
+    try {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+
+        if (diffMins < 5) {
+            return 'just now';
+        } else if (diffMins < 60) {
+            return `${diffMins} minutes ago`;
+        } else if (diffMins < 120) {
+            return '1 hour ago';
+        } else if (diffMins < 1440) { // less than a day
+            const hours = Math.floor(diffMins / 60);
+            return `${hours} hours ago`;
+        } else {
+            // Format as date/time if more than a day
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+        }
+    } catch (error) {
+        console.error('Error formatting observation time:', error);
+        return 'unknown time';
+    }
+}
+
+/**
+ * Apply scrollbar theme based on current weather condition
+ * @param {string} weatherIcon - The current weather icon code
+ */
+function applyScrollbarTheme(weatherIcon) {
+    const forecastContainers = document.querySelectorAll('.hourly-forecast-container, .forecast-container');
+
+    // Remove existing weather classes
+    forecastContainers.forEach(container => {
+        container.classList.remove('weather-sunny', 'weather-rainy', 'weather-cloudy', 'weather-snowy', 'weather-fog', 'weather-storm');
+    });
+
+    // Add appropriate class based on weather
+    if (weatherIcon.includes('clear') || weatherIcon === 'clear-day' || weatherIcon === 'clear-night') {
+        forecastContainers.forEach(container => container.classList.add('weather-sunny'));
+    } else if (weatherIcon.includes('rain') || weatherIcon === 'rain') {
+        forecastContainers.forEach(container => container.classList.add('weather-rainy'));
+    } else if (weatherIcon.includes('cloud') || weatherIcon === 'cloudy' ||
+        weatherIcon.includes('partly') || weatherIcon === 'partly-cloudy-day' ||
+        weatherIcon === 'partly-cloudy-night') {
+        forecastContainers.forEach(container => container.classList.add('weather-cloudy'));
+    } else if (weatherIcon.includes('snow') || weatherIcon === 'snow') {
+        forecastContainers.forEach(container => container.classList.add('weather-snowy'));
+    } else if (weatherIcon.includes('fog') || weatherIcon === 'fog') {
+        forecastContainers.forEach(container => container.classList.add('weather-fog'));
+    } else if (weatherIcon.includes('thunder') || weatherIcon === 'thunderstorm') {
+        forecastContainers.forEach(container => container.classList.add('weather-storm'));
+    }
+}
+
+//==============================================================================
+// 4. WEATHER DETAIL COMPONENTS
+//==============================================================================
 
 /**
  * Update the station info display
@@ -292,7 +344,7 @@ function handleForecastDisplay(data) {
             const lowTemp = day.temperatureLow !== undefined ? day.temperatureLow :
                 (day.temperature !== undefined ? day.temperature - 5 : 50);
 
-            // Format temperatures according to current units
+            // Format temperatures according to current units - ALWAYS HIGH/LOW FORMAT
             let tempDisplay;
             if (getDisplayUnits() === 'metric') {
                 const highTempC = (highTemp - 32) * (5 / 9);
@@ -310,45 +362,32 @@ function handleForecastDisplay(data) {
 
             forecastContainer.appendChild(forecastCard);
 
-            // Set forecast icon
+            // Set forecast icon - ALWAYS use daytime icons for daily forecast
             const forecastIconElement = document.getElementById(`forecast-icon-${i}`);
             if (forecastIconElement) {
-                setForecastIcon(day.icon || 'cloudy', forecastIconElement);
+                // For daily forecast, convert any night icons to their day equivalents
+                let iconCode = day.icon || 'cloudy';
+                
+                // Convert night-specific icons to day versions
+                if (iconCode === 'clear-night') {
+                    iconCode = 'clear-day';
+                } else if (iconCode === 'partly-cloudy-night') {
+                    iconCode = 'partly-cloudy-day';
+                } else if (iconCode.startsWith('n') && weatherIcons[iconCode.substring(1)]) {
+                    // Remove 'n' prefix for NWS night icons
+                    iconCode = iconCode.substring(1);
+                } else if (iconCode.includes('night')) {
+                    // Replace 'night' with 'day' in icon names
+                    iconCode = iconCode.replace('night', 'day');
+                }
+                
+                // Always use daytime mode
+                setForecastIcon(iconCode, forecastIconElement, true);
             }
         }
     } catch (error) {
         console.error('Error displaying forecast:', error);
         forecastContainer.innerHTML = '<div class="forecast-error">Error displaying forecast</div>';
-    }
-}
-
-/**
- * Apply scrollbar theme based on current weather condition
- * @param {string} weatherIcon - The current weather icon code
- */
-function applyScrollbarTheme(weatherIcon) {
-    const forecastContainers = document.querySelectorAll('.hourly-forecast-container, .forecast-container');
-
-    // Remove existing weather classes
-    forecastContainers.forEach(container => {
-        container.classList.remove('weather-sunny', 'weather-rainy', 'weather-cloudy', 'weather-snowy', 'weather-fog', 'weather-storm');
-    });
-
-    // Add appropriate class based on weather
-    if (weatherIcon.includes('clear') || weatherIcon === 'clear-day' || weatherIcon === 'clear-night') {
-        forecastContainers.forEach(container => container.classList.add('weather-sunny'));
-    } else if (weatherIcon.includes('rain') || weatherIcon === 'rain') {
-        forecastContainers.forEach(container => container.classList.add('weather-rainy'));
-    } else if (weatherIcon.includes('cloud') || weatherIcon === 'cloudy' ||
-        weatherIcon.includes('partly') || weatherIcon === 'partly-cloudy-day' ||
-        weatherIcon === 'partly-cloudy-night') {
-        forecastContainers.forEach(container => container.classList.add('weather-cloudy'));
-    } else if (weatherIcon.includes('snow') || weatherIcon === 'snow') {
-        forecastContainers.forEach(container => container.classList.add('weather-snowy'));
-    } else if (weatherIcon.includes('fog') || weatherIcon === 'fog') {
-        forecastContainers.forEach(container => container.classList.add('weather-fog'));
-    } else if (weatherIcon.includes('thunder') || weatherIcon === 'thunderstorm') {
-        forecastContainers.forEach(container => container.classList.add('weather-storm'));
     }
 }
 
@@ -425,7 +464,20 @@ function handleHourlyForecastDisplay(data) {
             // Set forecast icon
             const forecastIconElement = document.getElementById(`hourly-forecast-icon-${i}`);
             if (forecastIconElement) {
-                setForecastIcon(hour.icon || 'cloudy', forecastIconElement);
+                // Determine if it's daytime for this hour
+                let isDaytime = true; // Default to day
+                
+                // First, check if the API explicitly provides isDaytime property (NWS does this)
+                if (hour.isDaytime !== undefined) {
+                    isDaytime = hour.isDaytime;
+                } else {
+                    // Otherwise, calculate based on the time
+                    // Simple approximation: 6 AM to 6 PM is daytime
+                    const hour24 = date.getHours();
+                    isDaytime = (hour24 >= 6 && hour24 < 18);
+                }
+                
+                setForecastIcon(hour.icon || 'cloudy', forecastIconElement, isDaytime);
             }
         }
     } catch (error) {
@@ -437,122 +489,9 @@ function handleHourlyForecastDisplay(data) {
     }
 }
 
-/**
- * Get appropriate severity level based on alert information
- * @param {Object} alert - The alert object from NWS or Pirate Weather
- * @returns {string} - The severity level: 'extreme', 'severe', 'moderate', or 'minor'
- */
-function getAlertSeverity(alert) {
-    try {
-        // First check if the API provides a severity level directly
-        if (alert.properties && alert.properties.severity) {
-            const apiSeverity = alert.properties.severity.toLowerCase();
-
-            // If the API says it's extreme or severe, trust it
-            if (apiSeverity === 'extreme' || apiSeverity === 'severe') {
-                return apiSeverity;
-            }
-
-            // For other API-provided severities, we'll still check against our event mapping
-            // because sometimes the API severity doesn't match the practical impact
-        }
-
-        // Extract the alert title/event for mapping
-        let alertTitle = '';
-        if (alert.properties && alert.properties.event) {
-            alertTitle = alert.properties.event;
-        } else if (alert.title) {
-            alertTitle = alert.title;
-        }
-
-        // Convert to lowercase for case-insensitive matching
-        const lowerTitle = alertTitle.toLowerCase();
-
-        // Event-based severity mapping - more comprehensive list
-        // Extreme threats - immediate danger to life and property
-        if (
-            lowerTitle.includes('tornado warning') ||
-            lowerTitle.includes('flash flood emergency') ||
-            lowerTitle.includes('hurricane warning') && lowerTitle.includes('category 4') ||
-            lowerTitle.includes('hurricane warning') && lowerTitle.includes('category 5') ||
-            lowerTitle.includes('tsunami warning') ||
-            lowerTitle.includes('extreme wind warning') ||
-            lowerTitle.includes('particularly dangerous situation')
-        ) {
-            return 'extreme';
-        }
-
-        // Severe threats - significant threat to life or property
-        if (
-            lowerTitle.includes('severe thunderstorm warning') ||
-            lowerTitle.includes('tornado watch') ||
-            lowerTitle.includes('flash flood warning') ||
-            lowerTitle.includes('hurricane warning') ||
-            lowerTitle.includes('blizzard warning') ||
-            lowerTitle.includes('ice storm warning') ||
-            lowerTitle.includes('winter storm warning') ||
-            lowerTitle.includes('storm surge warning') ||
-            lowerTitle.includes('hurricane watch') ||
-            lowerTitle.includes('avalanche warning') ||
-            lowerTitle.includes('fire warning') ||
-            lowerTitle.includes('red flag warning') ||
-            lowerTitle.includes('excessive heat warning')
-        ) {
-            return 'severe';
-        }
-
-        // Moderate threats - possible threat to life or property
-        if (
-            lowerTitle.includes('flood warning') ||
-            lowerTitle.includes('thunderstorm watch') ||
-            lowerTitle.includes('winter weather advisory') ||
-            lowerTitle.includes('wind advisory') ||
-            lowerTitle.includes('heat advisory') ||
-            lowerTitle.includes('freeze warning') ||
-            lowerTitle.includes('dense fog advisory') ||
-            lowerTitle.includes('flood advisory') ||
-            lowerTitle.includes('rip current statement') ||
-            lowerTitle.includes('frost advisory') ||
-            lowerTitle.includes('small craft advisory')
-        ) {
-            return 'moderate';
-        }
-
-        // Minor threats - minimal threat to life or property
-        if (
-            lowerTitle.includes('special weather statement') ||
-            lowerTitle.includes('hazardous weather outlook') ||
-            lowerTitle.includes('air quality alert') ||
-            lowerTitle.includes('hydrologic outlook') ||
-            lowerTitle.includes('beach hazards statement') ||
-            lowerTitle.includes('urban and small stream') ||
-            lowerTitle.includes('lake wind advisory') ||
-            lowerTitle.includes('short term forecast')
-        ) {
-            return 'minor';
-        }
-
-        // If we get to this point, it's not matched any of our specific patterns
-        // Check for some general indicators
-        if (lowerTitle.includes('warning')) {
-            return 'severe';  // Any unspecified warning is treated as severe
-        }
-
-        if (lowerTitle.includes('watch')) {
-            return 'moderate';  // Any unspecified watch is treated as moderate
-        }
-
-        if (lowerTitle.includes('advisory') || lowerTitle.includes('statement')) {
-            return 'minor';  // Any unspecified advisory is treated as minor
-        }
-
-        // Default fallback
-        return 'moderate';
-    } catch (error) {
-        console.error('Error determining alert severity:', error);
-        return 'moderate'; // Default fallback
-    }
-}
+//==============================================================================
+// 5. ALERT SYSTEM
+//==============================================================================
 
 /**
  * Display alerts with error handling
@@ -679,11 +618,128 @@ function displayAlerts(alerts) {
 }
 
 /**
+ * Get appropriate severity level based on alert information
+ * @param {Object} alert - The alert object from NWS or Pirate Weather
+ * @returns {string} - The severity level: 'extreme', 'severe', 'moderate', or 'minor'
+ */
+function getAlertSeverity(alert) {
+    try {
+        // First check if the API provides a severity level directly
+        if (alert.properties && alert.properties.severity) {
+            const apiSeverity = alert.properties.severity.toLowerCase();
+
+            // If the API says it's extreme or severe, trust it
+            if (apiSeverity === 'extreme' || apiSeverity === 'severe') {
+                return apiSeverity;
+            }
+
+            // For other API-provided severities, we'll still check against our event mapping
+            // because sometimes the API severity doesn't match the practical impact
+        }
+
+        // Extract the alert title/event for mapping
+        let alertTitle = '';
+        if (alert.properties && alert.properties.event) {
+            alertTitle = alert.properties.event;
+        } else if (alert.title) {
+            alertTitle = alert.title;
+        }
+
+        // Convert to lowercase for case-insensitive matching
+        const lowerTitle = alertTitle.toLowerCase();
+
+        // Event-based severity mapping - more comprehensive list
+        // Extreme threats - immediate danger to life and property
+        if (
+            lowerTitle.includes('tornado warning') ||
+            lowerTitle.includes('flash flood emergency') ||
+            lowerTitle.includes('hurricane warning') && lowerTitle.includes('category 4') ||
+            lowerTitle.includes('hurricane warning') && lowerTitle.includes('category 5') ||
+            lowerTitle.includes('tsunami warning') ||
+            lowerTitle.includes('extreme wind warning') ||
+            lowerTitle.includes('particularly dangerous situation')
+        ) {
+            return 'extreme';
+        }
+
+        // Severe threats - significant threat to life or property
+        if (
+            lowerTitle.includes('severe thunderstorm warning') ||
+            lowerTitle.includes('tornado watch') ||
+            lowerTitle.includes('flash flood warning') ||
+            lowerTitle.includes('hurricane warning') ||
+            lowerTitle.includes('blizzard warning') ||
+            lowerTitle.includes('ice storm warning') ||
+            lowerTitle.includes('winter storm warning') ||
+            lowerTitle.includes('storm surge warning') ||
+            lowerTitle.includes('hurricane watch') ||
+            lowerTitle.includes('avalanche warning') ||
+            lowerTitle.includes('fire warning') ||
+            lowerTitle.includes('red flag warning') ||
+            lowerTitle.includes('excessive heat warning')
+        ) {
+            return 'severe';
+        }
+
+        // Moderate threats - possible threat to life or property
+        if (
+            lowerTitle.includes('flood warning') ||
+            lowerTitle.includes('thunderstorm watch') ||
+            lowerTitle.includes('winter weather advisory') ||
+            lowerTitle.includes('wind advisory') ||
+            lowerTitle.includes('heat advisory') ||
+            lowerTitle.includes('freeze warning') ||
+            lowerTitle.includes('dense fog advisory') ||
+            lowerTitle.includes('flood advisory') ||
+            lowerTitle.includes('rip current statement') ||
+            lowerTitle.includes('frost advisory') ||
+            lowerTitle.includes('small craft advisory')
+        ) {
+            return 'moderate';
+        }
+
+        // Minor threats - minimal threat to life or property
+        if (
+            lowerTitle.includes('special weather statement') ||
+            lowerTitle.includes('hazardous weather outlook') ||
+            lowerTitle.includes('air quality alert') ||
+            lowerTitle.includes('hydrologic outlook') ||
+            lowerTitle.includes('beach hazards statement') ||
+            lowerTitle.includes('urban and small stream') ||
+            lowerTitle.includes('lake wind advisory') ||
+            lowerTitle.includes('short term forecast')
+        ) {
+            return 'minor';
+        }
+
+        // If we get to this point, it's not matched any of our specific patterns
+        // Check for some general indicators
+        if (lowerTitle.includes('warning')) {
+            return 'severe';  // Any unspecified warning is treated as severe
+        }
+
+        if (lowerTitle.includes('watch')) {
+            return 'moderate';  // Any unspecified watch is treated as moderate
+        }
+
+        if (lowerTitle.includes('advisory') || lowerTitle.includes('statement')) {
+            return 'minor';  // Any unspecified advisory is treated as minor
+        }
+
+        // Default fallback
+        return 'moderate';
+    } catch (error) {
+        console.error('Error determining alert severity:', error);
+        return 'moderate'; // Default fallback
+    }
+}
+
+/**
  * Format alert text for better readability
  */
 function formatAlertText(text) {
     if (!text) return '';
-
+    
     try {
         // Replace * with bullet points
         text = text.replace(/\*/g, '•');
@@ -711,6 +767,10 @@ function capitalizeFirst(str) {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+//==============================================================================
+// 6. LOADING AND ERROR STATES
+//==============================================================================
 
 /**
  * Show loading indicator

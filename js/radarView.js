@@ -3,7 +3,11 @@
  * This implementation directly uses the RainViewer API without loading their external script
  */
 
-// Constants
+//==============================================================================
+// 1. CONSTANTS AND MODULE STATE
+//==============================================================================
+
+// Configuration Constants
 const RAINVIEWER_API_URL = 'https://api.rainviewer.com/public/weather-maps.json';
 const DEFAULT_MAP_ZOOM = 7;
 const DEFAULT_COLOR_SCHEME = 7; // 0: original, 1: universal, 2: TITAN, 4: The Weather Channel, 5: Meteored, 6: NEXRAD Level 3, 7: Rainbow SELEX-IS, 8: Dark Sky
@@ -14,7 +18,7 @@ const FRAMES_TO_KEEP = 11; // Number of recent frames to use in animation
 const ANIMATION_SPEED = 1000; // time per frame in ms
 const RETURN_TO_LATEST_ON_STOP = true; // Set to true to jump to latest frame when stopping animation
 
-// Module state
+// Module state variables
 let map = null;
 let radarFrames = [];
 let animationPosition = 0;
@@ -29,6 +33,10 @@ let currentLocationMarker = null;
 let timestampDisplay = null;
 let timestampControl = null;
 let timestampControlInstance = null;
+
+//==============================================================================
+// 2. PUBLIC API / EXPORTED FUNCTIONS
+//==============================================================================
 
 /**
  * Initialize the radar view
@@ -77,6 +85,104 @@ export function initRadarView(containerId) {
     // Make updateRadarLocation globally accessible as a fallback
     window.updateRadarLocation = updateRadarLocation;
 }
+
+/**
+ * Update the radar view when the location changes
+ * @param {number} lat - Latitude of new location
+ * @param {number} lon - Longitude of new location
+ */
+export function updateRadarLocation(lat, lon) {
+    if (!map || !currentLocationMarker) return;
+
+    // Update marker position
+    currentLocationMarker.setLatLng([lat, lon]);
+
+    // Center map on new location
+    map.setView([lat, lon], map.getZoom());
+}
+
+/**
+ * Clean up the radar view resources
+ */
+export function cleanupRadarView() {
+    // Remove resize listener
+    window.removeEventListener('resize', repositionTimestampControl);
+
+    // Remove timestamp control if it exists
+    if (map && timestampControlInstance) {
+        try {
+            map.removeControl(timestampControlInstance);
+        } catch (error) {
+            console.log('Error removing timestamp control:', error);
+        }
+    }
+
+    // Stop animation
+    stopAnimation();
+
+    // Remove map if it exists
+    if (map) {
+        map.remove();
+        map = null;
+    }
+
+    // Reset state
+    radarFrames = [];
+    animationPosition = 0;
+    currentOverlay = null;
+    mapInitialized = false;
+    timestampControlInstance = null;
+}
+
+/**
+ * Check if radar view is initialized
+ * @returns {boolean} - True if radar view is initialized
+ */
+export function isRadarViewInitialized() {
+    return mapInitialized;
+}
+
+/**
+ * Refresh the radar data
+ * Used for auto-updates to keep radar in sync with weather data
+ */
+export function refreshRadarData() {
+    if (!mapInitialized) {
+        console.warn('Cannot refresh radar data - map not initialized');
+        return;
+    }
+
+    // console.log('Refreshing radar data...');
+
+    // If animation is running, remember the state to restart it after refresh
+    const wasPlaying = isPlaying;
+
+    // Stop the animation if it's playing
+    if (isPlaying) {
+        stopAnimation();
+    }
+
+    // Show loading indicator
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'flex';
+    }
+
+    // Fetch new radar data
+    fetchRadarData()
+        .then(() => {
+            // Restart the animation if it was playing before
+            if (wasPlaying) {
+                startAnimation();
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing radar data:', error);
+        });
+}
+
+//==============================================================================
+// 3. INITIALIZATION FUNCTIONS
+//==============================================================================
 
 /**
  * Ensure Leaflet CSS is loaded
@@ -145,6 +251,10 @@ function createLoadingIndicator(containerId) {
     container.appendChild(loadingIndicator);
 }
 
+//==============================================================================
+// 4. MAP INITIALIZATION AND SETUP
+//==============================================================================
+
 /**
  * Initialize the map
  * @param {string} containerId - ID of container element
@@ -174,12 +284,6 @@ function initializeMap(containerId) {
             attributionControl: true,
             zoomControl: true
         });
-
-        // Add OpenStreetMap tiles
-        // L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        //     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Radar: <a href="https://rainviewer.com/">RainViewer</a>',
-        //     maxZoom: 19
-        // }).addTo(map);
 
         // Add dark-themed map tiles (using CartoDB Dark Matter)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -237,6 +341,10 @@ function initializeMap(containerId) {
         loadingIndicator.style.display = 'none';
     }
 }
+
+//==============================================================================
+// 5. UI CONTROLS AND ELEMENTS
+//==============================================================================
 
 /**
  * Create a custom control for displaying the current timestamp
@@ -376,6 +484,63 @@ function createRadarControls(containerId) {
 }
 
 /**
+ * Update the timestamp display with the current frame time
+ * @param {Date} timestamp - Timestamp of the current frame
+ */
+function updateTimestampDisplay(timestamp) {
+    if (!timestampDisplay) return;
+
+    try {
+        // Format the date and time
+        const timeString = timestamp.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const dateString = timestamp.toLocaleDateString([], {
+            month: 'short',
+            day: 'numeric'
+        });
+
+        // Check if we're on mobile
+        const isMobile = window.innerWidth <= 768;
+
+        if (isMobile) {
+            // More compact format for mobile
+            timestampDisplay.innerHTML = `<strong>${timeString}</strong> <span class="date-display">${dateString}</span>`;
+        } else {
+            // Normal format for desktop
+            timestampDisplay.innerHTML = `<strong>${timeString}</strong><br>${dateString}`;
+        }
+    } catch (error) {
+        console.error('Error updating timestamp display:', error);
+        timestampDisplay.innerHTML = 'Time data unavailable';
+    }
+}
+
+/**
+ * Show error message for radar view
+ * @param {string} containerId - ID of container element
+ * @param {string} message - Error message to display
+ */
+function showRadarError(containerId, message) {
+    const errorElement = document.getElementById('radar-error-message');
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+    }
+
+    // Hide loading indicator if it exists
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+    }
+}
+
+//==============================================================================
+// 6. RADAR DATA FETCHING AND PROCESSING
+//==============================================================================
+
+/**
  * Fetch radar data from RainViewer API
  */
 function fetchRadarData() {
@@ -473,15 +638,11 @@ function processRadarData(data) {
         frames = frames.slice(-FRAMES_TO_KEEP);
     }
 
-    // console.log('Processing radar data frames:', frames.length);
-
     // Store just the timestamp information - we'll construct the full URL later
     radarFrames = frames.map(frame => ({
         time: frame.time,
         timestamp: new Date(frame.time * 1000)
     }));
-
-    // console.log(`Loaded ${radarFrames.length} radar frames`);
 
     // Update timeline
     updateTimeline();
@@ -666,16 +827,18 @@ function updateTimelineSelection() {
     }
 }
 
+//==============================================================================
+// 7. FRAME PRELOADING AND DISPLAY
+//==============================================================================
+
 /**
  * Preload radar frames for smoother animation
- * Add this function to radarView.js
+ * @returns {Promise} - Resolves when preloading is complete
  */
 function preloadRadarFrames() {
     if (!map || radarFrames.length === 0) {
         return Promise.resolve();
     }
-    
-    //console.log(`Preloading ${radarFrames.length} radar frames...`);
     
     // Create a visual indicator of preload progress
     updatePreloadingUI(true);
@@ -768,7 +931,6 @@ function preloadRadarFrames() {
     // Return a promise that resolves when all frames are preloaded (or timeout)
     return Promise.all(preloadPromises)
         .then(() => {
-            //console.log('All radar frames preloaded');
             // Store preloaded layers for later use
             window.preloadedRadarLayers = preloadedLayers;
             updatePreloadingUI(false);
@@ -816,7 +978,6 @@ function updatePreloadProgress(loaded, total) {
     const percent = Math.floor((loaded / total) * 100);
     playButton.setAttribute('aria-label', `Loading: ${percent}%`);
 }
-
 
 /**
  * Show a specific radar frame with smooth transition
@@ -878,40 +1039,9 @@ function showFrame(index) {
     updateTimelineSelection();
 }
 
-/**
- * Update the timestamp display with the current frame time
- * @param {Date} timestamp - Timestamp of the current frame
- */
-function updateTimestampDisplay(timestamp) {
-    if (!timestampDisplay) return;
-
-    try {
-        // Format the date and time
-        const timeString = timestamp.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        const dateString = timestamp.toLocaleDateString([], {
-            month: 'short',
-            day: 'numeric'
-        });
-
-        // Check if we're on mobile
-        const isMobile = window.innerWidth <= 768;
-
-        if (isMobile) {
-            // More compact format for mobile
-            timestampDisplay.innerHTML = `<strong>${timeString}</strong> <span class="date-display">${dateString}</span>`;
-        } else {
-            // Normal format for desktop
-            timestampDisplay.innerHTML = `<strong>${timeString}</strong><br>${dateString}`;
-        }
-    } catch (error) {
-        console.error('Error updating timestamp display:', error);
-        timestampDisplay.innerHTML = 'Time data unavailable';
-    }
-}
+//==============================================================================
+// 8. ANIMATION CONTROL
+//==============================================================================
 
 /**
  * Start the radar animation
@@ -944,7 +1074,7 @@ function startAnimation() {
         // Move to the next frame in the sequence
         animationPosition = (animationPosition + 1) % radarFrames.length;
         showFrame(animationPosition);
-    }, 800); // Slightly slower frame rate (800ms) for direct approach
+    }, ANIMATION_SPEED);
 }
 
 /**
@@ -988,117 +1118,4 @@ function toggleAnimation() {
     } else {
         startAnimation();
     }
-}
-
-/**
- * Show error message for radar view
- * @param {string} containerId - ID of container element
- * @param {string} message - Error message to display
- */
-function showRadarError(containerId, message) {
-    const errorElement = document.getElementById('radar-error-message');
-    if (errorElement) {
-        errorElement.textContent = message;
-        errorElement.style.display = 'block';
-    }
-
-    // Hide loading indicator if it exists
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'none';
-    }
-}
-
-/**
- * Update the radar view when the location changes
- * @param {number} lat - Latitude of new location
- * @param {number} lon - Longitude of new location
- */
-export function updateRadarLocation(lat, lon) {
-    if (!map || !currentLocationMarker) return;
-
-    // Update marker position
-    currentLocationMarker.setLatLng([lat, lon]);
-
-    // Center map on new location
-    map.setView([lat, lon], map.getZoom());
-}
-
-/**
- * Clean up the radar view resources
- * This needs to be updated to properly clean up the timestamp control
- */
-export function cleanupRadarView() {
-    // Remove resize listener
-    window.removeEventListener('resize', repositionTimestampControl);
-
-    // Remove timestamp control if it exists
-    if (map && timestampControlInstance) {
-        try {
-            map.removeControl(timestampControlInstance);
-        } catch (error) {
-            console.log('Error removing timestamp control:', error);
-        }
-    }
-
-    // Stop animation
-    stopAnimation();
-
-    // Remove map if it exists
-    if (map) {
-        map.remove();
-        map = null;
-    }
-
-    // Reset state
-    radarFrames = [];
-    animationPosition = 0;
-    currentOverlay = null;
-    mapInitialized = false;
-    timestampControlInstance = null;
-}
-
-/**
- * Check if radar view is initialized
- * @returns {boolean} - True if radar view is initialized
- */
-export function isRadarViewInitialized() {
-    return mapInitialized;
-}
-
-/**
- * Refresh the radar data
- * Used for auto-updates to keep radar in sync with weather data
- */
-export function refreshRadarData() {
-    if (!mapInitialized) {
-        console.warn('Cannot refresh radar data - map not initialized');
-        return;
-    }
-
-    // console.log('Refreshing radar data...');
-
-    // If animation is running, remember the state to restart it after refresh
-    const wasPlaying = isPlaying;
-
-    // Stop the animation if it's playing
-    if (isPlaying) {
-        stopAnimation();
-    }
-
-    // Show loading indicator
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'flex';
-    }
-
-    // Fetch new radar data
-    fetchRadarData()
-        .then(() => {
-            // Restart the animation if it was playing before
-            if (wasPlaying) {
-                startAnimation();
-            }
-        })
-        .catch(error => {
-            console.error('Error refreshing radar data:', error);
-        });
 }

@@ -1,6 +1,13 @@
 /**
  * Main entry point for the weather application
+ * 
+ * This module coordinates the application's initialization and handles
+ * user interactions for location detection and search functionality.
  */
+
+//==============================================================================
+// 1. IMPORTS AND DEPENDENCIES
+//==============================================================================
 
 import { DEFAULT_COORDINATES } from './config.js';
 import { fetchWeather } from './api.js';
@@ -19,8 +26,13 @@ import { initApiSettings } from './apiSettings.js';
 import { initUnits } from './units.js';
 import { initRadarView, refreshRadarData, isRadarViewInitialized } from './radarView.js';
 
+//==============================================================================
+// 2. APPLICATION INITIALIZATION
+//==============================================================================
+
 /**
  * Initialize the application
+ * Entry point that sets up all components and checks for initial location
  */
 function initApp() {
     // Initialize UI components first
@@ -67,6 +79,15 @@ function initApp() {
     // Start the timer to update the "Last Updated" text
     startLastUpdatedTimer();
 
+    // Check for initial location source
+    determineInitialLocation();
+}
+
+/**
+ * Determine the initial location to display weather for
+ * Checks URL parameters first, then geolocation preference, then default
+ */
+function determineInitialLocation() {
     // Check for location in URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const lat = urlParams.get('lat');
@@ -90,8 +111,13 @@ function initApp() {
     }
 }
 
+//==============================================================================
+// 3. LOCATION SERVICES
+//==============================================================================
+
 /**
  * Get the user's current location
+ * Uses browser's geolocation API with appropriate error handling
  */
 function getUserLocation() {
     // First check if geolocation is available in the browser
@@ -128,8 +154,6 @@ function getUserLocation() {
             
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
-            
-            // console.log(`Location found: ${lat}, ${lon}`);
             
             // Remember that user enabled geolocation
             localStorage.setItem('geolocation_enabled', 'true');
@@ -190,6 +214,9 @@ function getUserLocation() {
 
 /**
  * Reverse geocode coordinates to get a location name
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @returns {Promise<string>} - Promise that resolves to location name
  */
 function reverseGeocode(lat, lon) {
     return new Promise((resolve, reject) => {
@@ -216,8 +243,13 @@ function reverseGeocode(lat, lon) {
     });
 }
 
+//==============================================================================
+// 4. USER INTERFACE INTERACTIONS
+//==============================================================================
+
 /**
  * Show a prompt asking if user wants to enable geolocation
+ * Displayed to first-time users who haven't made a geolocation choice yet
  */
 function showGeolocationPrompt() {
     // Create a prompt container
@@ -255,6 +287,7 @@ function showGeolocationPrompt() {
 
 /**
  * Search for location function
+ * Handles the location search input and geocodes it to coordinates
  */
 function searchLocation() {
     const locationInput = document.getElementById('location-input');
@@ -292,6 +325,10 @@ function searchLocation() {
             showError('Error searching for location. Please try again later.');
         });
 }
+
+//==============================================================================
+// 5. GLOBAL EXPORTS AND INITIALIZATION
+//==============================================================================
 
 // Make getUserLocation available globally so it can be called from the UI
 window.getUserLocation = getUserLocation;

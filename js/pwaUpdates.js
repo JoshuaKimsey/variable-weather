@@ -9,10 +9,10 @@
  */
 
 // App version - change this with each release
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.2.2';
 
 // Configuration
-const CHECK_INTERVAL = 60 * 60 * 1000; // Check for updates every hour (in milliseconds)
+const CHECK_INTERVAL = 60 * 120 * 1000; // Check for updates every 2 hours (in milliseconds)
 
 // Global state
 let updateAvailable = false;

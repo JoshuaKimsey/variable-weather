@@ -1,6 +1,16 @@
 /**
  * API functions for weather data retrieval
+ * 
+ * This module handles fetching weather data from different providers:
+ * - National Weather Service (NWS) API for US locations
+ * - Pirate Weather API for international locations
+ * 
+ * The module also provides data processing and error handling for each API.
  */
+
+//==============================================================================
+// 1. IMPORTS AND DEPENDENCIES
+//==============================================================================
 
 import { resetLastUpdateTime } from './autoUpdate.js';
 import { getPirateWeatherApiKey, API_ENDPOINTS } from './config.js';
@@ -8,8 +18,17 @@ import { displayWeatherData, showLoading, hideLoading, hideError, showError } fr
 import { getCountryCode, isUSLocation, formatLocationName, calculateDistance } from './utils.js';
 import { updateRadarLocation } from './radarView.js';
 
+//==============================================================================
+// 2. PUBLIC API FUNCTIONS
+//==============================================================================
+
 /**
  * Fetch weather data from the appropriate API
+ * This is the main entry point that determines which API to use
+ * 
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @param {string} locationName - Optional location name
  */
 export function fetchWeather(lat, lon, locationName) {
     // Reset the last update time whenever we fetch new weather data
@@ -39,9 +58,12 @@ export function fetchWeather(lat, lon, locationName) {
     }
 }
 
+//==============================================================================
+// 3. UTILITY FUNCTIONS
+//==============================================================================
+
 /**
- * Helper function to extract the numeric wind speed from NWS wind speed string
- * This should be placed OUTSIDE and BEFORE any functions that use it
+ * Extract the numeric wind speed from NWS wind speed string
  * 
  * @param {string} windSpeedString - Wind speed string like "10 mph" or "5 to 10 mph"
  * @returns {number|null} - Numeric wind speed value or null if not found
@@ -71,7 +93,164 @@ function extractWindSpeed(windSpeedString) {
 }
 
 /**
+ * Map NWS icon to generic icon code with improved handling
+ * 
+ * @param {string} nwsIconUrl - URL of the NWS icon
+ * @returns {string} - Generalized icon code for our application
+ */
+function mapNWSIconToGeneric(nwsIconUrl) {
+    if (!nwsIconUrl) return 'cloudy'; // Default fallback
+
+    // Extract the icon code from the URL
+    // Example: https://api.weather.gov/icons/land/day/tsra,40?size=medium
+    const parts = nwsIconUrl.split('/');
+    let timeOfDay = 'day'; // default
+    let iconCode = '';
+    let hasChance = false;
+
+    // Look for the part containing the icon code
+    for (let i = 0; i < parts.length; i++) {
+        if (parts[i] === 'day' || parts[i] === 'night') {
+            timeOfDay = parts[i];
+            // The next part should contain the icon code
+            if (i + 1 < parts.length) {
+                const codePart = parts[i + 1];
+
+                // Extract the base icon code
+                if (codePart.includes(',')) {
+                    // Has probability number, e.g. "tsra,40"
+                    const splitCode = codePart.split(',');
+                    iconCode = splitCode[0];
+                    hasChance = parseInt(splitCode[1], 10) < 50; // Consider it a "chance" if < 50%
+                } else if (codePart.includes('?')) {
+                    // Has query parameters
+                    iconCode = codePart.split('?')[0];
+                } else {
+                    iconCode = codePart;
+                }
+                break;
+            }
+        }
+    }
+
+    // If no icon code found, default to cloudy
+    if (!iconCode) return 'cloudy';
+
+    // Night prefix for mapped icon codes
+    const nightPrefix = timeOfDay === 'night' ? 'n' : '';
+    
+    // Base weather conditions with night awareness
+    const baseConditions = {
+        'skc': timeOfDay === 'night' ? 'clear-night' : 'clear-day',
+        'few': timeOfDay === 'night' ? 'partly-cloudy-night' : 'partly-cloudy-day',
+        'sct': timeOfDay === 'night' ? 'partly-cloudy-night' : 'partly-cloudy-day',
+        'bkn': timeOfDay === 'night' ? 'partly-cloudy-night' : 'partly-cloudy-day',
+        'ovc': 'cloudy',
+        'wind_skc': 'wind',
+        'wind_few': 'wind',
+        'wind_sct': 'wind',
+        'wind_bkn': 'wind',
+        'wind_ovc': 'wind',
+        'snow': 'snow',
+        'rain_snow': 'sleet',
+        'rain_sleet': 'sleet',
+        'snow_sleet': 'sleet',
+        'fzra': 'sleet',
+        'rain_fzra': 'sleet',
+        'snow_fzra': 'sleet',
+        'sleet': 'sleet',
+        'rain': 'rain',
+        'rain_showers': 'rain',
+        'rain_showers_hi': 'rain',
+        'tsra': 'thunderstorm',
+        'tsra_sct': 'thunderstorm',
+        'tsra_hi': 'thunderstorm',
+        'tornado': 'thunderstorm',
+        'hurricane': 'thunderstorm',
+        'tropical_storm': 'rain',
+        'dust': 'fog',
+        'smoke': 'fog',
+        'haze': 'fog',
+        'hot': timeOfDay === 'night' ? 'clear-night' : 'clear-day',
+        'cold': timeOfDay === 'night' ? 'clear-night' : 'clear-day',
+        'blizzard': 'snow',
+        'fog': 'fog'
+    };
+
+    // Check if we have a direct match
+    if (baseConditions[iconCode]) {
+        return baseConditions[iconCode];
+    }
+
+    // For night prefixed codes, check the base code
+    if (iconCode.startsWith('n') && baseConditions[iconCode.substring(1)]) {
+        const baseCode = iconCode.substring(1);
+        return baseConditions[baseCode];
+    }
+
+    // Pattern-based matching for codes not explicitly listed
+    // Check for night-specific conditions first
+    if (timeOfDay === 'night') {
+        if (iconCode.includes('ts') || iconCode.includes('tsra')) {
+            return 'thunderstorm';
+        } else if (iconCode.includes('rain')) {
+            return 'rain';
+        } else if (iconCode.includes('snow')) {
+            return 'snow';
+        } else if (iconCode.includes('sleet') || iconCode.includes('fzra')) {
+            return 'sleet';
+        } else if (iconCode.includes('fog') || iconCode.includes('dust') || iconCode.includes('smoke')) {
+            return 'fog';
+        } else if (iconCode.includes('wind')) {
+            return 'wind';
+        } else if (iconCode.includes('cloud') || iconCode.includes('ovc') || iconCode.includes('bkn')) {
+            return 'cloudy';
+        } else if (iconCode.includes('few') || iconCode.includes('sct')) {
+            return 'partly-cloudy-night';
+        } else if (iconCode.includes('skc') || iconCode.includes('clear')) {
+            return 'clear-night';
+        }
+        
+        // Night-specific fallback
+        return 'partly-cloudy-night';
+    }
+    
+    // Day condition pattern matching
+    if (iconCode.includes('ts') || iconCode.includes('tsra')) {
+        return 'thunderstorm';
+    } else if (iconCode.includes('rain')) {
+        return 'rain';
+    } else if (iconCode.includes('snow')) {
+        return 'snow';
+    } else if (iconCode.includes('sleet') || iconCode.includes('fzra')) {
+        return 'sleet';
+    } else if (iconCode.includes('fog') || iconCode.includes('dust') || iconCode.includes('smoke')) {
+        return 'fog';
+    } else if (iconCode.includes('wind')) {
+        return 'wind';
+    } else if (iconCode.includes('cloud') || iconCode.includes('ovc') || iconCode.includes('bkn')) {
+        return 'cloudy';
+    } else if (iconCode.includes('few') || iconCode.includes('sct')) {
+        return 'partly-cloudy-day';
+    } else if (iconCode.includes('skc') || iconCode.includes('clear')) {
+        return 'clear-day';
+    }
+
+    // Default fallback
+    console.warn(`Unknown NWS icon code: ${iconCode}. Using cloudy as fallback.`);
+    return 'cloudy';
+}
+
+//==============================================================================
+// 4. NATIONAL WEATHER SERVICE (NWS) API IMPLEMENTATION
+//==============================================================================
+
+/**
  * Fetch weather from National Weather Service API with proper current conditions
+ * 
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @param {string} locationName - Optional location name
  */
 function fetchNWSWeather(lat, lon, locationName = null) {
     // First, we need to get the grid points
@@ -243,6 +422,14 @@ function fetchNWSWeather(lat, lon, locationName = null) {
 
 /**
  * Process data from NWS API into standardized format with improved current conditions handling
+ * 
+ * @param {Object} forecastData - The forecast data from NWS API
+ * @param {Object} hourlyData - The hourly forecast data from NWS API
+ * @param {Object} alertsData - The alerts data from NWS API
+ * @param {Object} observationData - The station observation data
+ * @param {string} cityState - The city and state formatted as "City, State"
+ * @param {string} locationName - The raw location name from the input
+ * @returns {Object} - Processed weather data in standardized format
  */
 function processNWSData(forecastData, hourlyData, alertsData, observationData, cityState, locationName) {
     // Get current forecast from the hourly forecast (for supplementary data only)
@@ -291,16 +478,7 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         observationData.properties.temperature && 
         observationData.properties.temperature.value !== null;
     
-    // console.log("Has valid observation data:", hasValidObservation);
-    
-    // If we have observation data, log it for debugging
-    if (hasValidObservation) {
-        // console.log("Current observation data:", observationData.properties);
-    }
-    
-    // console.log("Current forecast data:", currentForecast);
-    
-    // Temperature
+    // If we have observation data, use it for current conditions
     if (hasValidObservation) {
         const currentObservation = observationData.properties;
         
@@ -334,7 +512,6 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         if (currentObservation.textDescription) {
             // Extract the actual observation text and check if it contains forecast-like language
             const textDescription = currentObservation.textDescription;
-            // console.log("Original observation textDescription:", textDescription);
             
             // Check for forecast-like phrases that shouldn't be in an observation
             const forecastPhrases = ['likely', 'chance', 'possible', 'expect', 'will be', 'tonight', 'tomorrow'];
@@ -342,7 +519,6 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
                 textDescription.toLowerCase().includes(phrase));
             
             if (containsForecastLanguage) {
-                // console.log("Warning: Observation contains forecast-like language, using plain description");
                 // Try to clean up the description to make it more observation-like
                 let cleanedDescription = textDescription;
                 
@@ -401,11 +577,6 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
                 weatherData.currently.icon = mapNWSIconToGeneric(currentForecast.icon);
             }
         }
-
-        // console.log('Weather icon source:', isThunderstorm ? 'text detection' : 
-            // (currentObservation.icon ? 'observation icon' : 'forecast icon'));
-        //   console.log('Weather icon value:', weatherData.currently.icon);
-        //   console.log('Current time of day:', weatherData.currently.isDaytime ? 'Day' : 'Night');
         
         // Wind speed
         if (currentObservation.windSpeed && currentObservation.windSpeed.value !== null) {
@@ -484,22 +655,7 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         }
     }
     
-    // Add debugging for current conditions
-    // console.log("Final processed current conditions:", {
-    //     temp: weatherData.currently.temperature,
-    //     icon: weatherData.currently.icon,
-    //     summary: weatherData.currently.summary,
-    //     pressure: weatherData.currently.pressure,
-    //     visibility: weatherData.currently.visibility,
-    //     windSpeed: weatherData.currently.windSpeed,
-    //     humidity: weatherData.currently.humidity,
-    //     source: hasValidObservation ? "observation data" : "forecast data"
-    // });
-    
-    // Add debugging for observation metadata
-    // console.log("Observation metadata:", weatherData.observation);
-    
-    // Process daily forecast data (same as before)
+    // Process daily forecast data
     // NWS provides separate day and night forecasts, so we need to combine them
     for (let i = 0; i < dailyForecast.length; i += 2) {
         if (i + 1 < dailyForecast.length) {
@@ -535,6 +691,7 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         weatherData.daily.data.push(nextDay);
     }
 
+    // Process hourly forecast
     if (hourlyData && hourlyData.properties && Array.isArray(hourlyData.properties.periods)) {
         const hourlyPeriods = hourlyData.properties.periods;
         
@@ -556,164 +713,16 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
     return weatherData;
 }
 
-/**
- * Map NWS icon to generic icon code with improved handling
- * This function improves the mapping between NWS icon URLs and our generic icon codes
- */
-function mapNWSIconToGeneric(nwsIconUrl) {
-    if (!nwsIconUrl) return 'cloudy'; // Default fallback
-
-    // console.log('Mapping NWS icon URL:', nwsIconUrl);
-
-    // Extract the icon code from the URL
-    // Example: https://api.weather.gov/icons/land/day/tsra,40?size=medium
-    const parts = nwsIconUrl.split('/');
-    let timeOfDay = 'day'; // default
-    let iconCode = '';
-    let hasChance = false;
-
-    // Look for the part containing the icon code
-    for (let i = 0; i < parts.length; i++) {
-        if (parts[i] === 'day' || parts[i] === 'night') {
-            timeOfDay = parts[i];
-            // console.log('Time of day from URL:', timeOfDay);
-            // The next part should contain the icon code
-            if (i + 1 < parts.length) {
-                const codePart = parts[i + 1];
-
-                // Extract the base icon code
-                if (codePart.includes(',')) {
-                    // Has probability number, e.g. "tsra,40"
-                    const splitCode = codePart.split(',');
-                    iconCode = splitCode[0];
-                    hasChance = parseInt(splitCode[1], 10) < 50; // Consider it a "chance" if < 50%
-                } else if (codePart.includes('?')) {
-                    // Has query parameters
-                    iconCode = codePart.split('?')[0];
-                } else {
-                    iconCode = codePart;
-                }
-                // console.log('Extracted icon code:', iconCode);
-                break;
-            }
-        }
-    }
-
-    // If no icon code found, default to cloudy
-    if (!iconCode) return 'cloudy';
-
-    // Night prefix for mapped icon codes
-    const nightPrefix = timeOfDay === 'night' ? 'n' : '';
-    
-    // Base weather conditions with night awareness
-    const baseConditions = {
-        'skc': timeOfDay === 'night' ? 'clear-night' : 'clear-day',
-        'few': timeOfDay === 'night' ? 'partly-cloudy-night' : 'partly-cloudy-day',
-        'sct': timeOfDay === 'night' ? 'partly-cloudy-night' : 'partly-cloudy-day',
-        'bkn': timeOfDay === 'night' ? 'partly-cloudy-night' : 'partly-cloudy-day',
-        'ovc': 'cloudy',
-        'wind_skc': 'wind',
-        'wind_few': 'wind',
-        'wind_sct': 'wind',
-        'wind_bkn': 'wind',
-        'wind_ovc': 'wind',
-        'snow': 'snow',
-        'rain_snow': 'sleet',
-        'rain_sleet': 'sleet',
-        'snow_sleet': 'sleet',
-        'fzra': 'sleet',
-        'rain_fzra': 'sleet',
-        'snow_fzra': 'sleet',
-        'sleet': 'sleet',
-        'rain': 'rain',
-        'rain_showers': 'rain',
-        'rain_showers_hi': 'rain',
-        'tsra': 'thunderstorm',
-        'tsra_sct': 'thunderstorm',
-        'tsra_hi': 'thunderstorm',
-        'tornado': 'thunderstorm',
-        'hurricane': 'thunderstorm',
-        'tropical_storm': 'rain',
-        'dust': 'fog',
-        'smoke': 'fog',
-        'haze': 'fog',
-        'hot': timeOfDay === 'night' ? 'clear-night' : 'clear-day',
-        'cold': timeOfDay === 'night' ? 'clear-night' : 'clear-day',
-        'blizzard': 'snow',
-        'fog': 'fog'
-    };
-
-    // Check if we have a direct match
-    if (baseConditions[iconCode]) {
-        const mappedIcon = baseConditions[iconCode];
-        // console.log(`Direct mapping: ${iconCode} -> ${mappedIcon}`);
-        return mappedIcon;
-    }
-
-    // For night prefixed codes, check the base code
-    if (iconCode.startsWith('n') && baseConditions[iconCode.substring(1)]) {
-        const baseCode = iconCode.substring(1);
-        const mappedIcon = baseConditions[baseCode];
-        // console.log(`Night prefix mapping: ${iconCode} -> ${mappedIcon}`);
-        return mappedIcon;
-    }
-
-    // Pattern-based matching for codes not explicitly listed
-    // Check for night-specific conditions first
-    if (timeOfDay === 'night') {
-        if (iconCode.includes('ts') || iconCode.includes('tsra')) {
-            return 'thunderstorm';
-        } else if (iconCode.includes('rain')) {
-            return 'rain';
-        } else if (iconCode.includes('snow')) {
-            return 'snow';
-        } else if (iconCode.includes('sleet') || iconCode.includes('fzra')) {
-            return 'sleet';
-        } else if (iconCode.includes('fog') || iconCode.includes('dust') || iconCode.includes('smoke')) {
-            return 'fog';
-        } else if (iconCode.includes('wind')) {
-            return 'wind';
-        } else if (iconCode.includes('cloud') || iconCode.includes('ovc') || iconCode.includes('bkn')) {
-            return 'cloudy';
-        } else if (iconCode.includes('few') || iconCode.includes('sct')) {
-            return 'partly-cloudy-night';
-        } else if (iconCode.includes('skc') || iconCode.includes('clear')) {
-            return 'clear-night';
-        }
-        
-        // Night-specific fallback
-        // console.log('Using night fallback for icon code:', iconCode);
-        return 'partly-cloudy-night';
-    }
-    
-    // Day condition pattern matching
-    if (iconCode.includes('ts') || iconCode.includes('tsra')) {
-        return 'thunderstorm';
-    } else if (iconCode.includes('rain')) {
-        return 'rain';
-    } else if (iconCode.includes('snow')) {
-        return 'snow';
-    } else if (iconCode.includes('sleet') || iconCode.includes('fzra')) {
-        return 'sleet';
-    } else if (iconCode.includes('fog') || iconCode.includes('dust') || iconCode.includes('smoke')) {
-        return 'fog';
-    } else if (iconCode.includes('wind')) {
-        return 'wind';
-    } else if (iconCode.includes('cloud') || iconCode.includes('ovc') || iconCode.includes('bkn')) {
-        return 'cloudy';
-    } else if (iconCode.includes('few') || iconCode.includes('sct')) {
-        return 'partly-cloudy-day';
-    } else if (iconCode.includes('skc') || iconCode.includes('clear')) {
-        return 'clear-day';
-    }
-
-    // Default fallback
-    console.warn(`Unknown NWS icon code: ${iconCode}. Using cloudy as fallback.`);
-    return 'cloudy';
-}
+//==============================================================================
+// 5. PIRATE WEATHER API IMPLEMENTATION
+//==============================================================================
 
 /**
  * Fetch weather from Pirate Weather API (fallback for non-US locations)
+ * 
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @param {string} locationName - Optional location name
  */
 function fetchPirateWeather(lat, lon, locationName = null) {
     // Get the API key
