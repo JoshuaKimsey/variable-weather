@@ -18,7 +18,7 @@
 /*-----------------------------------------------
  * 1. VARIABLES & BASE STYLES
  *-----------------------------------------------*/
- :root {
+:root {
     --primary-color: #1e88e5;
     --secondary-color: #ffffff;
     --text-color: #333333;
@@ -26,7 +26,7 @@
     --error-color: #f44336;
     --success-color: #4CAF50;
     --warning-color: #ff9800;
-    
+
     /* Alert severity colors */
     --extreme-color: #d32f2f;
     --severe-color: #f44336;
@@ -48,7 +48,7 @@ body {
 /*-----------------------------------------------
  * 2. LAYOUT & CONTAINERS
  *-----------------------------------------------*/
- .container {
+.container {
     max-width: 1200px;
     padding: 20px;
 }
@@ -59,7 +59,8 @@ body {
     border-radius: 20px;
     overflow: hidden;
     padding: 30px;
-    margin-bottom: 20px; /* Add spacing between cards */
+    margin-bottom: 20px;
+    /* Add spacing between cards */
     background-color: rgba(100, 100, 100, 0.55);
     backdrop-filter: blur(10px);
     box-shadow: 0 10px 30px var(--shadow-color);
@@ -77,12 +78,14 @@ body {
 }
 
 #radar-container .radar-section {
-    margin-top: 0; /* Remove top margin since it's in its own card now */
+    margin-top: 0;
+    /* Remove top margin since it's in its own card now */
 }
 
 /* Search and attribution card */
 #search-container {
-    padding: 20px 30px; /* Less padding for this card */
+    padding: 20px 30px;
+    /* Less padding for this card */
 }
 
 .search-attribution-content {
@@ -139,18 +142,20 @@ body {
 /* Mobile adjustments for layout elements */
 @media (max-width: 768px) {
     .weather-card {
-        padding: 20px; /* Reduce padding on smaller screens */
+        padding: 20px;
+        /* Reduce padding on smaller screens */
     }
-    
+
     #search-container {
-        padding: 15px 20px; /* Even less padding for search on mobile */
+        padding: 15px 20px;
+        /* Even less padding for search on mobile */
     }
-    
+
     .attribution-footer {
         margin-top: 5px;
         padding-top: 5px;
     }
-    
+
     .app-version {
         font-size: 0.65rem;
     }
@@ -158,24 +163,29 @@ body {
 
 @media (max-width: 480px) {
     .container {
-        padding: 12px; /* Reduce container padding on very small screens */
+        padding: 12px;
+        /* Reduce container padding on very small screens */
     }
-    
+
     .weather-card {
-        padding: 15px; /* Further reduce card padding */
-        margin-bottom: 15px; /* Less space between cards */
-        border-radius: 15px; /* Slightly smaller border radius */
+        padding: 15px;
+        /* Further reduce card padding */
+        margin-bottom: 15px;
+        /* Less space between cards */
+        border-radius: 15px;
+        /* Slightly smaller border radius */
     }
-    
+
     .search-container {
-        padding: 0 5px; /* Reduce padding in search area */
+        padding: 0 5px;
+        /* Reduce padding in search area */
     }
 }
 
 /*-----------------------------------------------
  * 3. WEATHER DISPLAY ELEMENTS
  *-----------------------------------------------*/
- .weather-info {
+.weather-info {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
@@ -306,7 +316,7 @@ body {
 }
 
 /* Ensure icon container children are properly positioned */
-.weather-icon > div {
+.weather-icon>div {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -340,7 +350,7 @@ body {
 }
 
 /* Ensure forecast icons are properly sized and positioned */
-.forecast-icon > div {
+.forecast-icon>div {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -357,34 +367,42 @@ body {
     margin-bottom: 0px;
     width: 100%;
     max-width: 100%;
-    padding: 0 15px; /* Add padding to prevent edge cutting */
+    padding: 0 15px;
+    /* Add padding to prevent edge cutting */
 }
 
 /* Main search box with input and search button */
 .search-box {
     display: flex;
     flex: 1;
-    min-width: 0; /* Allow the search box to shrink below its content size */
+    min-width: 0;
+    /* Allow the search box to shrink below its content size */
 }
 
 .search-box input {
     flex: 1;
-    padding: 12px 15px; /* Slightly reduced padding on mobile */
+    padding: 12px 15px;
+    /* Slightly reduced padding on mobile */
     border: none;
     border-radius: 50px 0 0 50px;
     background-color: rgba(255, 255, 255, 0.75);
     box-shadow: 0 5px 15px var(--shadow-color);
     font-size: 16px;
     outline: none;
-    min-width: 0; /* Allow input to shrink */
-    text-overflow: ellipsis; /* Add ellipsis for text that doesn't fit */
+    min-width: 0;
+    /* Allow input to shrink */
+    text-overflow: ellipsis;
+    /* Add ellipsis for text that doesn't fit */
 }
 
 /* Standalone style for geolocation button */
 #geo-button {
-    width: 45px; /* Slightly smaller on mobile */
-    height: 45px; /* Slightly smaller on mobile */
-    min-width: 45px; /* Ensure minimum width */
+    width: 45px;
+    /* Slightly smaller on mobile */
+    height: 45px;
+    /* Slightly smaller on mobile */
+    min-width: 45px;
+    /* Ensure minimum width */
     border: none;
     border-radius: 50%;
     background-color: var(--primary-color);
@@ -396,7 +414,8 @@ body {
     transition: all 0.3s ease;
     box-shadow: 0 5px 15px var(--shadow-color);
     font-size: 16px;
-    flex-shrink: 0; /* Prevent button from shrinking */
+    flex-shrink: 0;
+    /* Prevent button from shrinking */
 }
 
 #geo-button:hover {
@@ -414,10 +433,12 @@ body {
     border-radius: 0 50px 50px 0;
     background-color: var(--primary-color);
     color: white;
-    padding: 0 15px; /* Reduced padding on mobile */
+    padding: 0 15px;
+    /* Reduced padding on mobile */
     cursor: pointer;
     transition: all 0.3s ease;
-    flex-shrink: 0; /* Prevent button from shrinking */
+    flex-shrink: 0;
+    /* Prevent button from shrinking */
 }
 
 .search-box button#search-button:hover {
@@ -813,10 +834,13 @@ body {
 
 /* Alert animations */
 @keyframes flash-alert {
-    0%, 100% {
+
+    0%,
+    100% {
         background-color: rgba(255, 200, 200, 0.95);
         box-shadow: 0 0 15px rgba(211, 47, 47, 0.4);
     }
+
     50% {
         background-color: rgba(255, 255, 255, 0.85);
         box-shadow: 0 0 5px rgba(211, 47, 47, 0.2);
@@ -828,6 +852,7 @@ body {
         opacity: 0;
         transform: translateY(-5px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -1030,17 +1055,17 @@ body {
 }
 
 /* Active toggle label styles */
-#imperial-units:checked ~ .unit-toggle-label:nth-of-type(1),
-#metric-units:checked ~ .unit-toggle-label:nth-of-type(2) {
+#imperial-units:checked~.unit-toggle-label:nth-of-type(1),
+#metric-units:checked~.unit-toggle-label:nth-of-type(2) {
     color: white;
 }
 
 /* Move slider based on selection */
-#imperial-units:checked ~ .unit-toggle-slider {
+#imperial-units:checked~.unit-toggle-slider {
     left: 4px;
 }
 
-#metric-units:checked ~ .unit-toggle-slider {
+#metric-units:checked~.unit-toggle-slider {
     left: calc(50% - 4px);
 }
 
@@ -1050,7 +1075,7 @@ body {
 }
 
 /* Focus style for accessibility */
-.unit-toggle-input:focus ~ .unit-toggle-slider {
+.unit-toggle-input:focus~.unit-toggle-slider {
     box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.3);
 }
 
@@ -1089,12 +1114,15 @@ body {
         transform: translateY(-100px);
         opacity: 0;
     }
+
     10% {
         opacity: 1;
     }
+
     90% {
         opacity: 1;
     }
+
     100% {
         transform: translateY(calc(100vh + 100px));
         opacity: 0;
@@ -1114,12 +1142,15 @@ body {
         transform: translateY(-100px) rotate(0deg);
         opacity: 0;
     }
+
     10% {
         opacity: 1;
     }
+
     90% {
         opacity: 0.8;
     }
+
     100% {
         transform: translateY(calc(100vh + 100px)) rotate(360deg);
         opacity: 0;
@@ -1148,6 +1179,7 @@ body {
     0% {
         transform: translateX(-150px);
     }
+
     100% {
         transform: translateX(calc(100vw + 150px));
     }
@@ -1163,36 +1195,52 @@ body {
 }
 
 @keyframes lightning {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 0;
     }
-    48%, 52% {
+
+    48%,
+    52% {
         opacity: 0;
     }
+
     50% {
         opacity: 1;
     }
 }
 
 @keyframes lightningFlash {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 0;
     }
-    49.9%, 51.1% {
+
+    49.9%,
+    51.1% {
         opacity: 0;
     }
+
     50% {
         opacity: 0.6;
     }
-    50.1%, 50.2% {
+
+    50.1%,
+    50.2% {
         opacity: 0.1;
     }
+
     50.3% {
         opacity: 0.3;
     }
-    84.9%, 85.1% {
+
+    84.9%,
+    85.1% {
         opacity: 0;
     }
+
     85% {
         opacity: 0.2;
     }
@@ -1212,6 +1260,7 @@ body {
     0% {
         transform: rotate(0deg);
     }
+
     100% {
         transform: rotate(360deg);
     }
@@ -1228,10 +1277,13 @@ body {
 }
 
 @keyframes twinkle {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 0.2;
         transform: scale(1);
     }
+
     50% {
         opacity: 1;
         transform: scale(1.5);
@@ -1251,6 +1303,7 @@ body {
     0% {
         transform: translateX(-100%) translateY(0);
     }
+
     100% {
         transform: translateX(100vw) translateY(0);
     }
@@ -1262,12 +1315,15 @@ body {
         transform: translateX(0) rotate(0deg);
         opacity: 0;
     }
+
     10% {
         opacity: 0.3;
     }
+
     90% {
         opacity: 0.3;
     }
+
     100% {
         transform: translateX(calc(100vw + 200px)) rotate(0deg);
         opacity: 0;
@@ -1304,9 +1360,13 @@ body {
 }
 
 @keyframes bounce {
-    0%, 80%, 100% {
+
+    0%,
+    80%,
+    100% {
         transform: scale(0);
     }
+
     40% {
         transform: scale(1);
     }
@@ -1325,36 +1385,43 @@ body {
 /*-----------------------------------------------
  * 11. RESPONSIVE ADJUSTMENTS - UPDATED
  *-----------------------------------------------*/
- @media (max-width: 768px) {
+@media (max-width: 768px) {
     .weather-card {
-        padding: 20px; /* Reduce padding on smaller screens */
+        padding: 20px;
+        /* Reduce padding on smaller screens */
     }
-    
+
     #search-container {
-        padding: 15px 20px; /* Even less padding for search on mobile */
+        padding: 15px 20px;
+        /* Even less padding for search on mobile */
     }
 }
 
 @media (max-width: 480px) {
     .container {
-        padding: 12px; /* Reduce container padding on very small screens */
+        padding: 12px;
+        /* Reduce container padding on very small screens */
     }
-    
+
     .weather-card {
-        padding: 15px; /* Further reduce card padding */
-        margin-bottom: 15px; /* Less space between cards */
-        border-radius: 15px; /* Slightly smaller border radius */
+        padding: 15px;
+        /* Further reduce card padding */
+        margin-bottom: 15px;
+        /* Less space between cards */
+        border-radius: 15px;
+        /* Slightly smaller border radius */
     }
-    
+
     .search-container {
-        padding: 0 5px; /* Reduce padding in search area */
+        padding: 0 5px;
+        /* Reduce padding in search area */
     }
 }
 
 /*-----------------------------------------------
  * 12. RADAR VIEW STYLES
  *-----------------------------------------------*/
- .radar-section {
+.radar-section {
     margin-top: 30px;
     margin-bottom: 30px;
 }
@@ -1445,14 +1512,16 @@ body {
 /* Container for the timeline and timestamps */
 .radar-timeline-controls {
     flex: 1;
-    min-width: 0; /* Allows flexbox children to shrink below content size */
+    min-width: 0;
+    /* Allows flexbox children to shrink below content size */
 }
 
 /* Play/pause button styles */
 .radar-play-pause {
     width: 36px;
     height: 36px;
-    min-width: 36px; /* Prevent shrinking */
+    min-width: 36px;
+    /* Prevent shrinking */
     border-radius: 50%;
     background-color: var(--primary-color);
     color: white;
@@ -1462,9 +1531,11 @@ body {
     align-items: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    margin-top: 10px; /* Align with the timeline */
+    margin-top: 10px;
+    /* Align with the timeline */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    flex-shrink: 0; /* Prevent button from shrinking */
+    flex-shrink: 0;
+    /* Prevent button from shrinking */
 }
 
 .radar-play-pause:hover {
@@ -1515,7 +1586,8 @@ body {
 /* Improved timestamp styling */
 .radar-timestamp {
     position: absolute;
-    transform: translateX(-50%); /* Center by default, but overridden for edge timestamps */
+    transform: translateX(-50%);
+    /* Center by default, but overridden for edge timestamps */
     font-size: 11px;
     color: rgba(255, 255, 255, 0.9);
     background-color: rgba(0, 0, 0, 0.3);
@@ -1529,14 +1601,16 @@ body {
 
 /* Styling for the first timestamp (left aligned) */
 .radar-timestamp:first-child {
-    transform: none; /* No centering for first timestamp */
+    transform: none;
+    /* No centering for first timestamp */
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
 }
 
 /* Styling for the last timestamp (right aligned) */
 .radar-timestamp:last-child {
-    transform: translateX(-100%); /* Right align last timestamp */
+    transform: translateX(-100%);
+    /* Right align last timestamp */
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
 }
@@ -1564,11 +1638,13 @@ body {
     border-radius: 4px;
     font-size: 12px;
     line-height: 1.4;
-    margin-bottom: 10px !important; /* Override Leaflet control margins */
+    margin-bottom: 10px !important;
+    /* Override Leaflet control margins */
     box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
     text-align: center;
     min-width: 100px;
-    z-index: 1000 !important; /* Ensure it's above other controls */
+    z-index: 1000 !important;
+    /* Ensure it's above other controls */
     transition: opacity 0.3s ease;
 }
 
@@ -1599,11 +1675,11 @@ body {
     .radar-map {
         height: 300px;
     }
-    
+
     .radar-controls {
         padding: 8px 10px;
     }
-    
+
     .radar-play-pause {
         width: 32px;
         height: 32px;
@@ -1615,22 +1691,25 @@ body {
         padding: 4px 6px;
         font-size: 10px;
         min-width: 80px;
-        margin-top: 10px !important; /* For top positioning */
-        margin-right: 10px !important; /* For right positioning */
-        margin-bottom: 0 !important; /* Remove bottom margin on mobile */
+        margin-top: 10px !important;
+        /* For top positioning */
+        margin-right: 10px !important;
+        /* For right positioning */
+        margin-bottom: 0 !important;
+        /* Remove bottom margin on mobile */
     }
-    
+
     .radar-timestamp-display strong {
         font-size: 12px;
         margin-bottom: 0;
     }
-    
+
     /* Make date more compact on mobile */
     .radar-timestamp-display .date-display {
         display: inline-block;
         margin-left: 4px;
     }
-    
+
     /* Override Leaflet's attribution position to prevent it from covering content */
     .leaflet-container .leaflet-control-attribution {
         margin-bottom: 4px !important;
@@ -1642,20 +1721,21 @@ body {
     .radar-timestamp {
         font-size: 10px;
         padding: 1px 3px;
-        max-width: 50px; /* Narrower on small screens */
+        max-width: 50px;
+        /* Narrower on small screens */
     }
-    
+
     .radar-timestamps-row {
         height: 16px;
     }
-    
+
     .radar-play-pause {
         margin-top: 4px;
         width: 28px;
         height: 28px;
         min-width: 28px;
     }
-    
+
     .radar-timeline {
         margin: 4px 0;
     }
@@ -1665,7 +1745,7 @@ body {
         font-size: 10px;
         min-width: 80px;
     }
-    
+
     .radar-timestamp-display strong {
         font-size: 12px;
     }
@@ -1682,12 +1762,120 @@ body {
 }
 
 @keyframes pulse-loading {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         background-color: #999;
     }
+
     50% {
         transform: scale(1.05);
         background-color: #777;
     }
+}
+
+.alert-popup {
+    padding: 10px;
+    max-width: 250px;
+}
+
+.alert-popup h3 {
+    margin-top: 0;
+    color: #f44336;
+}
+
+.view-alert-details {
+    background-color: #1e88e5;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 5px;
+}
+
+.view-alert-details:hover {
+    background-color: #1565c0;
+}
+
+/* Optional: Add a pulsing animation for extreme alerts */
+@keyframes alertPulse {
+
+    0%,
+    100% {
+        opacity: 0.2;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.extreme-alert-polygon {
+    animation: alertPulse 2s infinite;
+}
+
+.map-data-loading {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+.map-loading-spinner {
+    display: flex;
+    margin-right: 8px;
+}
+
+.map-loading-spinner div {
+    width: 6px;
+    height: 6px;
+    background-color: white;
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: map-loading-bounce 1.4s infinite ease-in-out both;
+}
+
+.map-loading-spinner div:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.map-loading-spinner div:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes map-loading-bounce {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0);
+    }
+
+    40% {
+        transform: scale(1);
+    }
+}
+
+.map-data-error {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(244, 67, 54, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    z-index: 1000;
+    font-size: 12px;
+    pointer-events: none;
+    max-width: 80%;
 }

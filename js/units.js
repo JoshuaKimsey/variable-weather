@@ -10,7 +10,7 @@ export function initUnits() {
     // Load saved units from localStorage if available
     const savedUnits = localStorage.getItem('weather_app_units') || 'imperial';
     currentDisplayUnits = savedUnits;
-    
+
     // Make the setter available globally so it can be called from settings
     window.setDisplayUnits = setDisplayUnits;
     window.refreshWeatherWithCurrentUnits = refreshWeatherWithCurrentUnits;
@@ -37,7 +37,7 @@ export function getDisplayUnits() {
 export function formatTemperature(tempF) {
     if (currentDisplayUnits === 'metric') {
         // Convert F to C
-        const tempC = (tempF - 32) * (5/9);
+        const tempC = (tempF - 32) * (5 / 9);
         return `${Math.round(tempC)}°C`;
     }
     return `${Math.round(tempF)}°F`;
@@ -88,30 +88,30 @@ export function refreshWeatherWithCurrentUnits() {
     const windSpeedElement = document.getElementById('wind-speed');
     const pressureElement = document.getElementById('pressure');
     const visibilityElement = document.getElementById('visibility');
-    
+
     // If we have current weather data in a global variable or cache
     if (window.currentWeatherData) {
         const data = window.currentWeatherData;
-        
+
         // Update current conditions
         if (temperatureElement && data.currently) {
             temperatureElement.textContent = formatTemperature(data.currently.temperature);
         }
-        
+
         if (windSpeedElement && data.currently) {
             windSpeedElement.textContent = formatWindSpeed(data.currently.windSpeed);
         }
-        
+
         if (pressureElement && data.currently) {
             pressureElement.textContent = formatPressure(data.currently.pressure);
         }
-        
+
         if (visibilityElement && data.currently) {
             visibilityElement.textContent = formatVisibility(data.currently.visibility);
         }
 
         updateHourlyForecastUnits(data.hourly?.data || data.hourlyForecast);
-        
+
         // Update forecast if available
         updateForecastUnits(data.daily?.data);
     }
@@ -122,20 +122,20 @@ export function refreshWeatherWithCurrentUnits() {
  */
 function updateForecastUnits(forecastData) {
     if (!forecastData) return;
-    
+
     const forecastContainer = document.getElementById('forecast-container');
     const forecastCards = forecastContainer.querySelectorAll('.forecast-card');
-    
+
     forecastCards.forEach((card, index) => {
         if (index < forecastData.length) {
             const tempElement = card.querySelector('.temp');
             if (tempElement) {
                 const highTemp = forecastData[index].temperatureHigh;
                 const lowTemp = forecastData[index].temperatureLow;
-                
+
                 if (currentDisplayUnits === 'metric') {
-                    const highTempC = (highTemp - 32) * (5/9);
-                    const lowTempC = (lowTemp - 32) * (5/9);
+                    const highTempC = (highTemp - 32) * (5 / 9);
+                    const lowTempC = (lowTemp - 32) * (5 / 9);
                     tempElement.textContent = `${Math.round(highTempC)}° / ${Math.round(lowTempC)}°`;
                 } else {
                     tempElement.textContent = `${Math.round(highTemp)}° / ${Math.round(lowTemp)}°`;
@@ -150,20 +150,20 @@ function updateForecastUnits(forecastData) {
  */
 function updateHourlyForecastUnits(hourlyData) {
     if (!hourlyData) return;
-    
+
     const hourlyForecastContainer = document.getElementById('hourly-forecast-items');
     if (!hourlyForecastContainer) return;
-    
+
     const hourlyCards = hourlyForecastContainer.querySelectorAll('.hourly-forecast-card');
-    
+
     hourlyCards.forEach((card, index) => {
         if (index < hourlyData.length) {
             const tempElement = card.querySelector('.temp');
             if (tempElement) {
                 const temp = hourlyData[index].temperature;
-                
+
                 if (currentDisplayUnits === 'metric') {
-                    const tempC = (temp - 32) * (5/9);
+                    const tempC = (temp - 32) * (5 / 9);
                     tempElement.textContent = `${Math.round(tempC)}°`;
                 } else {
                     tempElement.textContent = `${Math.round(temp)}°`;

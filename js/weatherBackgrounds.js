@@ -37,13 +37,13 @@ export function setWeatherBackground(iconCode, isDaytime = true) {
 
     // Reset background color
     document.body.style.background = '';
-    
+
     // console.log('Setting weather background for:', iconCode);
-    
+
     // Determine if it's night time
     const isNight = isDaytime === false;
     // console.log('Night time detected:', isNight);
-    
+
     // First check for common icon codes that need time-specific handling
     const timeSpecificChecks = [
         // Rain at night
@@ -53,7 +53,7 @@ export function setWeatherBackground(iconCode, isDaytime = true) {
         // Wind at night
         { condition: iconCode === 'wind' && isNight, handler: setBackgroundWindNight, message: 'Using wind at night background' }
     ];
-    
+
     // Check time-specific conditions first
     for (const check of timeSpecificChecks) {
         if (check.condition) {
@@ -62,14 +62,14 @@ export function setWeatherBackground(iconCode, isDaytime = true) {
             return;
         }
     }
-    
+
     // Try direct mapping from the icon code to background function
     if (WEATHER_BACKGROUND_MAPPING[iconCode]) {
         // console.log('Using direct background mapping for:', iconCode);
         WEATHER_BACKGROUND_MAPPING[iconCode]();
         return;
     }
-    
+
     // Pattern-based fallback logic
     if (isNight) {
         applyNightBackgroundByPattern(iconCode);
@@ -94,7 +94,7 @@ function applyNightBackgroundByPattern(iconCode) {
         { pattern: ['wind'], handler: setBackgroundWindNight, message: 'Using night wind background' },
         { pattern: ['clear', 'skc'], handler: setBackgroundClearNight, message: 'Using clear night background' }
     ];
-    
+
     // Try to match the icon code against patterns
     for (const { pattern, handler, message } of nightPatterns) {
         if (pattern.some(keyword => iconCode.includes(keyword))) {
@@ -103,7 +103,7 @@ function applyNightBackgroundByPattern(iconCode) {
             return;
         }
     }
-    
+
     // Default fallback for night
     console.log('Using default night background (partly cloudy)');
     setBackgroundPartlyCloudyNight();
@@ -126,7 +126,7 @@ function applyDayBackgroundByPattern(iconCode) {
         { pattern: ['clear', 'skc'], handler: setBackgroundClearDay, message: 'Using clear day background' },
         { pattern: ['few', 'sct', 'bkn', 'partly'], handler: setBackgroundPartlyCloudy, message: 'Using partly cloudy day background' }
     ];
-    
+
     // Try to match the icon code against patterns
     for (const { pattern, handler, message } of dayPatterns) {
         if (pattern.some(keyword => iconCode.includes(keyword))) {
@@ -135,7 +135,7 @@ function applyDayBackgroundByPattern(iconCode) {
             return;
         }
     }
-    
+
     // Default fallback for day
     console.log('Using default day background (cloudy)');
     setBackgroundCloudy();
@@ -151,7 +151,7 @@ function applyDayBackgroundByPattern(iconCode) {
  */
 function setBackgroundClearDay() {
     document.body.style.background = 'linear-gradient(to bottom, #4A90E2 0%, #87CEEB 100%)';
-    
+
     // Sun has been commented out in the original code,
     // keeping the comment here for reference
     /*
@@ -329,7 +329,7 @@ function setBackgroundPartlyCloudy() {
     document.body.style.background = 'linear-gradient(to bottom, #2980B9 0%, #6DD5FA 50%, #FFFFFF 100%)';
 
     // Sun has been commented out in the original code
-    
+
     // Add clouds (fewer than in cloudy)
     for (let i = 0; i < 5; i++) {
         const cloud = document.createElement('div');
@@ -431,7 +431,7 @@ function setBackgroundRainNight() {
     rainOverlay.style.background = 'linear-gradient(to bottom, rgba(10, 17, 24, 0.7) 0%, rgba(22, 32, 41, 0.5) 100%)';
     rainOverlay.style.zIndex = '1';
     weatherBackground.appendChild(rainOverlay);
-    
+
     // Add rain droplets in layers for depth
     // Layer 1 - distant rain (slower, more transparent)
     for (let i = 0; i < 40; i++) {
@@ -447,7 +447,7 @@ function setBackgroundRainNight() {
         droplet.style.zIndex = '2';
         weatherBackground.appendChild(droplet);
     }
-    
+
     // Layer 2 - mid-distance rain (medium speed and opacity)
     for (let i = 0; i < 60; i++) {
         const droplet = document.createElement('div');
@@ -462,7 +462,7 @@ function setBackgroundRainNight() {
         droplet.style.zIndex = '3';
         weatherBackground.appendChild(droplet);
     }
-    
+
     // Layer 3 - close rain (faster, more visible)
     for (let i = 0; i < 80; i++) {
         const droplet = document.createElement('div');
@@ -513,7 +513,7 @@ function setBackgroundCloudyNight() {
     addCloudLayer(5, 180, 200, 80, 100, '#292d3e', 0.9, 50, 40, 2, 5, 40, 3, 4);
     addCloudLayer(4, 150, 220, 60, 80, '#232736', 0.85, 40, 35, 3, 20, 50, 2, 3);
     addCloudLayer(3, 120, 160, 40, 60, '#272b3d', 0.9, 35, 30, 4, 15, 60, 2, 3, true);
-    
+
     // Add slight fog effect near the bottom
     const fogLayer = document.createElement('div');
     fogLayer.style.position = 'absolute';
@@ -579,7 +579,7 @@ function setBackgroundPartlyCloudyNight() {
 function setBackgroundWindNight() {
     // Dark blue-purple gradient for night sky
     document.body.style.background = 'linear-gradient(to bottom, #0c1220 0%, #1a2338 50%, #2a304d 100%)';
-    
+
     // Add some sparse stars
     for (let i = 0; i < 25; i++) {
         const star = document.createElement('div');
@@ -590,7 +590,7 @@ function setBackgroundWindNight() {
         star.style.animationDuration = `${Math.random() * 3 + 2}s`;
         weatherBackground.appendChild(star);
     }
-    
+
     // Add wind elements (moving horizontal lines) with better visibility for night
     for (let i = 0; i < 20; i++) {
         const wind = document.createElement('div');
@@ -606,7 +606,7 @@ function setBackgroundWindNight() {
         wind.style.zIndex = '2';
         weatherBackground.appendChild(wind);
     }
-    
+
     // Add some fast-moving wispy clouds
     for (let i = 0; i < 6; i++) {
         const cloud = document.createElement('div');
@@ -619,12 +619,12 @@ function setBackgroundWindNight() {
         cloud.style.top = `${Math.random() * 70 + 5}%`;
         cloud.style.left = '-120px'; // Start off-screen
         cloud.style.opacity = Math.random() * 0.5 + 0.3; // Semi-transparent
-        
+
         // Custom animation for fast-moving clouds
         const animationDuration = Math.random() * 12 + 8; // 8-20 seconds to cross screen
         cloud.style.animation = `windCloud ${animationDuration}s linear infinite`;
         cloud.style.animationDelay = `${Math.random() * animationDuration}s`; // Stagger start times
-        
+
         // Add a few puffs to each cloud
         const numPuffs = Math.floor(Math.random() * 2) + 2; // 2-3 puffs
         for (let j = 0; j < numPuffs; j++) {
@@ -639,10 +639,10 @@ function setBackgroundWindNight() {
             puff.style.left = `${j * 30 + Math.random() * 10}px`;
             cloud.appendChild(puff);
         }
-        
+
         weatherBackground.appendChild(cloud);
     }
-    
+
     // Add some leaves or debris for more wind indication
     for (let i = 0; i < 10; i++) {
         const debris = document.createElement('div');
@@ -653,15 +653,15 @@ function setBackgroundWindNight() {
         debris.style.borderRadius = '50%';
         debris.style.top = `${Math.random() * 70 + 30}%`; // Keep in lower portion
         debris.style.left = '-10px'; // Start off-screen
-        
+
         // Create the swirling animation
         const duration = Math.random() * 5 + 8;
         debris.style.animation = `debrisMove ${duration}s linear infinite`;
         debris.style.animationDelay = `${Math.random() * 5}s`;
-        
+
         weatherBackground.appendChild(debris);
     }
-    
+
     // Add rippling effect on lower part to suggest disturbance (like grass or water)
     const rippleLayer = document.createElement('div');
     rippleLayer.style.position = 'absolute';
@@ -673,7 +673,7 @@ function setBackgroundWindNight() {
     rippleLayer.style.zIndex = '1';
     rippleLayer.style.animation = 'rippleWind 8s ease-in-out infinite';
     weatherBackground.appendChild(rippleLayer);
-    
+
     // Add necessary animations
     const style = document.createElement('style');
     style.innerHTML = `
@@ -736,7 +736,7 @@ function setBackgroundWindNight() {
 function setBackgroundSnowNight() {
     // Dark blue-gray gradient for night sky
     document.body.style.background = 'linear-gradient(to bottom, #0c1220 0%, #1a2338 50%, #2c3e60 100%)';
-    
+
     // Add sparse stars in the background
     for (let i = 0; i < 20; i++) {
         const star = document.createElement('div');
@@ -762,7 +762,7 @@ function setBackgroundSnowNight() {
         snowflake.style.textShadow = '0 0 2px rgba(255, 255, 255, 0.3)'; // Subtle glow
         weatherBackground.appendChild(snowflake);
     }
-    
+
     // Add a subtle fog layer at the bottom for depth
     const fogLayer = document.createElement('div');
     fogLayer.style.position = 'absolute';
@@ -782,7 +782,7 @@ function setBackgroundSnowNight() {
 function setBackgroundSleetNight() {
     // Dark blue-purple gradient for night sky
     document.body.style.background = 'linear-gradient(to bottom, #0c1220 0%, #1c2840 70%, #2a3a55 100%)';
-    
+
     // Add sparse stars in the background
     for (let i = 0; i < 15; i++) {
         const star = document.createElement('div');
@@ -793,7 +793,7 @@ function setBackgroundSleetNight() {
         star.style.animationDuration = `${Math.random() * 3 + 2}s`;
         weatherBackground.appendChild(star);
     }
-    
+
     // Dark cloud layer
     const cloudLayer = document.createElement('div');
     cloudLayer.style.position = 'absolute';
@@ -855,7 +855,7 @@ function setBackgroundSleetNight() {
             }
         }
     }
-    
+
     // Add a subtle fog layer at the bottom
     const fogLayer = document.createElement('div');
     fogLayer.style.position = 'absolute';
@@ -875,18 +875,18 @@ function setBackgroundSleetNight() {
 function setBackgroundFogNight() {
     // Dark gray-blue gradient
     document.body.style.background = 'linear-gradient(to bottom, #131824 0%, #1c2535 60%, #2a354a 100%)';
-    
+
     // Add very few stars - only visible through gaps in fog
     for (let i = 0; i < 8; i++) {
         const star = document.createElement('div');
         star.className = 'animation-element star';
-        star.style.top = `${Math.random() * 30}%`; 
+        star.style.top = `${Math.random() * 30}%`;
         star.style.left = `${Math.random() * 100}%`;
         star.style.opacity = Math.random() * 0.15 + 0.05; // Very faint stars
         star.style.animationDuration = `${Math.random() * 3 + 2}s`;
         weatherBackground.appendChild(star);
     }
-    
+
     // Subtle moonlight effect at the top
     const moonGlow = document.createElement('div');
     moonGlow.style.position = 'absolute';
@@ -907,7 +907,7 @@ function setBackgroundFogNight() {
         { height: '30%', top: '60%', opacity: 0.8, duration: 40, direction: -1 },
         { height: '20%', top: '80%', opacity: 0.9, duration: 55, direction: 1 }
     ];
-    
+
     fogLayers.forEach((layer, index) => {
         const fog = document.createElement('div');
         fog.style.position = 'absolute';
@@ -923,7 +923,7 @@ function setBackgroundFogNight() {
         fog.style.animation = `fogNightMove${index} ${layer.duration}s infinite linear`;
         fog.style.zIndex = '2';
         weatherBackground.appendChild(fog);
-        
+
         // Create keyframes for this specific fog layer
         const style = document.createElement('style');
         style.innerHTML = `
@@ -950,7 +950,7 @@ function setBackgroundFogNight() {
         fogParticle.style.zIndex = '3';
         weatherBackground.appendChild(fogParticle);
     }
-    
+
     // Add animation for fog particles
     const particleStyle = document.createElement('style');
     particleStyle.innerHTML = `
@@ -988,9 +988,9 @@ function setBackgroundFogNight() {
  * @param {boolean} useRight - Whether to position from right instead of left
  * @param {boolean} reverseDirection - Whether to reverse animation direction
  */
-function addCloudLayer(count, minWidth, maxWidth, minHeight, maxHeight, color, opacity, 
-                      maxAnim, minAnim, zIndex, leftPos, topPos, minPuffs, maxPuffs, 
-                      useRight = false, reverseDirection = false) {
+function addCloudLayer(count, minWidth, maxWidth, minHeight, maxHeight, color, opacity,
+    maxAnim, minAnim, zIndex, leftPos, topPos, minPuffs, maxPuffs,
+    useRight = false, reverseDirection = false) {
     for (let i = 0; i < count; i++) {
         const cloud = document.createElement('div');
         cloud.className = 'animation-element cloud';
@@ -1000,19 +1000,19 @@ function addCloudLayer(count, minWidth, maxWidth, minHeight, maxHeight, color, o
         cloud.style.borderRadius = '50px';
         cloud.style.position = 'absolute';
         cloud.style.top = `${Math.random() * topPos + 5}%`;
-        
+
         if (useRight) {
             cloud.style.right = `${Math.random() * leftPos}%`;
         } else {
             cloud.style.left = `${Math.random() * leftPos}%`;
         }
-        
+
         cloud.style.animationDuration = `${Math.random() * (maxAnim - minAnim) + minAnim}s`;
-        
+
         if (reverseDirection) {
             cloud.style.animationDirection = 'reverse';
         }
-        
+
         cloud.style.opacity = opacity;
         cloud.style.zIndex = zIndex.toString();
 
@@ -1084,20 +1084,20 @@ const WEATHER_BACKGROUND_MAPPING = {
     // Night versions for snow
     'nsnow': setBackgroundSnowNight,
     'nblizzard': setBackgroundSnowNight,
-    
+
     // Night versions for sleet/freezing rain
     'nsleet': setBackgroundSleetNight,
     'nfzra': setBackgroundSleetNight,
     'nrain_snow': setBackgroundSleetNight,
     'nrain_sleet': setBackgroundSleetNight,
     'nsnow_sleet': setBackgroundSleetNight,
-    
+
     // Night version for fog
     'nfog': setBackgroundFogNight,
     'ndust': setBackgroundFogNight,
     'nsmoke': setBackgroundFogNight,
     'nhaze': setBackgroundFogNight,
-    
+
     // Pirate Weather backgrounds (fallback)
     'clear-day': setBackgroundClearDay,
     'clear-night': setBackgroundClearNight,

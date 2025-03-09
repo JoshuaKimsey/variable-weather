@@ -10,20 +10,20 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/variable-weather/sw.js')
             .then(registration => {
                 console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                
+
                 // Check if there's a waiting service worker
                 if (registration.waiting) {
                     console.log('New service worker waiting on load');
                     document.dispatchEvent(new CustomEvent('updateAvailable'));
                 }
-                
+
                 // Check for a new service worker installing
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
-                    
+
                     if (newWorker) {
                         console.log('New service worker installing');
-                        
+
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 console.log('New service worker installed and waiting');
@@ -36,7 +36,7 @@ if ('serviceWorker' in navigator) {
             .catch(error => {
                 console.log('ServiceWorker registration failed: ', error);
             });
-            
+
         // Listen for controller changes from other service worker instances/tabs
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             console.log('New service worker controller, reloading for updated content');

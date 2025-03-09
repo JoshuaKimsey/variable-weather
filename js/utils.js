@@ -44,7 +44,7 @@ export function getCountryCode(displayName) {
  */
 export function formatLocationName(locationName) {
     if (!locationName) return 'Unknown Location';
-    
+
     try {
         // Shorten location name to just city, state/province, country
         const parts = locationName.split(', ');
@@ -69,7 +69,7 @@ export function formatDate(date) {
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
         return 'Unknown Date';
     }
-    
+
     try {
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         return date.toLocaleDateString('en-US', options);
@@ -104,12 +104,12 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371; // Radius of the earth in km
         const dLat = deg2rad(lat2 - lat1);
         const dLon = deg2rad(lon2 - lon1);
-        const a = 
-            Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-            Math.sin(dLon/2) * Math.sin(dLon/2)
-        ; 
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2)
+            ;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         const distance = R * c; // Distance in km
         return distance;
     } catch (error) {
@@ -124,5 +124,5 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
  * @returns {number} - Radians
  */
 function deg2rad(deg) {
-    return deg * (Math.PI/180);
+    return deg * (Math.PI / 180);
 }

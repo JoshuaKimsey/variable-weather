@@ -16,6 +16,7 @@ import { setWeatherIcon, setForecastIcon } from './weatherIcons.js';
 import { setWeatherBackground } from './weatherBackgrounds.js';
 import { formatDate, formatLocationName, updatePageTitle } from './utils.js';
 import { getDisplayUnits, formatTemperature, formatWindSpeed, formatPressure, formatVisibility } from './units.js';
+import { updateAlertPolygons, isRadarViewInitialized } from './radarView.js';
 
 // DOM elements
 let locationInput, searchButton, weatherData, loadingIndicator, errorMessage,
@@ -367,7 +368,7 @@ function handleForecastDisplay(data) {
             if (forecastIconElement) {
                 // For daily forecast, convert any night icons to their day equivalents
                 let iconCode = day.icon || 'cloudy';
-                
+
                 // Convert night-specific icons to day versions
                 if (iconCode === 'clear-night') {
                     iconCode = 'clear-day';
@@ -380,7 +381,7 @@ function handleForecastDisplay(data) {
                     // Replace 'night' with 'day' in icon names
                     iconCode = iconCode.replace('night', 'day');
                 }
-                
+
                 // Always use daytime mode
                 setForecastIcon(iconCode, forecastIconElement, true);
             }
@@ -466,7 +467,7 @@ function handleHourlyForecastDisplay(data) {
             if (forecastIconElement) {
                 // Determine if it's daytime for this hour
                 let isDaytime = true; // Default to day
-                
+
                 // First, check if the API explicitly provides isDaytime property (NWS does this)
                 if (hour.isDaytime !== undefined) {
                     isDaytime = hour.isDaytime;
@@ -476,7 +477,7 @@ function handleHourlyForecastDisplay(data) {
                     const hour24 = date.getHours();
                     isDaytime = (hour24 >= 6 && hour24 < 18);
                 }
-                
+
                 setForecastIcon(hour.icon || 'cloudy', forecastIconElement, isDaytime);
             }
         }
@@ -739,7 +740,7 @@ function getAlertSeverity(alert) {
  */
 function formatAlertText(text) {
     if (!text) return '';
-    
+
     try {
         // Replace * with bullet points
         text = text.replace(/\*/g, '•');
@@ -766,6 +767,21 @@ function formatAlertText(text) {
 function capitalizeFirst(str) {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Display weather data and update alert polygons
+ * @param {Object} data - Weather data object
+ * @param {string} locationName - Location name
+ */
+export function displayWeatherWithAlerts(data, locationName) {
+    // First, call the regular displayWeatherData function
+    displayWeatherData(data, locationName);
+
+    // Then, if the radar is initialized, update the alert polygons
+    if (typeof updateAlertPolygons === 'function' && isRadarViewInitialized()) {
+        updateAlertPolygons(data.alerts || []);
+    }
 }
 
 //==============================================================================

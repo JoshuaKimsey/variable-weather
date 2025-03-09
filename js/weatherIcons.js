@@ -108,12 +108,12 @@ export const weatherIcons = {
 export function setWeatherIcon(iconCode, element, isDaytime = true) {
     // Clear previous icon
     element.innerHTML = '';
-    
+
     // Create a wrapper to ensure proper positioning
     const wrapper = document.createElement('div');
     wrapper.className = 'weather-icon-wrapper';
     element.appendChild(wrapper);
-    
+
     // Check if we should use a night variant
     if (!isDaytime) {
         // Check for specific night version
@@ -122,7 +122,7 @@ export function setWeatherIcon(iconCode, element, isDaytime = true) {
             weatherIcons[nightIconCode](wrapper);
             return;
         }
-        
+
         // Check for generic night mappings for Pirate Weather codes
         if (iconCode === 'cloudy') {
             createCloudyNightIcon(wrapper);
@@ -141,7 +141,7 @@ export function setWeatherIcon(iconCode, element, isDaytime = true) {
             return;
         }
     }
-    
+
     // Default behavior - use the direct icon code
     if (weatherIcons[iconCode]) {
         weatherIcons[iconCode](wrapper);
@@ -158,12 +158,12 @@ export function setWeatherIcon(iconCode, element, isDaytime = true) {
 export function setForecastIcon(iconCode, element, isDaytime = true) {
     // Clear previous icon
     element.innerHTML = '';
-    
+
     // Create a wrapper to ensure proper positioning
     const wrapper = document.createElement('div');
     wrapper.className = 'weather-icon-wrapper';
     element.appendChild(wrapper);
-    
+
     // Check if we should use a night variant
     if (!isDaytime) {
         // Check for specific night version
@@ -172,7 +172,7 @@ export function setForecastIcon(iconCode, element, isDaytime = true) {
             weatherIcons[nightIconCode](wrapper, true);
             return;
         }
-        
+
         // Check for generic night mappings for Pirate Weather codes
         if (iconCode === 'cloudy') {
             createCloudyNightIcon(wrapper, true);
@@ -191,7 +191,7 @@ export function setForecastIcon(iconCode, element, isDaytime = true) {
             return;
         }
     }
-    
+
     if (weatherIcons[iconCode]) {
         weatherIcons[iconCode](wrapper, true);
     } else {

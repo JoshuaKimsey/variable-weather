@@ -6,13 +6,13 @@
 let PIRATE_WEATHER_API_KEY = '*insert-your-api-key-here*';
 
 // Function to update the API key
-window.updatePirateWeatherApiKey = function(newKey) {
+window.updatePirateWeatherApiKey = function (newKey) {
     PIRATE_WEATHER_API_KEY = newKey;
     console.log('Pirate Weather API key updated');
 };
 
 // Function to reset to default API key
-window.resetPirateWeatherApiKey = function() {
+window.resetPirateWeatherApiKey = function () {
     PIRATE_WEATHER_API_KEY = '*insert-your-api-key-here*';
     console.log('Pirate Weather API key reset to default');
 };

@@ -1,7 +1,7 @@
 // Service Worker for Weather App with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.2.2';
+const SW_VERSION = '1.3.0';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 const ASSETS = [
@@ -30,7 +30,7 @@ const ASSETS = [
 // Install event - cache the app shell
 self.addEventListener('install', event => {
   console.log('[Service Worker] Installing new version:', SW_VERSION);
-  
+
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -43,7 +43,7 @@ self.addEventListener('install', event => {
         console.log('[Service Worker] Installed and waiting for activation');
       })
   );
-  
+
   // Notify clients about the new version
   self.clients.matchAll().then(clients => {
     clients.forEach(client => {
@@ -58,7 +58,7 @@ self.addEventListener('install', event => {
 // Activate event - clean up old caches
 self.addEventListener('activate', event => {
   console.log('[Service Worker] Activating new version:', SW_VERSION);
-  
+
   event.waitUntil(
     caches.keys().then(keyList => {
       return Promise.all(keyList.map(key => {
@@ -68,10 +68,10 @@ self.addEventListener('activate', event => {
         }
       }));
     })
-    .then(() => {
-      console.log('[Service Worker] Version', SW_VERSION, 'now active');
-      return self.clients.claim();
-    })
+      .then(() => {
+        console.log('[Service Worker] Version', SW_VERSION, 'now active');
+        return self.clients.claim();
+      })
   );
 });
 
@@ -87,8 +87,8 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', event => {
   // API requests - network first, then cache, with timeout
   if (event.request.url.includes('api.weather.gov') ||
-      event.request.url.includes('api.pirateweather.net') ||
-      event.request.url.includes('nominatim.openstreetmap.org')) {
+    event.request.url.includes('api.pirateweather.net') ||
+    event.request.url.includes('nominatim.openstreetmap.org')) {
     // For API requests, use a network-first strategy with timeout
     const timeoutPromise = new Promise((resolve) => {
       setTimeout(() => {

@@ -25,7 +25,12 @@
 ## Features
 
 - **Beautiful Animated Visuals** - Dynamic backgrounds and icons that change based on current conditions
-- **Detailed Information** - Current conditions, 7 day & hourly forecasts, weather alerts, and weather radar.
+- **Detailed Information** - Presenting the weather information that you need:
+  - Current conditions,
+  - 7 day forecast
+  - Hourly forecasts
+  - Weather alerts
+  - Weather radar, with integrated severe weather alert polygons
 - **Dual API System** - Uses National Weather Service data for US locations and Pirate Weather API globally
 - **Smart Location Detection** - Automatic geolocation with manual search options
 - **Progressive Web App (PWA)** - Install on any device with automatic updates
@@ -71,6 +76,8 @@ cd variable-weather
 - **Details**: View wind speed, humidity, pressure, and visibility information
 - **Forecast**: Scroll horizontally to view the 7-day forecast
 - **Alerts**: Any active weather alerts will appear at the top - click to expand for details
+- **Weather Radar**: See precipitation in your area or around the world
+  - **Integrated Severe Alert Polygons**: See Severe Weather Alerts on the map (US only currently)
 
 ### Customization Options
 

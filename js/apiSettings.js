@@ -26,7 +26,7 @@ export function initApiSettings() {
     apiKeyStatus = document.getElementById('api-key-status');
     imperialUnitsRadio = document.getElementById('imperial-units');
     metricUnitsRadio = document.getElementById('metric-units');
-    
+
     // Set up event listeners
     openSettingsBtn.addEventListener('click', openApiSettings);
     closeSettingsBtn.addEventListener('click', closeApiSettings);
@@ -35,7 +35,7 @@ export function initApiSettings() {
     removeApiKeyBtn.addEventListener('click', removeApiKey);
     imperialUnitsRadio.addEventListener('change', updateUnits);
     metricUnitsRadio.addEventListener('change', updateUnits);
-    
+
     // Load saved settings
     loadSavedApiKey();
     loadSavedUnits();
@@ -47,7 +47,7 @@ export function initApiSettings() {
 function openApiSettings() {
     apiSettingsModal.style.display = 'block';
     apiSettingsBackdrop.style.display = 'block';
-    
+
     // Check if key exists
     const hasKey = !!localStorage.getItem(PIRATE_API_KEY_STORAGE);
     removeApiKeyBtn.style.display = hasKey ? 'block' : 'none';
@@ -68,25 +68,25 @@ function closeApiSettings() {
  */
 function saveApiKey() {
     const apiKey = pirateApiKeyInput.value.trim();
-    
+
     if (!apiKey) {
         showApiKeyStatus('Please enter an API key', 'status-error');
         return;
     }
-    
+
     // Validate API key format (basic validation - adjust as needed)
     if (!validateApiKey(apiKey)) {
         showApiKeyStatus('Invalid API key format', 'status-error');
         return;
     }
-    
+
     // Save to local storage
     localStorage.setItem(PIRATE_API_KEY_STORAGE, apiKey);
-    
+
     // Update UI
     showApiKeyStatus('API key saved successfully!', 'status-success');
     removeApiKeyBtn.style.display = 'block';
-    
+
     // Update the key in config
     updatePirateWeatherKey(apiKey);
 }
@@ -99,7 +99,7 @@ function removeApiKey() {
     pirateApiKeyInput.value = '';
     removeApiKeyBtn.style.display = 'none';
     showApiKeyStatus('API key removed', 'status-success');
-    
+
     // Reset to default key in config
     resetPirateWeatherKey();
 }
@@ -109,11 +109,11 @@ function removeApiKey() {
  */
 function loadSavedApiKey() {
     const savedKey = localStorage.getItem(PIRATE_API_KEY_STORAGE);
-    
+
     if (savedKey) {
         pirateApiKeyInput.value = savedKey;
         removeApiKeyBtn.style.display = 'block';
-        
+
         // Update the key in config
         updatePirateWeatherKey(savedKey);
     }
@@ -124,13 +124,13 @@ function loadSavedApiKey() {
  */
 function loadSavedUnits() {
     const savedUnits = localStorage.getItem(UNITS_STORAGE) || 'imperial';
-    
+
     if (savedUnits === 'metric') {
         metricUnitsRadio.checked = true;
     } else {
         imperialUnitsRadio.checked = true;
     }
-    
+
     // Only set the units if the function is available
     // This ensures we don't try to call a function that hasn't been defined yet
     if (typeof window.setDisplayUnits === 'function') {
@@ -144,15 +144,15 @@ function loadSavedUnits() {
 function updateUnits() {
     const units = document.querySelector('input[name="unit"]:checked')?.value || 'imperial';
     localStorage.setItem(UNITS_STORAGE, units);
-    
+
     // Update the app to use the new units
     window.setDisplayUnits(units);
-    
+
     // If weather data is currently displayed, refresh it to show the new units
     if (document.getElementById('weather-data').style.display !== 'none') {
         refreshWeatherDisplay();
     }
-    
+
     showApiKeyStatus(`Units changed to ${units === 'metric' ? 'Metric (°C)' : 'Imperial (°F)'}`, 'status-success');
 }
 
@@ -172,7 +172,7 @@ function refreshWeatherDisplay() {
 function showApiKeyStatus(message, className) {
     apiKeyStatus.textContent = message;
     apiKeyStatus.className = className;
-    
+
     // Clear status after a delay
     setTimeout(() => {
         apiKeyStatus.className = '';

@@ -24,7 +24,7 @@ import { updateURLParameters } from './utils.js';
 import { initBackgrounds } from './weatherBackgrounds.js';
 import { initApiSettings } from './apiSettings.js';
 import { initUnits } from './units.js';
-import { initRadarView, refreshRadarData, isRadarViewInitialized } from './radarView.js';
+import { initRadarView, refreshRadarData, isRadarViewInitialized, updateAlertPolygons } from './radarView.js';
 
 //==============================================================================
 // 2. APPLICATION INITIALIZATION
@@ -65,7 +65,7 @@ function initApp() {
 
         if (lat && lon) {
             fetchWeather(lat, lon, locationName);
-            
+
             // Also refresh radar data if available
             if (typeof refreshRadarData === 'function' && isRadarViewInitialized()) {
                 // console.log("Attempting radar update");
@@ -128,14 +128,14 @@ function getUserLocation() {
 
     // Show loading indicator
     showLoading();
-    
+
     // Add a special message for geolocation
     const loadingElement = document.getElementById('loading');
     const geoText = document.createElement('div');
     geoText.className = 'geo-loading-text';
     geoText.innerHTML = '<i class="fas fa-location-arrow"></i> Getting your location...';
     loadingElement.appendChild(geoText);
-    
+
     // Options for geolocation request
     const options = {
         enableHighAccuracy: true,
@@ -151,19 +151,19 @@ function getUserLocation() {
             if (geoText.parentNode) {
                 geoText.parentNode.removeChild(geoText);
             }
-            
+
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
-            
+
             // Remember that user enabled geolocation
             localStorage.setItem('geolocation_enabled', 'true');
-            
+
             // Get location name using reverse geocoding
             reverseGeocode(lat, lon)
                 .then(locationName => {
                     // Update URL with new coordinates and location name
                     updateURLParameters(lat, lon, locationName);
-                    
+
                     // Fetch weather for the location
                     fetchWeather(lat, lon, locationName);
                 })
@@ -180,9 +180,9 @@ function getUserLocation() {
             if (geoText.parentNode) {
                 geoText.parentNode.removeChild(geoText);
             }
-            
+
             hideLoading();
-            
+
             let errorMsg = '';
             switch (error.code) {
                 case error.PERMISSION_DENIED:
@@ -199,9 +199,9 @@ function getUserLocation() {
                     errorMsg = 'An unknown error occurred while getting your location. Please enter a location manually.';
                     break;
             }
-            
+
             showError(errorMsg);
-            
+
             // Fall back to default location after a short delay
             setTimeout(() => {
                 fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
@@ -221,7 +221,7 @@ function getUserLocation() {
 function reverseGeocode(lat, lon) {
     return new Promise((resolve, reject) => {
         const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
-        
+
         fetch(url)
             .then(response => {
                 if (!response.ok) {
@@ -268,16 +268,16 @@ function showGeolocationPrompt() {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(promptContainer);
-    
+
     // Add event listeners
     document.getElementById('geo-prompt-yes').addEventListener('click', () => {
         localStorage.setItem('geolocation_enabled', 'true');
         promptContainer.remove();
         getUserLocation();
     });
-    
+
     document.getElementById('geo-prompt-no').addEventListener('click', () => {
         localStorage.setItem('geolocation_enabled', 'false');
         promptContainer.remove();

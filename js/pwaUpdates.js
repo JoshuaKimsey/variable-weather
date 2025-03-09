@@ -9,7 +9,7 @@
  */
 
 // App version - change this with each release
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.3.0';
 
 // Configuration
 const CHECK_INTERVAL = 60 * 120 * 1000; // Check for updates every 2 hours (in milliseconds)
@@ -24,15 +24,15 @@ let registration = null;
 function initUpdateSystem() {
     // Expose the version in the window object for debugging
     window.appVersion = APP_VERSION;
-    
+
     console.log(`Variable Weather Version: ${APP_VERSION}`);
-    
+
     // Display current version in the UI
     displayAppVersion();
-    
+
     // Setup periodic update checks
     setupUpdateChecking();
-    
+
     // Create update notification UI (hidden by default)
     createUpdateNotification();
 }
@@ -43,21 +43,21 @@ function initUpdateSystem() {
 function displayAppVersion() {
     const footerElement = document.querySelector('.attribution-footer');
     const GITHUB_URL = 'https://github.com/JoshuaKimsey/variable-weather';
-    
+
     if (footerElement) {
         // Create version display element if it doesn't exist
         let versionDisplay = document.getElementById('app-version-display');
-        
+
         if (!versionDisplay) {
             versionDisplay = document.createElement('div');
             versionDisplay.id = 'app-version-display';
             versionDisplay.className = 'app-version';
             footerElement.appendChild(versionDisplay);
         }
-        
+
         // Create a link element for the version
         versionDisplay.innerHTML = `&copy; Copyright 2025 <a href="https://github.com/JoshuaKimsey" target="_blank" rel="noopener" class="version-link">Joshua Kimsey</a> - Variable Weather: <a href="${GITHUB_URL}" target="_blank" rel="noopener" class="version-link">v${APP_VERSION}</a>`;
-        
+
         // Add some styling
         const style = document.createElement('style');
         style.innerHTML = `
@@ -92,19 +92,19 @@ function setupUpdateChecking() {
         // Store the registration for later use
         navigator.serviceWorker.ready.then(reg => {
             registration = reg;
-            
+
             // Check for updates immediately on load
             checkForUpdates();
-            
+
             // Set up periodic update checks
             setInterval(checkForUpdates, CHECK_INTERVAL);
-            
+
             // Listen for controlling service worker changes
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 // This fires when the service worker controlling this page changes,
                 // which happens when a new service worker is activated.
                 console.log('Controller changed - page will reload shortly');
-                
+
                 // Wait a moment to ensure the service worker is fully active,
                 // then reload the page to load new assets
                 setTimeout(() => {
@@ -112,7 +112,7 @@ function setupUpdateChecking() {
                 }, 1000);
             });
         });
-        
+
         // Listen for new service workers installing
         navigator.serviceWorker.addEventListener('message', event => {
             if (event.data && event.data.type === 'VERSION_CHANGE') {
@@ -128,14 +128,14 @@ function setupUpdateChecking() {
  */
 function checkForUpdates() {
     if (!registration) return;
-    
+
     console.log('Checking for PWA updates...');
-    
+
     // This method checks the server for an updated service worker
     registration.update()
         .then(() => {
             console.log('Update check completed');
-            
+
             // After update() resolves, check if there's a new service worker waiting
             if (registration.waiting) {
                 console.log('New service worker waiting');
@@ -156,7 +156,7 @@ function createUpdateNotification() {
     updateNotification.id = 'update-notification';
     updateNotification.className = 'update-notification';
     updateNotification.style.display = 'none';
-    
+
     updateNotification.innerHTML = `
         <div class="update-content">
             <div class="update-icon">
@@ -173,9 +173,9 @@ function createUpdateNotification() {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(updateNotification);
-    
+
     // Add styles for the notification
     const style = document.createElement('style');
     style.innerHTML = `
@@ -278,7 +278,7 @@ function createUpdateNotification() {
         }
     `;
     document.head.appendChild(style);
-    
+
     // Add event listeners
     document.getElementById('apply-update').addEventListener('click', applyUpdate);
     document.getElementById('dismiss-update').addEventListener('click', dismissUpdateNotification);
@@ -298,7 +298,7 @@ function showUpdateNotification(newVersion = '') {
                 versionElement.textContent = `(${newVersion})`;
             }
         }
-        
+
         notification.style.display = 'block';
     }
 }
@@ -322,20 +322,20 @@ function applyUpdate() {
         dismissUpdateNotification();
         return;
     }
-    
+
     console.log('Applying update...');
-    
+
     // Send message to the waiting service worker to skip waiting
     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-    
+
     // Hide the notification
     dismissUpdateNotification();
 }
 
 // Export functions for external use
-export { 
-    initUpdateSystem, 
-    checkForUpdates, 
-    applyUpdate, 
-    APP_VERSION 
+export {
+    initUpdateSystem,
+    checkForUpdates,
+    applyUpdate,
+    APP_VERSION
 };

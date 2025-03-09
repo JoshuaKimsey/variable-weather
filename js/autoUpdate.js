@@ -15,13 +15,13 @@ export function initAutoUpdate(updateCallback) {
     // Set the initial update time
     lastUpdateTime = new Date();
     updateLastUpdatedText();
-    
+
     // Set up the update timer
     scheduleNextUpdate(updateCallback);
-    
+
     // Add a function to the window object to check if updates are active
     window.isAutoUpdateActive = () => updateTimer !== undefined;
-    
+
     // Add a function to manually trigger an update
     window.manualUpdate = () => {
         if (updateCallback && typeof updateCallback === 'function') {
@@ -40,13 +40,13 @@ function scheduleNextUpdate(updateCallback) {
     if (updateTimer) {
         clearTimeout(updateTimer);
     }
-    
+
     // Set a new timer
     updateTimer = setTimeout(() => {
         performUpdate(updateCallback);
     }, UPDATE_INTERVAL);
-    
-    // console.log(`Next weather update scheduled in ${UPDATE_INTERVAL / 60000} minutes`);
+
+    console.log(`Next weather update scheduled in ${UPDATE_INTERVAL / 60000} minutes`);
 }
 
 /**
@@ -55,16 +55,16 @@ function scheduleNextUpdate(updateCallback) {
  */
 function performUpdate(updateCallback) {
     // console.log('Performing automatic weather update...');
-    
+
     // Call the update callback
     if (updateCallback && typeof updateCallback === 'function') {
         updateCallback();
     }
-    
+
     // Update the timestamp
     lastUpdateTime = new Date();
     updateLastUpdatedText();
-    
+
     // Schedule the next update
     scheduleNextUpdate(updateCallback);
 }
@@ -75,11 +75,11 @@ function performUpdate(updateCallback) {
 export function updateLastUpdatedText() {
     const lastUpdatedElement = document.getElementById('last-updated');
     if (!lastUpdatedElement || !lastUpdateTime) return;
-    
+
     const now = new Date();
     const diffMs = now - lastUpdateTime;
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     let updatedText;
     if (diffMins < 1) {
         updatedText = 'Updated just now';
@@ -91,16 +91,16 @@ export function updateLastUpdatedText() {
         const hours = Math.floor(diffMins / 60);
         const mins = diffMins % 60;
         if (hours === 1) {
-            updatedText = mins > 0 ? 
-                `Updated 1 hour ${mins} min ago` : 
+            updatedText = mins > 0 ?
+                `Updated 1 hour ${mins} min ago` :
                 'Updated 1 hour ago';
         } else {
-            updatedText = mins > 0 ? 
-                `Updated ${hours} hours ${mins} min ago` : 
+            updatedText = mins > 0 ?
+                `Updated ${hours} hours ${mins} min ago` :
                 `Updated ${hours} hours ago`;
         }
     }
-    
+
     lastUpdatedElement.textContent = updatedText;
 }
 
@@ -110,7 +110,7 @@ export function updateLastUpdatedText() {
 export function startLastUpdatedTimer() {
     // Update the text immediately
     updateLastUpdatedText();
-    
+
     // Set up an interval to update the text every minute
     setInterval(() => {
         updateLastUpdatedText();
