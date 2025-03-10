@@ -426,26 +426,26 @@ function generateCloudGroup(options) {
     const positionStrategies = {
         // Sparse coverage (few clouds) - for partly cloudy
         sparse: [
-            { top: 30, left: -10 + (Math.random() * 20), z: 3, size: 0.9 },  // Main cloud in center (shifted left)
-            { top: 20, left: -10 + (Math.random() * 20), z: 2, size: 0.7 },  // Second cloud top-left
-            { top: 40, left: -10 + (Math.random() * 20), z: 1, size: 0.75 }  // Third cloud right (shifted left)
+            { top: 30, left: 0 + (Math.random() * 20), z: 3, size: 0.9 },  // Main cloud in center 
+            { top: 30, left: 0 + (Math.random() * 20), z: 2, size: 0.7 },  // Second cloud top-left
+            { top: 30, left: 0 + (Math.random() * 20), z: 1, size: 0.75 }  // Third cloud right 
         ],
         // Moderate coverage - for normal cloudy
         moderate: [
-            { top: 30, left: -10 + (Math.random() * 20), z: 3, size: 1.0 },  // Main central cloud (shifted left)
-            { top: 20, left: -10 + (Math.random() * 20), z: 3, size: 0.85 }, // Upper left
-            { top: 15, left: -10 + (Math.random() * 20), z: 2, size: 0.75 }, // Upper right (shifted left)
-            { top: 40, left: -10 + (Math.random() * 20), z: 2, size: 0.8 },  // Lower left
-            { top: 45, left: -10 + (Math.random() * 20), z: 1, size: 0.7 }   // Lower right (shifted left)
+            { top: 30, left: 0 + (Math.random() * 20), z: 3, size: 1.0 },  // Main central cloud 
+            { top: 30, left: 0 + (Math.random() * 20), z: 3, size: 0.85 }, // Upper left
+            { top: 30, left: 0 + (Math.random() * 20), z: 2, size: 0.75 }, // Upper right 
+            { top: 30, left: 0 + (Math.random() * 20), z: 2, size: 0.8 },  // Lower left
+            { top: 30, left: 0 + (Math.random() * 20), z: 1, size: 0.9 }   // Lower right 
         ],
         // Full coverage - for heavy precipitation
         full: [
-            { top: 25, left: -10 + (Math.random() * 20), z: 4, size: 1.1 },  // Main large central cloud (shifted left)
-            { top: 15, left: -10 + (Math.random() * 20), z: 3, size: 0.9 },  // Upper left
-            { top: 15, left: -10 + (Math.random() * 20), z: 3, size: 0.85 }, // Upper right (shifted left)
-            { top: 35, left: -10 + (Math.random() * 20), z: 2, size: 0.8 },  // Mid left
-            { top: 40, left: -10 + (Math.random() * 20), z: 2, size: 0.75 }, // Mid right (shifted left)
-            { top: 50, left: -10 + (Math.random() * 20), z: 1, size: 0.85 }  // Lower center (shifted left)
+            { top: 30, left: 0 + (Math.random() * 20), z: 4, size: 1.1 },  // Main large central cloud 
+            { top: 30, left: 0 + (Math.random() * 20), z: 3, size: 0.9 },  // Upper left
+            { top: 30, left: 0 + (Math.random() * 20), z: 3, size: 0.75 }, // Upper right 
+            { top: 30, left: 0 + (Math.random() * 20), z: 2, size: 0.8 },  // Mid left
+            { top: 30, left: 0 + (Math.random() * 20), z: 2, size: 0.75 }, // Mid right 
+            { top: 30, left: 0 + (Math.random() * 20), z: 1, size: 0.85 }  // Lower center 
         ]
     };
 
@@ -453,8 +453,8 @@ function generateCloudGroup(options) {
     // These have also been shifted leftward
     if (config.coverage >= 0.9) {
         positionStrategies.full.push(
-            { top: 30, left: 50, z: 1, size: 0.7 },  // Extra right cloud (shifted left)
-            { top: 25, left: 0, z: 1, size: 0.75 }   // Extra left cloud
+            { top: 30, left: 0 + (Math.random() * 20), z: 1, size: 0.7 },  // Extra right cloud (shifted left)
+            { top: 30, left: 0 + (Math.random() * 20), z: 1, size: 0.75 }   // Extra left cloud
         );
     }
 
@@ -471,8 +471,8 @@ function generateCloudGroup(options) {
     // Randomize the cloud positions slightly to break any remaining patterns
     positions = positions.map(pos => {
         // Add vertical and horizontal randomness
-        const verticalVariance = 8;
-        const horizontalVariance = 5; // Slightly reduced to maintain leftward positioning
+        const verticalVariance = 5;
+        const horizontalVariance = 5;
 
         return {
             top: pos.top + (Math.random() * verticalVariance * 2 - verticalVariance),
@@ -1934,8 +1934,79 @@ function addParticlesAlongPath(svg, pathDef, pathIndex, duration) {
     }
 }
 
+// Old fog icons, may be deleted later
+// /**
+//  * Create a fog icon with animated fog layers
+//  * @param {HTMLElement} element - DOM element to append the icon to
+//  * @param {boolean} isForecast - Whether this is a smaller forecast icon
+//  */
+// function createFogIcon(element, isForecast = false) {
+//     const size = isForecast ? 60 : 150;
+//     const container = document.createElement('div');
+//     container.style.width = `${size}px`;
+//     container.style.height = `${size}px`;
+//     container.style.position = 'relative';
+
+//     // Create fog layers
+//     for (let i = 0; i < 5; i++) {
+//         const fogLayer = document.createElement('div');
+//         fogLayer.style.width = `${size * 0.8}px`;
+//         fogLayer.style.height = `${size * 0.1}px`;
+//         fogLayer.style.backgroundColor = 'rgba(204, 204, 204, 0.8)';
+//         fogLayer.style.borderRadius = `${size * 0.05}px`;
+//         fogLayer.style.position = 'absolute';
+//         fogLayer.style.top = `${30 + i * 15}%`;
+//         fogLayer.style.left = '10%';
+//         fogLayer.style.animation = `fogFloat 4s infinite alternate ${i * 0.3}s ease-in-out`;
+
+//         container.appendChild(fogLayer);
+//     }
+
+//     element.appendChild(container);
+
+//     // Add animation for fog layers
+//     const style = document.createElement('style');
+//     style.innerHTML = `
+//         @keyframes fogFloat {
+//             0% { transform: translateX(-5%); opacity: 0.7; }
+//             100% { transform: translateX(5%); opacity: 0.9; }
+//         }
+//     `;
+//     document.head.appendChild(style);
+// }
+
+// /**
+//  * Create a foggy night icon with animated fog layers
+//  * @param {HTMLElement} element - DOM element to append the icon to
+//  * @param {boolean} isForecast - Whether this is a smaller forecast icon
+//  */
+// function createFogNightIcon(element, isForecast = false) {
+//     const size = isForecast ? 60 : 150;
+//     const container = document.createElement('div');
+//     container.style.width = `${size}px`;
+//     container.style.height = `${size}px`;
+//     container.style.position = 'relative';
+
+//     // Create fog layers with night-time coloring
+//     for (let i = 0; i < 5; i++) {
+//         const fogLayer = document.createElement('div');
+//         fogLayer.style.width = `${size * 0.8}px`;
+//         fogLayer.style.height = `${size * 0.1}px`;
+//         fogLayer.style.backgroundColor = 'rgba(171, 178, 185, 0.7)'; // Darker for night
+//         fogLayer.style.borderRadius = `${size * 0.05}px`;
+//         fogLayer.style.position = 'absolute';
+//         fogLayer.style.top = `${30 + i * 15}%`;
+//         fogLayer.style.left = '10%';
+//         fogLayer.style.animation = `fogFloat 4s infinite alternate ${i * 0.3}s ease-in-out`;
+
+//         container.appendChild(fogLayer);
+//     }
+
+//     element.appendChild(container);
+// }
+
 /**
- * Create a fog icon with animated fog layers
+ * Create a fog icon with improved dynamics and visual effects
  * @param {HTMLElement} element - DOM element to append the icon to
  * @param {boolean} isForecast - Whether this is a smaller forecast icon
  */
@@ -1945,37 +2016,147 @@ function createFogIcon(element, isForecast = false) {
     container.style.width = `${size}px`;
     container.style.height = `${size}px`;
     container.style.position = 'relative';
+    container.style.overflow = 'hidden'; // Contain the animation within bounds
 
-    // Create fog layers
-    for (let i = 0; i < 5; i++) {
+    // Define fog layer configurations with varying heights, positions, and animations
+    const fogLayers = [
+        { height: 14, top: 30, opacity: 0.9, delay: 0, duration: 18, direction: 1 },
+        { height: 12, top: 45, opacity: 0.8, delay: 2, duration: 24, direction: -1 },
+        { height: 16, top: 60, opacity: 0.9, delay: 1, duration: 20, direction: 1 },
+        { height: 10, top: 75, opacity: 0.7, delay: 3, duration: 22, direction: -1 }
+    ];
+    
+    // Add wispy fog elements
+    const wispyElements = [
+        { width: 60, height: 25, top: 38, left: 20, opacity: 0.5, delay: 0, duration: 8 },
+        { width: 40, height: 20, top: 55, left: 40, opacity: 0.4, delay: 2, duration: 10 },
+        { width: 50, height: 22, top: 70, left: 25, opacity: 0.5, delay: 4, duration: 9 }
+    ];
+    
+    // Create the key animation if not already added
+    if (!document.getElementById('fog-animations')) {
+        const animationStyle = document.createElement('style');
+        animationStyle.id = 'fog-animations';
+        animationStyle.textContent = `
+            @keyframes fogDrift {
+                0% { transform: translateX(0); }
+                50% { transform: translateX(20px); }
+                100% { transform: translateX(0); }
+            }
+            
+            @keyframes fogDriftReverse {
+                0% { transform: translateX(0); }
+                50% { transform: translateX(-20px); }
+                100% { transform: translateX(0); }
+            }
+            
+            @keyframes fogWisp {
+                0% { transform: translateY(0) scale(1); opacity: 0.1; }
+                50% { transform: translateY(-5px) scale(1.1); opacity: 0.5; }
+                100% { transform: translateY(0) scale(1); opacity: 0.1; }
+            }
+            
+            @keyframes fogParticle {
+                0% { transform: translate(0, 0); opacity: 0; }
+                25% { opacity: 0.5; }
+                75% { opacity: 0.5; }
+                100% { transform: translate(var(--move-x), var(--move-y)); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(animationStyle);
+    }
+
+    // Main horizontal fog layers
+    fogLayers.forEach(layer => {
         const fogLayer = document.createElement('div');
-        fogLayer.style.width = `${size * 0.8}px`;
-        fogLayer.style.height = `${size * 0.1}px`;
-        fogLayer.style.backgroundColor = 'rgba(204, 204, 204, 0.8)';
-        fogLayer.style.borderRadius = `${size * 0.05}px`;
+        fogLayer.className = 'animation-element fog-layer';
+        
+        // Size and position
         fogLayer.style.position = 'absolute';
-        fogLayer.style.top = `${30 + i * 15}%`;
-        fogLayer.style.left = '10%';
-        fogLayer.style.animation = `fogFloat 4s infinite alternate ${i * 0.3}s ease-in-out`;
-
+        fogLayer.style.height = `${layer.height}px`;
+        fogLayer.style.left = '0';
+        fogLayer.style.right = '0';
+        fogLayer.style.top = `${layer.top}%`;
+        
+        // Visual appearance
+        fogLayer.style.borderRadius = `${layer.height}px`;
+        fogLayer.style.background = `linear-gradient(to bottom, 
+                                    rgba(220, 220, 220, 0) 0%, 
+                                    rgba(220, 220, 220, ${layer.opacity}) 50%, 
+                                    rgba(220, 220, 220, 0) 100%)`;
+        
+        // Animation
+        const animationName = layer.direction > 0 ? 'fogDrift' : 'fogDriftReverse';
+        fogLayer.style.animation = `${animationName} ${layer.duration}s infinite ease-in-out`;
+        fogLayer.style.animationDelay = `${layer.delay}s`;
+        
         container.appendChild(fogLayer);
+    });
+    
+    // Add wispy fog elements (circular/oval shapes that add depth)
+    wispyElements.forEach(wisp => {
+        const wispElement = document.createElement('div');
+        wispElement.className = 'animation-element fog-wisp';
+        
+        // Size and position
+        wispElement.style.position = 'absolute';
+        wispElement.style.width = `${wisp.width}px`;
+        wispElement.style.height = `${wisp.height}px`;
+        wispElement.style.top = `${wisp.top}%`;
+        wispElement.style.left = `${wisp.left}%`;
+        
+        // Visual appearance
+        wispElement.style.borderRadius = '50%';
+        wispElement.style.background = `radial-gradient(ellipse at center,
+                                        rgba(255, 255, 255, ${wisp.opacity}) 0%,
+                                        rgba(255, 255, 255, 0) 70%)`;
+        
+        // Animation
+        wispElement.style.animation = `fogWisp ${wisp.duration}s infinite ease-in-out`;
+        wispElement.style.animationDelay = `${wisp.delay}s`;
+        
+        container.appendChild(wispElement);
+    });
+    
+    // Add subtle fog particles for added realism
+    if (!isForecast) { // Only for main icon, not forecast
+        for (let i = 0; i < 12; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'fog-particle';
+            
+            // Size and position
+            const particleSize = Math.random() * 4 + 3;
+            particle.style.position = 'absolute';
+            particle.style.width = `${particleSize}px`;
+            particle.style.height = `${particleSize}px`;
+            particle.style.top = `${Math.random() * 60 + 20}%`;
+            particle.style.left = `${Math.random() * 60 + 20}%`;
+            
+            // Random movement directions
+            const moveX = (Math.random() * 40 - 20);
+            const moveY = (Math.random() * 20 - 10);
+            particle.style.setProperty('--move-x', `${moveX}px`);
+            particle.style.setProperty('--move-y', `${moveY}px`);
+            
+            // Visual appearance
+            particle.style.borderRadius = '50%';
+            particle.style.background = 'rgba(255, 255, 255, 0.4)';
+            particle.style.filter = 'blur(1px)';
+            
+            // Animation
+            const duration = Math.random() * 3 + 7;
+            particle.style.animation = `fogParticle ${duration}s infinite`;
+            particle.style.animationDelay = `${Math.random() * 5}s`;
+            
+            container.appendChild(particle);
+        }
     }
 
     element.appendChild(container);
-
-    // Add animation for fog layers
-    const style = document.createElement('style');
-    style.innerHTML = `
-        @keyframes fogFloat {
-            0% { transform: translateX(-5%); opacity: 0.7; }
-            100% { transform: translateX(5%); opacity: 0.9; }
-        }
-    `;
-    document.head.appendChild(style);
 }
 
 /**
- * Create a foggy night icon with animated fog layers
+ * Create a fog icon for nighttime with improved dynamics
  * @param {HTMLElement} element - DOM element to append the icon to
  * @param {boolean} isForecast - Whether this is a smaller forecast icon
  */
@@ -1985,20 +2166,153 @@ function createFogNightIcon(element, isForecast = false) {
     container.style.width = `${size}px`;
     container.style.height = `${size}px`;
     container.style.position = 'relative';
+    container.style.overflow = 'hidden';
 
-    // Create fog layers with night-time coloring
-    for (let i = 0; i < 5; i++) {
+    // For night fog, we'll use a darker blue-gray color palette
+    
+    // Add very few stars - only visible through gaps in fog
+    for (let i = 0; i < 8; i++) {
+        const star = document.createElement('div');
+        star.className = 'animation-element star';
+        star.style.top = `${Math.random() * 30}%`; 
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.opacity = Math.random() * 0.15 + 0.05; // Very faint stars
+        star.style.animationDuration = `${Math.random() * 3 + 2}s`;
+        container.appendChild(star);
+    }
+    
+    // Define fog layer configurations for night (darker, more blue-tinted)
+    const fogLayers = [
+        { height: 14, top: 30, opacity: 0.85, delay: 0, duration: 18, direction: 1 },
+        { height: 12, top: 45, opacity: 0.75, delay: 2, duration: 24, direction: -1 },
+        { height: 16, top: 60, opacity: 0.85, delay: 1, duration: 20, direction: 1 },
+        { height: 10, top: 75, opacity: 0.65, delay: 3, duration: 22, direction: -1 }
+    ];
+    
+    // Add wispy fog elements - more subtle for night
+    const wispyElements = [
+        { width: 60, height: 25, top: 38, left: 20, opacity: 0.45, delay: 0, duration: 8 },
+        { width: 40, height: 20, top: 55, left: 40, opacity: 0.35, delay: 2, duration: 10 },
+        { width: 50, height: 22, top: 70, left: 25, opacity: 0.45, delay: 4, duration: 9 }
+    ];
+
+    // Ensure animations are available
+    if (!document.getElementById('fog-animations')) {
+        const animationStyle = document.createElement('style');
+        animationStyle.id = 'fog-animations';
+        animationStyle.textContent = `
+            @keyframes fogDrift {
+                0% { transform: translateX(0); }
+                50% { transform: translateX(20px); }
+                100% { transform: translateX(0); }
+            }
+            
+            @keyframes fogDriftReverse {
+                0% { transform: translateX(0); }
+                50% { transform: translateX(-20px); }
+                100% { transform: translateX(0); }
+            }
+            
+            @keyframes fogWisp {
+                0% { transform: translateY(0) scale(1); opacity: 0.1; }
+                50% { transform: translateY(-5px) scale(1.1); opacity: 0.5; }
+                100% { transform: translateY(0) scale(1); opacity: 0.1; }
+            }
+            
+            @keyframes fogParticle {
+                0% { transform: translate(0, 0); opacity: 0; }
+                25% { opacity: 0.5; }
+                75% { opacity: 0.5; }
+                100% { transform: translate(var(--move-x), var(--move-y)); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(animationStyle);
+    }
+
+    // Main horizontal fog layers - with blue-gray night tint
+    fogLayers.forEach(layer => {
         const fogLayer = document.createElement('div');
-        fogLayer.style.width = `${size * 0.8}px`;
-        fogLayer.style.height = `${size * 0.1}px`;
-        fogLayer.style.backgroundColor = 'rgba(171, 178, 185, 0.7)'; // Darker for night
-        fogLayer.style.borderRadius = `${size * 0.05}px`;
+        fogLayer.className = 'animation-element fog-layer';
+        
+        // Size and position
         fogLayer.style.position = 'absolute';
-        fogLayer.style.top = `${30 + i * 15}%`;
-        fogLayer.style.left = '10%';
-        fogLayer.style.animation = `fogFloat 4s infinite alternate ${i * 0.3}s ease-in-out`;
-
+        fogLayer.style.height = `${layer.height}px`;
+        fogLayer.style.left = '0';
+        fogLayer.style.right = '0';
+        fogLayer.style.top = `${layer.top}%`;
+        
+        // Visual appearance - blue-gray for night
+        fogLayer.style.borderRadius = `${layer.height}px`;
+        fogLayer.style.background = `linear-gradient(to bottom, 
+                                    rgba(160, 180, 200, 0) 0%, 
+                                    rgba(160, 180, 200, ${layer.opacity}) 50%, 
+                                    rgba(160, 180, 200, 0) 100%)`;
+        
+        // Animation
+        const animationName = layer.direction > 0 ? 'fogDrift' : 'fogDriftReverse';
+        fogLayer.style.animation = `${animationName} ${layer.duration}s infinite ease-in-out`;
+        fogLayer.style.animationDelay = `${layer.delay}s`;
+        
         container.appendChild(fogLayer);
+    });
+    
+    // Add wispy fog elements with night coloring
+    wispyElements.forEach(wisp => {
+        const wispElement = document.createElement('div');
+        wispElement.className = 'animation-element fog-wisp';
+        
+        // Size and position
+        wispElement.style.position = 'absolute';
+        wispElement.style.width = `${wisp.width}px`;
+        wispElement.style.height = `${wisp.height}px`;
+        wispElement.style.top = `${wisp.top}%`;
+        wispElement.style.left = `${wisp.left}%`;
+        
+        // Visual appearance
+        wispElement.style.borderRadius = '50%';
+        wispElement.style.background = `radial-gradient(ellipse at center,
+                                        rgba(180, 200, 220, ${wisp.opacity}) 0%,
+                                        rgba(180, 200, 220, 0) 70%)`;
+        
+        // Animation
+        wispElement.style.animation = `fogWisp ${wisp.duration}s infinite ease-in-out`;
+        wispElement.style.animationDelay = `${wisp.delay}s`;
+        
+        container.appendChild(wispElement);
+    });
+    
+    // Add subtle fog particles with blue tint
+    if (!isForecast) {
+        for (let i = 0; i < 10; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'fog-particle';
+            
+            // Size and position
+            const particleSize = Math.random() * 4 + 3;
+            particle.style.position = 'absolute';
+            particle.style.width = `${particleSize}px`;
+            particle.style.height = `${particleSize}px`;
+            particle.style.top = `${Math.random() * 60 + 20}%`;
+            particle.style.left = `${Math.random() * 60 + 20}%`;
+            
+            // Random movement directions
+            const moveX = (Math.random() * 40 - 20);
+            const moveY = (Math.random() * 20 - 10);
+            particle.style.setProperty('--move-x', `${moveX}px`);
+            particle.style.setProperty('--move-y', `${moveY}px`);
+            
+            // Visual appearance - blue tinted for night
+            particle.style.borderRadius = '50%';
+            particle.style.background = 'rgba(180, 200, 220, 0.4)';
+            particle.style.filter = 'blur(1px)';
+            
+            // Animation
+            const duration = Math.random() * 3 + 7;
+            particle.style.animation = `fogParticle ${duration}s infinite`;
+            particle.style.animationDelay = `${Math.random() * 5}s`;
+            
+            container.appendChild(particle);
+        }
     }
 
     element.appendChild(container);

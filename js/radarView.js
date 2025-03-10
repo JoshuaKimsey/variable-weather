@@ -118,7 +118,7 @@ export function updateRadarLocation(lat, lon) {
     // After map view is updated, the moveend event will trigger
     // which will automatically call our throttled alert fetching function
     // No need to call fetchMapAreaAlerts() directly
-    console.log('Location changed, alerts will refresh after map movement completes');
+    // console.log('Location changed, alerts will refresh after map movement completes');
 }
 
 /**
@@ -201,7 +201,7 @@ export function refreshRadarData() {
 }
 
 /**
- * Update alert polygons on the radar map with animated extreme alerts
+ * Update alert polygons on the radar map with proper stacking order by severity
  * @param {Array} alerts - Array of weather alerts with geometry data
  */
 export function updateAlertPolygons(alerts) {
@@ -210,9 +210,16 @@ export function updateAlertPolygons(alerts) {
         return;
     }
 
+    // Check if the map is fully rendered
+    if (!map.getContainer() || !map.getContainer().clientWidth) {
+        console.warn('Map container not properly sized, delaying alert update');
+        setTimeout(() => updateAlertPolygons(alerts), 500);
+        return;
+    }
+
     // Count alerts with geometry
-    // const alertsWithGeometry = alerts.filter(alert => alert.geometry);
-    // console.log(`Found ${alertsWithGeometry.length} alerts with geometry out of ${alerts.length} total alerts`);
+    const alertsWithGeometry = alerts.filter(alert => alert.geometry);
+    console.log(`Found ${alertsWithGeometry.length} alerts with geometry out of ${alerts.length} total alerts`);
 
     // Clear any existing alert layers
     clearAlertLayers();
@@ -224,10 +231,28 @@ export function updateAlertPolygons(alerts) {
 
     // Track how many extreme alerts we're displaying
     let extremeAlertCount = 0;
+    let alertsAdded = 0;
 
-    alerts.forEach(alert => {
-        if (!alert.geometry) return;
+    // Define severity levels and their corresponding z-index values
+    // Higher z-index values will appear on top
+    const severityZIndex = {
+        'extreme': 1000,  // Highest z-index for extreme alerts
+        'severe': 800,    // High z-index for severe alerts
+        'moderate': 600,  // Medium z-index for moderate alerts
+        'minor': 400      // Lower z-index for minor alerts
+    };
+    
+    // Sort alerts by severity to process more severe alerts last (so they're on top)
+    const sortedAlerts = [...alertsWithGeometry].sort((a, b) => {
+        const severityA = (a.properties && a.properties.severity) ? a.properties.severity.toLowerCase() : 'minor';
+        const severityB = (b.properties && b.properties.severity) ? b.properties.severity.toLowerCase() : 'minor';
+        
+        // Compare severity z-index values (lower z-index processed first)
+        return (severityZIndex[severityA] || 0) - (severityZIndex[severityB] || 0);
+    });
 
+    // Process alerts in order from least to most severe
+    sortedAlerts.forEach(alert => {
         // Get severity for styling
         let severity = 'moderate';
         if (alert.properties && alert.properties.severity) {
@@ -251,50 +276,59 @@ export function updateAlertPolygons(alerts) {
             className: isExtreme ? 'extreme-alert-polygon' : ''
         };
 
-        // Create the layer
-        const alertLayer = L.geoJSON(alert.geometry, {
-            style: alertStyle,
-            onEachFeature: (feature, layer) => {
-                // Add popup with alert information
-                if (alert.properties) {
-                    const title = alert.properties.event || 'Weather Alert';
-                    const description = alert.properties.headline || '';
-
-                    // Create a more detailed popup for extreme alerts
-                    const popupContent = isExtreme ?
-                        `
-                        <div style="max-width: 250px;">
-                            <h3 style="margin-top: 0; color: ${getSeverityColor(severity)}; animation: pulse-text 1.5s infinite;">
-                                ⚠️ ${title} ⚠️
-                            </h3>
-                            <p><strong>EXTREME ALERT</strong></p>
-                            <p>${description}</p>
-                            <p style="font-size: 0.9em; font-style: italic;">This is an EXTREME alert. Take immediate action if in affected area.</p>
-                        </div>
-                        ` :
-                        `
-                        <div style="max-width: 250px;">
-                            <h3 style="margin-top: 0; color: ${getSeverityColor(severity)};">
-                                ${title}
-                            </h3>
-                            <p>${description}</p>
-                        </div>
-                        `;
-
-                    layer.bindPopup(popupContent);
+        try {
+            // Create the layer
+            const alertLayer = L.geoJSON(alert.geometry, {
+                style: alertStyle,
+                onEachFeature: (feature, layer) => {
+                    // Add popup with alert information
+                    if (alert.properties) {
+                        const title = alert.properties.event || 'Weather Alert';
+                        const description = alert.properties.headline || '';
+                        
+                        // Create a more detailed popup for extreme alerts
+                        const popupContent = isExtreme ? 
+                            `
+                            <div style="max-width: 250px;">
+                                <h3 style="margin-top: 0; color: ${getSeverityColor(severity)}; animation: pulse-text 1.5s infinite;">
+                                    ⚠️ ${title} ⚠️
+                                </h3>
+                                <p><strong>EXTREME ALERT</strong></p>
+                                <p>${description}</p>
+                                <p style="font-size: 0.9em; font-style: italic;">This is an EXTREME alert. Take immediate action if in affected area.</p>
+                            </div>
+                            ` :
+                            `
+                            <div style="max-width: 250px;">
+                                <h3 style="margin-top: 0; color: ${getSeverityColor(severity)};">
+                                    ${title}
+                                </h3>
+                                <p>${description}</p>
+                            </div>
+                            `;
+                        
+                        layer.bindPopup(popupContent);
+                    }
                 }
-            }
-        });
+            });
 
-        // Add to map and store reference
-        alertLayer.addTo(map);
-        alertLayers.push(alertLayer);
+            // Set z-index based on severity
+            alertLayer.setZIndex(severityZIndex[severity] || 500);
+
+            // Add to map and store reference
+            alertLayer.addTo(map);
+            alertLayers.push(alertLayer);
+            alertsAdded++;
+        } catch (error) {
+            console.error('Error adding alert polygon:', error, alert);
+        }
     });
 
-    // Log how many extreme alerts we displayed
+    // Log results
     if (extremeAlertCount > 0) {
         console.log(`Displayed ${extremeAlertCount} extreme alert polygons with animation`);
     }
+    console.log(`Successfully added ${alertsAdded} alert polygons to the map`);
 }
 
 /**
@@ -317,7 +351,7 @@ export function fetchMapAreaAlerts(forceRefresh = false) {
 
     // Throttle fetches unless force refresh is requested
     if (!forceRefresh && now - lastAlertFetchTime < ALERT_FETCH_THROTTLE) {
-        console.log(`Throttling alert fetch (last fetch was ${now - lastAlertFetchTime}ms ago)`);
+        // console.log(`Throttling alert fetch (last fetch was ${now - lastAlertFetchTime}ms ago)`);
 
         // If we have cached alerts and it's a throttled request, use the cache
         if (lastSuccessfulAlerts.length > 0) {
@@ -702,6 +736,10 @@ function initializeMap(containerId) {
                 }
             }
         });
+
+        // Setup the alert preservation system
+        setupAlertPreservation();
+
     } catch (error) {
         console.error('Error initializing map:', error);
         showRadarError(containerId, 'Error initializing map. Please try again later.');
@@ -1744,5 +1782,127 @@ function debounce(func, wait) {
         const context = this;
         clearTimeout(timeout);
         timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+}
+
+/**
+ * Monitor for layout changes and keep alert polygons visible
+ * This function should be added to the map initialization
+ */
+function setupAlertPreservation() {
+    if (!map || !mapInitialized) {
+        console.warn('Cannot setup alert preservation - map not initialized');
+        return;
+    }
+    
+    console.log('Setting up alert polygon preservation system');
+    
+    // Track the map's size to detect container changes
+    let lastMapWidth = map.getSize().x;
+    let lastMapHeight = map.getSize().y;
+    
+    // Flag to track if we need to restore alerts
+    let needToRestoreAlerts = false;
+    
+    // Track when alerts were last displayed (used for restoration timing)
+    let lastAlertDisplayTime = Date.now();
+    
+    // Add a ResizeObserver to monitor the map container for size changes
+    const mapContainer = map.getContainer();
+    const resizeObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+            // When map container size changes
+            if (entry.target === mapContainer) {
+                // Check if the map size has actually changed
+                const currentSize = map.getSize();
+                if (currentSize.x !== lastMapWidth || currentSize.y !== lastMapHeight) {
+                    console.log('Map container size changed, invalidating map');
+                    
+                    // Flag that we need to restore alerts
+                    needToRestoreAlerts = true;
+                    
+                    // Call invalidateSize to ensure Leaflet adjusts
+                    map.invalidateSize();
+                    
+                    // Update stored sizes
+                    lastMapWidth = currentSize.x;
+                    lastMapHeight = currentSize.y;
+                    
+                    // Schedule alert restoration
+                    setTimeout(() => {
+                        if (needToRestoreAlerts && lastSuccessfulAlerts.length > 0) {
+                            console.log('Restoring alert polygons after container resize');
+                            updateAlertPolygons(lastSuccessfulAlerts);
+                            needToRestoreAlerts = false;
+                            lastAlertDisplayTime = Date.now();
+                        }
+                    }, 300);
+                }
+            }
+        }
+    });
+    
+    // Start observing the map container
+    resizeObserver.observe(mapContainer);
+    
+    // Listen for weather data loading events by monitoring DOM changes
+    // This specifically targets the weather data container
+    const weatherDataContainer = document.getElementById('weather-data');
+    if (weatherDataContainer) {
+        const weatherObserver = new MutationObserver(mutations => {
+            // Check if any mutations affect the display style
+            const displayChanged = mutations.some(mutation => 
+                mutation.type === 'attributes' && 
+                mutation.attributeName === 'style' &&
+                weatherDataContainer.style.display !== 'none');
+            
+            // If display changed from none to block, weather data loaded
+            if (displayChanged && weatherDataContainer.style.display !== 'none') {
+                console.log('Weather data container became visible, checking alerts');
+                
+                // Only restore if alerts were shown recently
+                const timeSinceLastDisplay = Date.now() - lastAlertDisplayTime;
+                if (timeSinceLastDisplay < 60000) { // Within the last minute
+                    setTimeout(() => {
+                        // Check if alerts are still visible after the layout settles
+                        const alertCount = document.querySelectorAll('.leaflet-overlay-pane path').length;
+                        if (lastSuccessfulAlerts.length > 0 && alertCount === 0) {
+                            console.log('Alerts disappeared after weather data load, restoring');
+                            updateAlertPolygons(lastSuccessfulAlerts);
+                            lastAlertDisplayTime = Date.now();
+                        }
+                    }, 500); // Wait for layout to settle
+                }
+            }
+        });
+        
+        // Observe changes to the weather data container style attribute
+        weatherObserver.observe(weatherDataContainer, { 
+            attributes: true, 
+            attributeFilter: ['style'] 
+        });
+    }
+    
+    // Also monitor for visibility changes of the map
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && map) {
+            // When tab becomes visible again, check if we need to restore alerts
+            setTimeout(() => {
+                const alertCount = document.querySelectorAll('.leaflet-overlay-pane path').length;
+                if (lastSuccessfulAlerts.length > 0 && alertCount === 0) {
+                    console.log('Alerts disappeared after visibility change, restoring');
+                    updateAlertPolygons(lastSuccessfulAlerts);
+                    lastAlertDisplayTime = Date.now();
+                }
+            }, 500);
+        }
+    });
+    
+    // Clean up function
+    return function cleanupAlertPreservation() {
+        resizeObserver.disconnect();
+        if (weatherDataContainer) {
+            weatherObserver.disconnect();
+        }
     };
 }
