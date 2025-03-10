@@ -676,10 +676,10 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
             const night = dailyForecast[i + 1];
 
             weatherData.daily.data.push({
-                time: new Date(day.startTime).getTime() / 1000, // Convert to Unix timestamp
+                time: new Date(day.startTime).getTime() / 1000,
                 icon: mapNWSIconToGeneric(day.icon),
-                temperatureHigh: day.temperature,
-                temperatureLow: night.temperature,
+                temperatureHigh: day.temperature, // Day temperature is the high
+                temperatureLow: night.temperature, // Night temperature is the low
                 summary: day.shortForecast
             });
         } else {

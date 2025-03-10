@@ -132,7 +132,7 @@ function updateForecastUnits(forecastData) {
             if (tempElement) {
                 const highTemp = forecastData[index].temperatureHigh;
                 const lowTemp = forecastData[index].temperatureLow;
-
+            
                 if (currentDisplayUnits === 'metric') {
                     const highTempC = (highTemp - 32) * (5 / 9);
                     const lowTempC = (lowTemp - 32) * (5 / 9);

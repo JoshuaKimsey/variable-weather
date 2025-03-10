@@ -482,6 +482,59 @@ body {
     font-weight: 600;
 }
 
+.value-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* Wind direction container and elements */
+.wind-direction-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.wind-direction-arrow {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+    transition: transform 0.5s ease;
+    position: relative;
+}
+
+.wind-direction-arrow i {
+    color: var(--primary-color);
+    font-size: 18px;
+    /* Remove default rotation and handle it all in the JavaScript */
+    position: absolute;
+    /* Center the icon perfectly */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.wind-direction-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+}
+
+/* Hide wind direction elements when there's no data */
+.wind-direction-container.no-data .wind-direction-arrow,
+.wind-direction-container.no-data .wind-direction-label {
+    display: none;
+}
+
 /*-----------------------------------------------
  * 5. FORECAST ELEMENTS
  *-----------------------------------------------*/

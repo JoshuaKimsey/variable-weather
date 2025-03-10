@@ -51,7 +51,9 @@ export function setWeatherBackground(iconCode, isDaytime = true) {
         // Cloudy at night
         { condition: iconCode === 'cloudy' && isNight, handler: setBackgroundCloudyNight, message: 'Using cloudy at night background' },
         // Wind at night
-        { condition: iconCode === 'wind' && isNight, handler: setBackgroundWindNight, message: 'Using wind at night background' }
+        { condition: iconCode === 'wind' && isNight, handler: setBackgroundWindNight, message: 'Using wind at night background' },
+        // Fog at night
+        { condition: iconCode === 'fog' && isNight, handler: setBackgroundFogNight, message: 'Using fog at night background' }
     ];
 
     // Check time-specific conditions first

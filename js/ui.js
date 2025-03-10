@@ -136,6 +136,14 @@ export function displayWeatherData(data, locationName) {
 
         // Format values properly with unit conversions
         windSpeedElement.textContent = formatWindSpeed(current.windSpeed || 0);
+        // Set wind direction arrow
+        if (current.windDirection !== undefined) {
+            setWindDirection(current.windDirection);
+        } else {
+            // If no direction data, hide the direction indicator
+            const container = document.querySelector('.wind-direction-container');
+            if (container) container.classList.add('no-data');
+        }
         humidityElement.textContent = current.humidity !== undefined ? `${Math.round(current.humidity * 100)}%` : 'N/A';
         pressureElement.textContent = formatPressure(current.pressure || 1015);
         visibilityElement.textContent = formatVisibility(current.visibility || 10);
@@ -169,6 +177,104 @@ export function displayWeatherData(data, locationName) {
         console.error('Error displaying weather data:', error);
         showError('Error displaying weather data: ' + error.message);
     }
+}
+
+/**
+ * Set the wind direction arrow rotation based on meteorological wind direction
+ * @param {number|string} direction - Wind direction in degrees (0 = N, 90 = E, 180 = S, 270 = W) or cardinal direction
+ */
+function setWindDirection(direction) {
+    const arrowElement = document.getElementById('wind-direction-arrow');
+    const arrowIcon = arrowElement.querySelector('i');
+    const labelElement = document.getElementById('wind-direction-label');
+    const container = document.querySelector('.wind-direction-container');
+
+    if (!arrowElement || !labelElement || !container) return;
+
+    // Check if we have valid direction data
+    if (direction === undefined || direction === null) {
+        container.classList.add('no-data');
+        return;
+    } else {
+        container.classList.remove('no-data');
+    }
+
+    // Convert string cardinal direction to degrees if needed
+    let directionDegrees = direction;
+    if (typeof direction === 'string') {
+        directionDegrees = cardinalToDirection(direction);
+    }
+
+    // Make sure we have a valid number
+    if (isNaN(directionDegrees)) {
+        container.classList.add('no-data');
+        return;
+    }
+
+    // In meteorology, wind direction is reported as the direction FROM which the wind is coming
+    // We want our arrow to point FROM that direction (not adding 180 degrees)
+    const visualDirection = directionDegrees;
+
+    // Apply rotation to the icon itself instead of the container
+    // The Font Awesome location-arrow icon points northeast (45°) by default
+    // We need to adjust by 45° to make it point upward (north) at 0°
+    arrowIcon.style.transform = `translate(-50%, -50%) rotate(${visualDirection - 45}deg)`;
+
+    // Set the cardinal direction label based on meteorological direction (FROM where it's coming)
+    labelElement.textContent = getCardinalDirection(directionDegrees);
+}
+
+/**
+ * Convert degrees to cardinal direction
+ * @param {number} degrees - Wind direction in degrees
+ * @returns {string} - Cardinal direction (N, NNE, NE, etc.)
+ */
+function getCardinalDirection(degrees) {
+    // Define 16 cardinal directions for more precision
+    const directions = [
+        'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+        'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'
+    ];
+
+    // Convert degrees to index (using 22.5 degrees per direction)
+    // Add 11.25 degrees to ensure correct rounding to nearest direction
+    const index = Math.floor(((degrees + 11.25) % 360) / 22.5);
+
+    return directions[index];
+}
+
+/**
+ * Convert cardinal direction to degrees
+ * @param {string} cardinal - Cardinal direction (N, NE, E, etc.)
+ * @returns {number} - Direction in degrees or NaN if invalid
+ */
+function cardinalToDirection(cardinal) {
+    if (!cardinal || typeof cardinal !== 'string') return NaN;
+
+    // Clean up input
+    const dir = cardinal.trim().toUpperCase();
+
+    // Map of cardinal directions to degrees
+    const directionMap = {
+        'N': 0,
+        'NNE': 22.5,
+        'NE': 45,
+        'ENE': 67.5,
+        'E': 90,
+        'ESE': 112.5,
+        'SE': 135,
+        'SSE': 157.5,
+        'S': 180,
+        'SSW': 202.5,
+        'SW': 225,
+        'WSW': 247.5,
+        'W': 270,
+        'WNW': 292.5,
+        'NW': 315,
+        'NNW': 337.5
+    };
+
+    return directionMap[dir] !== undefined ? directionMap[dir] : NaN;
 }
 
 /**
@@ -337,7 +443,6 @@ function handleForecastDisplay(data) {
 
             // Day name (e.g., "Mon", "Tue")
             const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-
             // Get temperatures with fallbacks
             const highTemp = day.temperatureHigh !== undefined ? day.temperatureHigh :
                 (day.temperature !== undefined ? day.temperature + 5 : 70);

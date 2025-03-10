@@ -226,15 +226,15 @@ export function updateAlertPolygons(alerts) {
 
     if (!alerts || alerts.length === 0) return;
 
-    // First check if we need to add the CSS animation for extreme alerts
-    addExtremeAlertAnimationCSS();
+    // First check if we need to add the CSS animation for extreme/severe alerts
+    addAlertAnimationCSS();
 
-    // Track how many extreme alerts we're displaying
+    // Track how many alerts by severity we're displaying
     let extremeAlertCount = 0;
+    let severeAlertCount = 0;
     let alertsAdded = 0;
 
-    // Define severity levels and their corresponding z-index values
-    // Higher z-index values will appear on top
+    // Define severity z-index values - we still use severity for stacking order
     const severityZIndex = {
         'extreme': 1000,  // Highest z-index for extreme alerts
         'severe': 800,    // High z-index for severe alerts
@@ -253,27 +253,35 @@ export function updateAlertPolygons(alerts) {
 
     // Process alerts in order from least to most severe
     sortedAlerts.forEach(alert => {
-        // Get severity for styling
+        // Get severity for z-indexing and border thickness
         let severity = 'moderate';
         if (alert.properties && alert.properties.severity) {
             severity = alert.properties.severity.toLowerCase();
         }
 
-        // Check if this is an extreme alert
+        // Check severity levels
         const isExtreme = severity === 'extreme';
+        const isSevere = severity === 'severe';
+        
+        // Count by severity
         if (isExtreme) {
             extremeAlertCount++;
+        } else if (isSevere) {
+            severeAlertCount++;
         }
 
-        // Style based on severity
+        // Get the alert type color
+        const alertColor = getAlertTypeColor(alert);
+
+        // Style based on type-based color and severity for thickness
         const alertStyle = {
-            color: getSeverityColor(severity),
-            weight: isExtreme ? 3 : 2, // Thicker border for extreme alerts
-            opacity: 0.8,
-            fillColor: getSeverityColor(severity),
-            fillOpacity: 0.2,
-            // Add special class name for extreme alerts that we'll animate
-            className: isExtreme ? 'extreme-alert-polygon' : ''
+            color: alertColor.color,  // Use type-based color
+            weight: isExtreme ? 3 : (isSevere ? 2.5 : 2), // Thickness based on severity
+            opacity: isExtreme ? 0.9 : (isSevere ? 0.85 : 0.8),
+            fillColor: alertColor.color, // Use type-based color
+            fillOpacity: isExtreme ? 0.3 : (isSevere ? 0.25 : 0.2), // Opacity based on severity
+            // Add special class name for extreme/severe alerts that we'll animate
+            className: isExtreme ? 'extreme-alert-polygon' : (isSevere ? 'severe-alert-polygon' : '')
         };
 
         try {
@@ -286,33 +294,37 @@ export function updateAlertPolygons(alerts) {
                         const title = alert.properties.event || 'Weather Alert';
                         const description = alert.properties.headline || '';
                         
-                        // Create a more detailed popup for extreme alerts
-                        const popupContent = isExtreme ? 
-                            `
+                        // Create popup content with different styling based on severity
+                        let popupContent = `
                             <div style="max-width: 250px;">
-                                <h3 style="margin-top: 0; color: ${getSeverityColor(severity)}; animation: pulse-text 1.5s infinite;">
-                                    ⚠️ ${title} ⚠️
-                                </h3>
-                                <p><strong>EXTREME ALERT</strong></p>
-                                <p>${description}</p>
-                                <p style="font-size: 0.9em; font-style: italic;">This is an EXTREME alert. Take immediate action if in affected area.</p>
-                            </div>
-                            ` :
-                            `
-                            <div style="max-width: 250px;">
-                                <h3 style="margin-top: 0; color: ${getSeverityColor(severity)};">
-                                    ${title}
-                                </h3>
-                                <p>${description}</p>
-                            </div>
-                            `;
+                                <h3 style="margin-top: 0; color: ${alertColor.color}; ${isExtreme ? 'animation: pulse-text 1.5s infinite;' : ''}">
+                                    ${isExtreme ? '⚠️ ' : ''}${title}${isExtreme ? ' ⚠️' : ''}
+                                </h3>`;
+                                
+                        // Add severity indicator
+                        if (isExtreme) {
+                            popupContent += `<p><strong style="color: #B71C1C;">EXTREME ALERT</strong></p>`;
+                        } else if (isSevere) {
+                            popupContent += `<p><strong style="color: #C62828;">SEVERE ALERT</strong></p>`;
+                        }
+                        
+                        // Add description and footer
+                        popupContent += `<p>${description}</p>`;
+                        
+                        if (isExtreme) {
+                            popupContent += `<p style="font-size: 0.9em; font-style: italic;">This is an EXTREME alert. Take immediate action if in affected area.</p>`;
+                        } else if (isSevere) {
+                            popupContent += `<p style="font-size: 0.9em; font-style: italic;">This is a SEVERE alert. Prepare to take action if in affected area.</p>`;
+                        }
+                        
+                        popupContent += `</div>`;
                         
                         layer.bindPopup(popupContent);
                     }
                 }
             });
 
-            // Set z-index based on severity
+            // Set z-index based on severity (still use severity for stacking)
             alertLayer.setZIndex(severityZIndex[severity] || 500);
 
             // Add to map and store reference
@@ -325,8 +337,8 @@ export function updateAlertPolygons(alerts) {
     });
 
     // Log results
-    if (extremeAlertCount > 0) {
-        console.log(`Displayed ${extremeAlertCount} extreme alert polygons with animation`);
+    if (extremeAlertCount > 0 || severeAlertCount > 0) {
+        console.log(`Displayed ${extremeAlertCount} extreme and ${severeAlertCount} severe alert polygons with animation`);
     }
     console.log(`Successfully added ${alertsAdded} alert polygons to the map`);
 }
@@ -1557,29 +1569,191 @@ function getSeverityColor(severity) {
 }
 
 /**
- * Add CSS animation styles for extreme alerts if not already present
+ * Get color for alert based on weather event type
+ * Replaces the previous severity-based coloring approach
+ * 
+ * @param {Object} alert - The alert object with properties
+ * @returns {Object} - Color information with color and secondary properties
  */
-function addExtremeAlertAnimationCSS() {
+function getAlertTypeColor(alert) {
+    // Make sure we have valid alert properties
+    if (!alert || !alert.properties || !alert.properties.event) {
+        return { color: '#757575', secondary: '#9E9E9E' }; // Default gray
+    }
+
+    // Convert event name to lowercase for case-insensitive matching
+    const eventType = alert.properties.event.toLowerCase();
+    const severity = (alert.properties.severity || '').toLowerCase();
+    
+    // Determine intensity level (0-2) based on severity
+    // This will be used to select shade intensity within each color category
+    let intensityLevel = 1; // Default to middle intensity
+    
+    if (severity === 'extreme') {
+        intensityLevel = 2; // Most intense shade
+    } else if (severity === 'minor') {
+        intensityLevel = 0; // Least intense shade
+    }
+    
+    // === FLOOD / WATER RELATED ALERTS (GREEN) ===
+    if (eventType.includes('flood') || 
+        eventType.includes('hydrologic') || 
+        eventType.includes('seiche') ||
+        eventType.includes('tsunami') ||
+        eventType.includes('dam') ||
+        eventType.includes('coastal')) {
+        
+        // Array of green shades from light to dark
+        const greenShades = ['#66BB6A', '#4CAF50', '#2E7D32'];
+        return { 
+            color: greenShades[intensityLevel],
+            secondary: '#E8F5E9' // Light green for text/accents
+        };
+    }
+    
+    // === THUNDERSTORM RELATED ALERTS (YELLOW/ORANGE) ===
+    if (eventType.includes('thunderstorm') ||
+        eventType.includes('tstm') ||
+        eventType.includes('lightning') ||
+        eventType.includes('special weather')) {
+        
+        // Array of yellow/orange shades from light to dark
+        const yellowShades = ['#FDD835', '#FFC107', '#FF8F00'];
+        return {
+            color: yellowShades[intensityLevel],
+            secondary: '#FFFDE7' // Light yellow for text/accents
+        };
+    }
+    
+    // === TORNADO RELATED ALERTS (RED) ===
+    if (eventType.includes('tornado') ||
+        eventType.includes('extreme wind') ||
+        eventType.includes('dust storm') ||
+        eventType.includes('dust devil')) {
+        
+        // Array of red shades from light to dark
+        const redShades = ['#EF5350', '#E53935', '#B71C1C'];
+        return {
+            color: redShades[intensityLevel],
+            secondary: '#FFEBEE' // Light red for text/accents
+        };
+    }
+    
+    // === WINTER WEATHER RELATED ALERTS (BLUE/PURPLE) ===
+    if (eventType.includes('snow') ||
+        eventType.includes('blizzard') ||
+        eventType.includes('winter') ||
+        eventType.includes('ice') ||
+        eventType.includes('freezing') ||
+        eventType.includes('frost') ||
+        eventType.includes('freeze') ||
+        eventType.includes('cold') ||
+        eventType.includes('wind chill') ||
+        eventType.includes('sleet')) {
+        
+        // Array of blue/purple shades from light to dark
+        const blueShades = ['#7986CB', '#3F51B5', '#283593'];
+        return {
+            color: blueShades[intensityLevel],
+            secondary: '#E8EAF6' // Light blue for text/accents
+        };
+    }
+    
+    // === FIRE / HEAT RELATED ALERTS (ORANGE/RED) ===
+    if (eventType.includes('fire') ||
+        eventType.includes('smoke') ||
+        eventType.includes('heat') ||
+        eventType.includes('hot') ||
+        eventType.includes('red flag') ||
+        eventType.includes('volcanic')) {
+        
+        // Array of orange/red shades from light to dark
+        const orangeShades = ['#FF7043', '#F4511E', '#BF360C'];
+        return {
+            color: orangeShades[intensityLevel],
+            secondary: '#FBE9E7' // Light orange for text/accents
+        };
+    }
+    
+    // === FOG / VISIBILITY RELATED ALERTS (GRAY) ===
+    if (eventType.includes('fog') ||
+        eventType.includes('visibility') ||
+        eventType.includes('dense') ||
+        eventType.includes('air quality') ||
+        eventType.includes('smoke')) {
+        
+        // Array of gray shades from light to dark
+        const grayShades = ['#90A4AE', '#607D8B', '#37474F'];
+        return {
+            color: grayShades[intensityLevel],
+            secondary: '#ECEFF1' // Light gray for text/accents
+        };
+    }
+    
+    // === WIND RELATED ALERTS (TEAL/CYAN) ===
+    if (eventType.includes('wind') ||
+        eventType.includes('gale') ||
+        eventType.includes('hurricane') ||
+        eventType.includes('typhoon') ||
+        eventType.includes('tropical') ||
+        eventType.includes('storm')) {
+        
+        // Array of teal/cyan shades from light to dark
+        const tealShades = ['#4DB6AC', '#009688', '#00695C'];
+        return {
+            color: tealShades[intensityLevel],
+            secondary: '#E0F2F1' // Light teal for text/accents
+        };
+    }
+    
+    // === OTHER/MISC ALERTS (PURPLE) ===
+    // Default fallback for any other alert types
+    const purpleShades = ['#9575CD', '#673AB7', '#4527A0'];
+    return {
+        color: purpleShades[intensityLevel],
+        secondary: '#EDE7F6' // Light purple for text/accents
+    };
+}
+
+/**
+ * Add CSS animations for extreme and severe alerts
+ * This replaces the previous addExtremeAlertAnimationCSS function
+ */
+function addAlertAnimationCSS() {
     // Check if we've already added the styles
-    if (document.getElementById('extreme-alert-animation-css')) return;
+    if (document.getElementById('alert-animation-css')) return;
 
     // Create a style element for our animations
     const style = document.createElement('style');
-    style.id = 'extreme-alert-animation-css';
+    style.id = 'alert-animation-css';
 
-    // Define the animations
+    // Define the animations for both extreme and severe alerts
     style.textContent = `
-        /* Pulsing animation for extreme alert polygons */
+        /* Pulsing animation for extreme alert polygons - more dramatic */
         @keyframes extreme-alert-pulse {
             0%, 100% { 
-                stroke-opacity: 0.8;
-                fill-opacity: 0.2;
-                stroke-width: 3;
+                stroke-opacity: 0.9;
+                fill-opacity: 0.3;
+                stroke-width: 3px;
             }
             50% { 
                 stroke-opacity: 1;
-                fill-opacity: 0.4;
-                stroke-width: 5;
+                fill-opacity: 0.5;
+                stroke-width: 5px;
+            }
+        }
+        
+        /* Pulsing animation for severe alert polygons - more subtle */
+        @keyframes severe-alert-pulse {
+            0%, 100% { 
+                stroke-opacity: 0.8;
+                fill-opacity: 0.25;
+                stroke-width: 2.5px;
+            }
+            50% { 
+                stroke-opacity: 0.9;
+                fill-opacity: 0.35;
+                stroke-width: 3.5px;
             }
         }
         
@@ -1598,9 +1772,19 @@ function addExtremeAlertAnimationCSS() {
             animation: extreme-alert-pulse 2s infinite ease-in-out;
         }
         
+        /* Apply animation to severe alert polygons */
+        .severe-alert-polygon {
+            animation: severe-alert-pulse 3s infinite ease-in-out;
+        }
+        
         /* Apply a glow effect to extreme alert polygons */
         .extreme-alert-polygon path {
-            filter: drop-shadow(0 0 6px #d32f2f);
+            filter: drop-shadow(0 0 6px rgba(183, 28, 28, 0.6));
+        }
+        
+        /* Apply a milder glow effect to severe alert polygons */
+        .severe-alert-polygon path {
+            filter: drop-shadow(0 0 4px rgba(198, 40, 40, 0.4));
         }
     `;
 
