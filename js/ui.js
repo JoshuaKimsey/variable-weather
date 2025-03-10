@@ -185,12 +185,11 @@ export function displayWeatherData(data, locationName) {
  */
 function setWindDirection(direction) {
     const arrowElement = document.getElementById('wind-direction-arrow');
-    const arrowIcon = arrowElement.querySelector('i');
     const labelElement = document.getElementById('wind-direction-label');
-    const container = document.querySelector('.wind-direction-container');
-
+    const container = document.querySelector('.wind-direction');
+    
     if (!arrowElement || !labelElement || !container) return;
-
+    
     // Check if we have valid direction data
     if (direction === undefined || direction === null) {
         container.classList.add('no-data');
@@ -198,29 +197,32 @@ function setWindDirection(direction) {
     } else {
         container.classList.remove('no-data');
     }
-
+    
     // Convert string cardinal direction to degrees if needed
     let directionDegrees = direction;
     if (typeof direction === 'string') {
         directionDegrees = cardinalToDirection(direction);
     }
-
+    
     // Make sure we have a valid number
     if (isNaN(directionDegrees)) {
         container.classList.add('no-data');
         return;
     }
-
+    
     // In meteorology, wind direction is reported as the direction FROM which the wind is coming
-    // We want our arrow to point FROM that direction (not adding 180 degrees)
+    // We want our arrow to point FROM that direction
     const visualDirection = directionDegrees;
-
-    // Apply rotation to the icon itself instead of the container
+    
+    // Get the icon element inside the arrow container
+    const arrowIcon = arrowElement.querySelector('i');
+    
+    // Apply rotation to the icon itself
     // The Font Awesome location-arrow icon points northeast (45°) by default
     // We need to adjust by 45° to make it point upward (north) at 0°
     arrowIcon.style.transform = `translate(-50%, -50%) rotate(${visualDirection - 45}deg)`;
-
-    // Set the cardinal direction label based on meteorological direction (FROM where it's coming)
+    
+    // Set the cardinal direction label based on meteorological direction
     labelElement.textContent = getCardinalDirection(directionDegrees);
 }
 

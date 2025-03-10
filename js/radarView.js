@@ -241,12 +241,12 @@ export function updateAlertPolygons(alerts) {
         'moderate': 600,  // Medium z-index for moderate alerts
         'minor': 400      // Lower z-index for minor alerts
     };
-    
+
     // Sort alerts by severity to process more severe alerts last (so they're on top)
     const sortedAlerts = [...alertsWithGeometry].sort((a, b) => {
         const severityA = (a.properties && a.properties.severity) ? a.properties.severity.toLowerCase() : 'minor';
         const severityB = (b.properties && b.properties.severity) ? b.properties.severity.toLowerCase() : 'minor';
-        
+
         // Compare severity z-index values (lower z-index processed first)
         return (severityZIndex[severityA] || 0) - (severityZIndex[severityB] || 0);
     });
@@ -262,7 +262,7 @@ export function updateAlertPolygons(alerts) {
         // Check severity levels
         const isExtreme = severity === 'extreme';
         const isSevere = severity === 'severe';
-        
+
         // Count by severity
         if (isExtreme) {
             extremeAlertCount++;
@@ -273,13 +273,13 @@ export function updateAlertPolygons(alerts) {
         // Get the alert type color
         const alertColor = getAlertTypeColor(alert);
 
-        // Style based on type-based color and severity for thickness
+        // Style based on type color and severity shading
         const alertStyle = {
-            color: alertColor.color,  // Use type-based color
+            color: alertColor.color,  // Color based on type and severity shade
             weight: isExtreme ? 3 : (isSevere ? 2.5 : 2), // Thickness based on severity
-            opacity: isExtreme ? 0.9 : (isSevere ? 0.85 : 0.8),
-            fillColor: alertColor.color, // Use type-based color
-            fillOpacity: isExtreme ? 0.3 : (isSevere ? 0.25 : 0.2), // Opacity based on severity
+            opacity: alertColor.borderOpacity || 0.9, // Use calculated opacity or fallback
+            fillColor: alertColor.color, // Same color for fill, but different opacity
+            fillOpacity: alertColor.fillOpacity || 0.2, // Use calculated fill opacity or fallback
             // Add special class name for extreme/severe alerts that we'll animate
             className: isExtreme ? 'extreme-alert-polygon' : (isSevere ? 'severe-alert-polygon' : '')
         };
@@ -293,32 +293,32 @@ export function updateAlertPolygons(alerts) {
                     if (alert.properties) {
                         const title = alert.properties.event || 'Weather Alert';
                         const description = alert.properties.headline || '';
-                        
+
                         // Create popup content with different styling based on severity
                         let popupContent = `
                             <div style="max-width: 250px;">
                                 <h3 style="margin-top: 0; color: ${alertColor.color}; ${isExtreme ? 'animation: pulse-text 1.5s infinite;' : ''}">
                                     ${isExtreme ? '⚠️ ' : ''}${title}${isExtreme ? ' ⚠️' : ''}
                                 </h3>`;
-                                
+
                         // Add severity indicator
                         if (isExtreme) {
                             popupContent += `<p><strong style="color: #B71C1C;">EXTREME ALERT</strong></p>`;
                         } else if (isSevere) {
                             popupContent += `<p><strong style="color: #C62828;">SEVERE ALERT</strong></p>`;
                         }
-                        
+
                         // Add description and footer
                         popupContent += `<p>${description}</p>`;
-                        
+
                         if (isExtreme) {
                             popupContent += `<p style="font-size: 0.9em; font-style: italic;">This is an EXTREME alert. Take immediate action if in affected area.</p>`;
                         } else if (isSevere) {
                             popupContent += `<p style="font-size: 0.9em; font-style: italic;">This is a SEVERE alert. Prepare to take action if in affected area.</p>`;
                         }
-                        
+
                         popupContent += `</div>`;
-                        
+
                         layer.bindPopup(popupContent);
                     }
                 }
@@ -1569,11 +1569,7 @@ function getSeverityColor(severity) {
 }
 
 /**
- * Get color for alert based on weather event type
- * Replaces the previous severity-based coloring approach
- * 
- * @param {Object} alert - The alert object with properties
- * @returns {Object} - Color information with color and secondary properties
+ * Enhanced getAlertTypeColor function with more distinctive severity-based shading
  */
 function getAlertTypeColor(alert) {
     // Make sure we have valid alert properties
@@ -1584,61 +1580,73 @@ function getAlertTypeColor(alert) {
     // Convert event name to lowercase for case-insensitive matching
     const eventType = alert.properties.event.toLowerCase();
     const severity = (alert.properties.severity || '').toLowerCase();
-    
-    // Determine intensity level (0-2) based on severity
-    // This will be used to select shade intensity within each color category
-    let intensityLevel = 1; // Default to middle intensity
-    
+
+    // Enhanced severity determination with 4 levels (0-3)
+    // This gives us more granular control over the shading
+    let intensityLevel = 1; // Default to moderate (1)
+
     if (severity === 'extreme') {
-        intensityLevel = 2; // Most intense shade
+        intensityLevel = 3; // Darkest/most intense (3)
+    } else if (severity === 'severe') {
+        intensityLevel = 2; // Dark/intense (2)
     } else if (severity === 'minor') {
-        intensityLevel = 0; // Least intense shade
+        intensityLevel = 0; // Lightest/least intense (0)
     }
-    
+
+    // Calculate opacity based on severity (stronger for higher severity)
+    const borderOpacity = 0.7 + (intensityLevel * 0.1); // 0.7, 0.8, 0.9, 1.0
+    const fillOpacity = 0.15 + (intensityLevel * 0.05); // 0.15, 0.2, 0.25, 0.3
+
     // === FLOOD / WATER RELATED ALERTS (GREEN) ===
-    if (eventType.includes('flood') || 
-        eventType.includes('hydrologic') || 
+    if (eventType.includes('flood') ||
+        eventType.includes('hydrologic') ||
         eventType.includes('seiche') ||
         eventType.includes('tsunami') ||
         eventType.includes('dam') ||
         eventType.includes('coastal')) {
-        
-        // Array of green shades from light to dark
-        const greenShades = ['#66BB6A', '#4CAF50', '#2E7D32'];
-        return { 
+
+        // Array of green shades from very light to very dark
+        const greenShades = ['#81C784', '#66BB6A', '#4CAF50', '#2E7D32'];
+        return {
             color: greenShades[intensityLevel],
-            secondary: '#E8F5E9' // Light green for text/accents
+            secondary: '#E8F5E9', // Light green for text/accents
+            borderOpacity: borderOpacity,
+            fillOpacity: fillOpacity
         };
     }
-    
+
     // === THUNDERSTORM RELATED ALERTS (YELLOW/ORANGE) ===
     if (eventType.includes('thunderstorm') ||
         eventType.includes('tstm') ||
         eventType.includes('lightning') ||
         eventType.includes('special weather')) {
-        
-        // Array of yellow/orange shades from light to dark
-        const yellowShades = ['#FDD835', '#FFC107', '#FF8F00'];
+
+        // Array of yellow/orange shades from very light to very dark
+        const yellowShades = ['#FFD54F', '#FFC107', '#FF9800', '#F57C00'];
         return {
             color: yellowShades[intensityLevel],
-            secondary: '#FFFDE7' // Light yellow for text/accents
+            secondary: '#FFFDE7', // Light yellow for text/accents
+            borderOpacity: borderOpacity,
+            fillOpacity: fillOpacity
         };
     }
-    
+
     // === TORNADO RELATED ALERTS (RED) ===
     if (eventType.includes('tornado') ||
         eventType.includes('extreme wind') ||
         eventType.includes('dust storm') ||
         eventType.includes('dust devil')) {
-        
-        // Array of red shades from light to dark
-        const redShades = ['#EF5350', '#E53935', '#B71C1C'];
+
+        // Array of red shades from very light to very dark
+        const redShades = ['#EF9A9A', '#EF5350', '#E53935', '#B71C1C'];
         return {
             color: redShades[intensityLevel],
-            secondary: '#FFEBEE' // Light red for text/accents
+            secondary: '#FFEBEE', // Light red for text/accents
+            borderOpacity: borderOpacity,
+            fillOpacity: fillOpacity
         };
     }
-    
+
     // === WINTER WEATHER RELATED ALERTS (BLUE/PURPLE) ===
     if (eventType.includes('snow') ||
         eventType.includes('blizzard') ||
@@ -1650,15 +1658,17 @@ function getAlertTypeColor(alert) {
         eventType.includes('cold') ||
         eventType.includes('wind chill') ||
         eventType.includes('sleet')) {
-        
-        // Array of blue/purple shades from light to dark
-        const blueShades = ['#7986CB', '#3F51B5', '#283593'];
+
+        // Array of blue/purple shades from very light to very dark
+        const blueShades = ['#9FA8DA', '#7986CB', '#3F51B5', '#283593'];
         return {
             color: blueShades[intensityLevel],
-            secondary: '#E8EAF6' // Light blue for text/accents
+            secondary: '#E8EAF6', // Light blue for text/accents
+            borderOpacity: borderOpacity,
+            fillOpacity: fillOpacity
         };
     }
-    
+
     // === FIRE / HEAT RELATED ALERTS (ORANGE/RED) ===
     if (eventType.includes('fire') ||
         eventType.includes('smoke') ||
@@ -1666,30 +1676,34 @@ function getAlertTypeColor(alert) {
         eventType.includes('hot') ||
         eventType.includes('red flag') ||
         eventType.includes('volcanic')) {
-        
-        // Array of orange/red shades from light to dark
-        const orangeShades = ['#FF7043', '#F4511E', '#BF360C'];
+
+        // Array of orange/red shades from very light to very dark
+        const orangeShades = ['#FFAB91', '#FF7043', '#F4511E', '#BF360C'];
         return {
             color: orangeShades[intensityLevel],
-            secondary: '#FBE9E7' // Light orange for text/accents
+            secondary: '#FBE9E7', // Light orange for text/accents
+            borderOpacity: borderOpacity,
+            fillOpacity: fillOpacity
         };
     }
-    
+
     // === FOG / VISIBILITY RELATED ALERTS (GRAY) ===
     if (eventType.includes('fog') ||
         eventType.includes('visibility') ||
         eventType.includes('dense') ||
         eventType.includes('air quality') ||
         eventType.includes('smoke')) {
-        
-        // Array of gray shades from light to dark
-        const grayShades = ['#90A4AE', '#607D8B', '#37474F'];
+
+        // Array of gray shades from very light to very dark
+        const grayShades = ['#B0BEC5', '#90A4AE', '#607D8B', '#37474F'];
         return {
             color: grayShades[intensityLevel],
-            secondary: '#ECEFF1' // Light gray for text/accents
+            secondary: '#ECEFF1', // Light gray for text/accents
+            borderOpacity: borderOpacity,
+            fillOpacity: fillOpacity
         };
     }
-    
+
     // === WIND RELATED ALERTS (TEAL/CYAN) ===
     if (eventType.includes('wind') ||
         eventType.includes('gale') ||
@@ -1697,21 +1711,25 @@ function getAlertTypeColor(alert) {
         eventType.includes('typhoon') ||
         eventType.includes('tropical') ||
         eventType.includes('storm')) {
-        
-        // Array of teal/cyan shades from light to dark
-        const tealShades = ['#4DB6AC', '#009688', '#00695C'];
+
+        // Array of teal/cyan shades from very light to very dark
+        const tealShades = ['#80CBC4', '#4DB6AC', '#009688', '#00695C'];
         return {
             color: tealShades[intensityLevel],
-            secondary: '#E0F2F1' // Light teal for text/accents
+            secondary: '#E0F2F1', // Light teal for text/accents
+            borderOpacity: borderOpacity,
+            fillOpacity: fillOpacity
         };
     }
-    
+
     // === OTHER/MISC ALERTS (PURPLE) ===
     // Default fallback for any other alert types
-    const purpleShades = ['#9575CD', '#673AB7', '#4527A0'];
+    const purpleShades = ['#B39DDB', '#9575CD', '#673AB7', '#4527A0'];
     return {
         color: purpleShades[intensityLevel],
-        secondary: '#EDE7F6' // Light purple for text/accents
+        secondary: '#EDE7F6', // Light purple for text/accents
+        borderOpacity: borderOpacity,
+        fillOpacity: fillOpacity
     };
 }
 
@@ -1978,19 +1996,19 @@ function setupAlertPreservation() {
         console.warn('Cannot setup alert preservation - map not initialized');
         return;
     }
-    
+
     console.log('Setting up alert polygon preservation system');
-    
+
     // Track the map's size to detect container changes
     let lastMapWidth = map.getSize().x;
     let lastMapHeight = map.getSize().y;
-    
+
     // Flag to track if we need to restore alerts
     let needToRestoreAlerts = false;
-    
+
     // Track when alerts were last displayed (used for restoration timing)
     let lastAlertDisplayTime = Date.now();
-    
+
     // Add a ResizeObserver to monitor the map container for size changes
     const mapContainer = map.getContainer();
     const resizeObserver = new ResizeObserver(entries => {
@@ -2001,17 +2019,17 @@ function setupAlertPreservation() {
                 const currentSize = map.getSize();
                 if (currentSize.x !== lastMapWidth || currentSize.y !== lastMapHeight) {
                     console.log('Map container size changed, invalidating map');
-                    
+
                     // Flag that we need to restore alerts
                     needToRestoreAlerts = true;
-                    
+
                     // Call invalidateSize to ensure Leaflet adjusts
                     map.invalidateSize();
-                    
+
                     // Update stored sizes
                     lastMapWidth = currentSize.x;
                     lastMapHeight = currentSize.y;
-                    
+
                     // Schedule alert restoration
                     setTimeout(() => {
                         if (needToRestoreAlerts && lastSuccessfulAlerts.length > 0) {
@@ -2025,25 +2043,25 @@ function setupAlertPreservation() {
             }
         }
     });
-    
+
     // Start observing the map container
     resizeObserver.observe(mapContainer);
-    
+
     // Listen for weather data loading events by monitoring DOM changes
     // This specifically targets the weather data container
     const weatherDataContainer = document.getElementById('weather-data');
     if (weatherDataContainer) {
         const weatherObserver = new MutationObserver(mutations => {
             // Check if any mutations affect the display style
-            const displayChanged = mutations.some(mutation => 
-                mutation.type === 'attributes' && 
+            const displayChanged = mutations.some(mutation =>
+                mutation.type === 'attributes' &&
                 mutation.attributeName === 'style' &&
                 weatherDataContainer.style.display !== 'none');
-            
+
             // If display changed from none to block, weather data loaded
             if (displayChanged && weatherDataContainer.style.display !== 'none') {
                 console.log('Weather data container became visible, checking alerts');
-                
+
                 // Only restore if alerts were shown recently
                 const timeSinceLastDisplay = Date.now() - lastAlertDisplayTime;
                 if (timeSinceLastDisplay < 60000) { // Within the last minute
@@ -2059,14 +2077,14 @@ function setupAlertPreservation() {
                 }
             }
         });
-        
+
         // Observe changes to the weather data container style attribute
-        weatherObserver.observe(weatherDataContainer, { 
-            attributes: true, 
-            attributeFilter: ['style'] 
+        weatherObserver.observe(weatherDataContainer, {
+            attributes: true,
+            attributeFilter: ['style']
         });
     }
-    
+
     // Also monitor for visibility changes of the map
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && map) {
@@ -2081,7 +2099,7 @@ function setupAlertPreservation() {
             }, 500);
         }
     });
-    
+
     // Clean up function
     return function cleanupAlertPreservation() {
         resizeObserver.disconnect();
