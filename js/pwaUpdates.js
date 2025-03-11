@@ -9,7 +9,7 @@
  */
 
 // App version - change this with each release
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.4.2';
 
 // Configuration
 const CHECK_INTERVAL = 60 * 120 * 1000; // Check for updates every 2 hours (in milliseconds)
@@ -57,29 +57,6 @@ function displayAppVersion() {
 
         // Create a link element for the version
         versionDisplay.innerHTML = `&copy; Copyright 2025 <a href="https://github.com/JoshuaKimsey" target="_blank" rel="noopener" class="version-link">Joshua Kimsey</a> - Variable Weather: <a href="${GITHUB_URL}" target="_blank" rel="noopener" class="version-link">v${APP_VERSION}</a>`;
-
-        // Add some styling
-        const style = document.createElement('style');
-        style.innerHTML = `
-            .app-version {
-                font-size: 0.7rem;
-                color: #aaa;
-                text-align: center;
-                margin-top: 5px;
-            }
-            
-            .version-link {
-                color: #aaa;
-                text-decoration: none;
-                transition: color 0.2s ease;
-            }
-            
-            .version-link:hover {
-                color: #1e88e5;
-                text-decoration: underline;
-            }
-        `;
-        document.head.appendChild(style);
     }
 }
 
