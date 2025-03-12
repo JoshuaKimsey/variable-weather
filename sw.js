@@ -1,40 +1,47 @@
-// Service Worker for Weather App with update support
+// Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.5.0';
+const SW_VERSION = '1.5.1';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 const ASSETS = [
-  '/variable-weather/',
-  '/variable-weather/index.html',
-  '/variable-weather/styles.css',
-  '/variable-weather/js/main.js',
-  '/variable-weather/js/api.js',
-  '/variable-weather/js/apiSettings.js',
-  '/variable-weather/js/ui.js',
-  '/variable-weather/js/utils.js',
-  '/variable-weather/js/units.js',
-  '/variable-weather/js/config.js',
-  '/variable-weather/js/weatherIcons.js',
-  '/variable-weather/js/weatherBackgrounds.js',
-  '/variable-weather/js/pwaUpdates.js',
-  '/variable-weather/js/radarView.js',
-  '/variable-weather/js/astronomicalView.js',
+  './',
+  './index.html',
+  './styles.css',
+  './js/main.js',
+  './js/api.js',
+  './js/apiSettings.js',
+  './js/ui.js',
+  './js/utils.js',
+  './js/units.js',
+  './js/config.js',
+  './js/weatherIcons.js',
+  './js/weatherBackgrounds.js',
+  './js/pwaUpdates.js',
+  './js/radarView.js',
+  './js/astronomicalView.js',
   // Add fonts, images, and other assets as needed
-  '/variable-weather/resources/bootstrap/css/bootstrap.min.css',
-  '/variable-weather/resources/font-awesome/css/all.min.css',
-  '/variable-weather/resources/font-awesome/webfonts/fa-brands-400.ttf',
-  '/variable-weather/resources/font-awesome/webfonts/fa-brands-400.woff2',
-  '/variable-weather/resources/font-awesome/webfonts/fa-regular-400.ttf',
-  '/variable-weather/resources/font-awesome/webfonts/fa-regular-400.woff2',
-  '/variable-weather/resources/font-awesome/webfonts/fa-solid-900.ttf',
-  '/variable-weather/resources/font-awesome/webfonts/fa-solid-900.woff2',
-  '/variable-weather/resources/font-awesome/webfonts/fa-v4compatibility.ttf',
-  '/variable-weather/resources/font-awesome/webfonts/fa-v4compatibility.woff2',
-  '/variable-weather/resources/tz-lookup/tz.js',
-  '/variable-weather/icons/icon-192x192.png',
-  '/variable-weather/icons/icon-512x512.png',
-  '/variable-weather/icons/favicon-32x32.png'
+  './resources/bootstrap/css/bootstrap.min.css',
+  './resources/font-awesome/css/all.min.css',
+  './resources/font-awesome/webfonts/fa-brands-400.ttf',
+  './resources/font-awesome/webfonts/fa-brands-400.woff2',
+  './resources/font-awesome/webfonts/fa-regular-400.ttf',
+  './resources/font-awesome/webfonts/fa-regular-400.woff2',
+  './resources/font-awesome/webfonts/fa-solid-900.ttf',
+  './resources/font-awesome/webfonts/fa-solid-900.woff2',
+  './resources/font-awesome/webfonts/fa-v4compatibility.ttf',
+  './resources/font-awesome/webfonts/fa-v4compatibility.woff2',
+  './resources/leafet/leaflet.css',
+  './resources/leafet/leaflet.js',
+  './resources/leaflet/images/layers-2x.png',
+  './resources/leaflet/images/marker-icon-2x.png',
+  './resources/leaflet/images/marker-shadow.png',
+  './resources/leaflet/images/layers.png',
+  './resources/leaflet/images/marker-icon.png',
+  './resources/tz-lookup/tz.js',
+  './icons/icon-192x192.png',
+  './icons/icon-512x512.png',
+  './icons/favicon-32x32.png'
 ];
 
 // Install event - cache the app shell
