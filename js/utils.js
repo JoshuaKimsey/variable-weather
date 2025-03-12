@@ -2,6 +2,8 @@
  * Utility functions for the weather application
  */
 
+import { calculateSunTimes } from './astronomicalView.js';
+
 /**
  * Update URL parameters with location information
  */
@@ -80,6 +82,106 @@ export function formatDate(date) {
 }
 
 /**
+ * Get local time for a location using tz-lookup and the browser's Intl API
+ * @param {number} lon - Longitude in decimal degrees
+ * @param {number} lat - Latitude in decimal degrees
+ * @returns {string} - Formatted local time
+ */
+export function getLocalTimeForLocation(lon, lat = null) {
+    try {
+        // If parameters are missing or invalid, return browser's local time
+        if (!lon || !lat || isNaN(Number(lon)) || isNaN(Number(lat))) {
+            return new Date().toLocaleTimeString(undefined, { 
+                hour: 'numeric', 
+                minute: '2-digit', 
+                hour12: true 
+            });
+        }
+        
+        // We need to ensure the tzlookup function is loaded
+        if (typeof window.tzlookup !== 'function') {
+            // Log an error if the library isn't loaded
+            console.error('tzlookup function not found. Make sure tz.js is loaded.');
+            
+            // Fall back to longitude-based calculation
+            return calculateTimeFromLongitude(lon);
+        }
+        
+        // Get the timezone identifier using tzlookup
+        // Note: tzlookup expects (lat, lon) - the order is important!
+        const timezone = window.tzlookup(Number(lat), Number(lon));
+        
+        if (!timezone) {
+            console.warn('Could not determine timezone for coordinates:', lat, lon);
+            return calculateTimeFromLongitude(lon);
+        }
+        
+        // Format current time using the determined timezone
+        const now = new Date();
+        
+        // Format options
+        const options = {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: timezone
+        };
+        
+        return now.toLocaleTimeString(undefined, options);
+    } catch (error) {
+        console.error('Error getting local time:', error);
+        
+        // Fall back to simple longitude calculation on error
+        return calculateTimeFromLongitude(lon);
+    }
+}
+
+/**
+ * Fallback function that calculates time directly from longitude
+ * @param {number} lon - Longitude in decimal degrees
+ * @returns {string} - Formatted time string
+ */
+function calculateTimeFromLongitude(lon) {
+    // Ensure longitude is a number
+    const longitude = Number(lon);
+    if (isNaN(longitude)) {
+        return new Date().toLocaleTimeString(undefined, { 
+            hour: 'numeric', 
+            minute: '2-digit', 
+            hour12: true 
+        });
+    }
+    
+    // Get the current UTC time
+    const now = new Date();
+    
+    // Get UTC time components
+    const utcHours = now.getUTCHours();
+    const utcMinutes = now.getUTCMinutes();
+    
+    // Calculate approximate timezone offset in hours based on longitude
+    const timezoneOffsetHours = longitude / 15;
+    
+    // Add the offset to UTC time
+    const totalMinutesUTC = utcHours * 60 + utcMinutes;
+    const totalMinutesLocal = totalMinutesUTC + (timezoneOffsetHours * 60);
+    
+    // Convert back to hours and minutes
+    let localHours = Math.floor(totalMinutesLocal / 60) % 24;
+    if (localHours < 0) localHours += 24;
+    
+    const localMinutes = Math.floor(totalMinutesLocal % 60);
+    
+    // Format as 12-hour time
+    const isPM = localHours >= 12;
+    const hours12 = localHours % 12 || 12;
+    const minutesStr = Math.abs(localMinutes).toString().padStart(2, '0');
+    const period = isPM ? 'PM' : 'AM';
+    
+    return `${hours12}:${minutesStr} ${period}`;
+}
+
+/**
  * Update page title with weather info
  */
 export function updatePageTitle(temperature, location) {
@@ -125,4 +227,19 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
  */
 function deg2rad(deg) {
     return deg * (Math.PI / 180);
+}
+
+/**
+ * Determine if it's currently daytime at a location based on sunrise/sunset
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @param {Date} [date=new Date()] - Optional date to check (defaults to now)
+ * @returns {boolean} - True if it's daytime, false if nighttime
+ */
+export function isDaytime(lat, lon, date = new Date()) {
+    // Get sun times (this will now work correctly with our fixed functions)
+    const sunTimes = calculateSunTimes(lat, lon, date);
+    
+    // The function now returns an isDaytime property that we can use directly
+    return sunTimes.isDaytime;
 }

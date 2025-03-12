@@ -204,6 +204,13 @@ body {
     color: #ffffff;
 }
 
+.local-time {
+    font-size: 1.1rem;
+    color: #e3e3e3;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
 .date {
     font-size: 1.1rem;
     color: #cccccc;
@@ -1935,4 +1942,253 @@ body {
     font-size: 12px;
     pointer-events: none;
     max-width: 80%;
+}
+
+/*-----------------------------------------------
+ * 13. ASTRONOMICAL DISPLAY STYLES
+ *-----------------------------------------------*/
+ .astro-section {
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+.astro-section h3 {
+    margin-bottom: 15px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.astro-container {
+    position: relative;
+    background: linear-gradient(to bottom, rgba(20, 30, 45, 0.6), rgba(30, 45, 70, 0.4));
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    /* Create a responsive container with fixed aspect ratio */
+    padding-bottom: 40%; /* Creates a 5:2 aspect ratio */
+    min-height: 150px;
+    height: 0; /* Required for padding-bottom to work */
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Add a wrapper div inside the container for actual content */
+.astro-content-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row; /* Display sun and moon side by side */
+    justify-content: space-between;
+    align-items: stretch;
+}
+
+/* Style the divider between sun and moon */
+.astro-divider {
+    width: 1px;
+    margin: 20px 0;
+    background: linear-gradient(to bottom, 
+        rgba(255, 255, 255, 0), 
+        rgba(255, 255, 255, 0.3), 
+        rgba(255, 255, 255, 0.3), 
+        rgba(255, 255, 255, 0));
+}
+
+/* Improve sun container styling */
+.astro-sun-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    padding: 15px;
+    flex: 1;
+}
+
+/* Improve moon container styling */
+.astro-moon-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    padding: 15px;
+    flex: 1;
+}
+
+/* Ensure the SVG scales properly with the container */
+.sun-path-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* Improve text legibility */
+.sun-path-text {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: 500;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    letter-spacing: 0.3px;
+}
+
+/* Moon phase wrapper styling */
+.moon-phase-wrapper {
+    background-color: rgba(30, 45, 70, 0.3);
+    border-radius: 12px;
+    padding: 15px 10px;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+}
+
+/* Moon info container */
+.moon-info {
+    margin-top: 5px;
+    width: 100%;
+}
+
+/* Moon phase name */
+.moon-phase-name {
+    font-size: 1.2rem !important;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Moon illumination percentage */
+.moon-illumination {
+    font-size: 1rem !important;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 12px;
+}
+
+/* Next moon event (full moon or new moon) */
+.moon-next-event {
+    font-size: 0.9rem;
+    padding: 4px 12px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    display: inline-block;
+    color: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Animation for subtle moon glow effect */
+@keyframes subtle-moon-glow {
+    0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.2)); }
+    50% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4)); }
+}
+
+/* Add error styling */
+.astro-error {
+    color: #ff6b6b;
+    padding: 20px;
+    text-align: center;
+    font-style: italic;
+    background-color: rgba(244, 67, 54, 0.1);
+    border: 1px solid rgba(244, 67, 54, 0.3);
+    border-radius: 10px;
+    margin: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Improve loading spinner */
+.astro-loading {
+    color: #ffffff;
+    padding: 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background-color: rgba(20, 30, 50, 0.7);
+    border-radius: 15px;
+}
+
+.astro-loading-spinner {
+    display: flex;
+    gap: 5px;
+}
+
+.astro-loading-spinner div {
+    width: 8px;
+    height: 8px;
+    background-color: #FFF9C4;
+    border-radius: 50%;
+    display: inline-block;
+    animation: astro-bounce 1.4s infinite ease-in-out both;
+}
+
+.astro-loading-spinner div:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.astro-loading-spinner div:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes astro-bounce {
+    0%, 80%, 100% {
+        transform: scale(0);
+    }
+    40% {
+        transform: scale(1);
+    }
+}
+
+/* Responsive styles for the astronomical display */
+@media (max-width: 768px) {
+    .astro-content-wrapper {
+        flex-direction: column;
+    }
+    
+    .astro-container {
+        padding-bottom: 100%; /* Taller for vertical layout on mobile */
+    }
+    
+    .astro-divider {
+        width: auto;
+        height: 1px;
+        margin: 0 20px;
+        background: linear-gradient(to right, 
+            rgba(255, 255, 255, 0), 
+            rgba(255, 255, 255, 0.3), 
+            rgba(255, 255, 255, 0.3), 
+            rgba(255, 255, 255, 0));
+    }
+    
+    .astro-sun-container, .astro-moon-container {
+        padding: 10px;
+    }
+    
+    .moon-phase-wrapper {
+        padding: 10px 5px;
+    }
+    
+    .moon-phase-name {
+        font-size: 1.1rem !important;
+        margin-bottom: 5px;
+    }
+    
+    .moon-illumination {
+        font-size: 0.9rem !important;
+        margin-bottom: 8px;
+    }
+    
+    .moon-next-event {
+        font-size: 0.8rem;
+        padding: 3px 10px;
+    }
 }

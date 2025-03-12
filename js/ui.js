@@ -14,7 +14,7 @@
 
 import { setWeatherIcon, setForecastIcon } from './weatherIcons.js';
 import { setWeatherBackground } from './weatherBackgrounds.js';
-import { formatDate, formatLocationName, updatePageTitle } from './utils.js';
+import { formatDate, formatLocationName, updatePageTitle, getLocalTimeForLocation } from './utils.js';
 import { getDisplayUnits, formatTemperature, formatWindSpeed, formatPressure, formatVisibility } from './units.js';
 import { updateAlertPolygons, isRadarViewInitialized } from './radarView.js';
 
@@ -173,6 +173,50 @@ export function displayWeatherData(data, locationName) {
 
         // Hide error message
         hideError();
+
+        // Update local time display with location's time
+        // First, extract lat/lon from URL parameters or data object
+        let locationLat, locationLon;
+
+        // Try to get coordinates from URL first
+        const urlParams = new URLSearchParams(window.location.search);
+        locationLat = urlParams.get('lat');
+        locationLon = urlParams.get('lon');
+
+        // If we don't have coordinates in URL but we have data object, try to extract them
+        if ((!locationLat || !locationLon) && data) {
+            // Some APIs include lat/lon in the data object
+            if (data.latitude !== undefined && data.longitude !== undefined) {
+                locationLat = data.latitude;
+                locationLon = data.longitude;
+            } else if (data.lat !== undefined && data.lon !== undefined) {
+                locationLat = data.lat;
+                locationLon = data.lon;
+            }
+        }
+
+        // Update the time if we have coordinates
+        if (locationLon) {
+            const localTimeElement = document.getElementById('local-time');
+            if (localTimeElement) {
+                // FIXED: Pass both longitude AND latitude
+                const localTime = getLocalTimeForLocation(locationLon, locationLat);
+                localTimeElement.textContent = localTime;
+
+                // Clear any existing interval
+                if (window.localTimeInterval) {
+                    clearInterval(window.localTimeInterval);
+                }
+
+                // Update local time every 30 seconds
+                window.localTimeInterval = setInterval(() => {
+                    // FIXED: Pass both longitude AND latitude
+                    const updatedTime = getLocalTimeForLocation(locationLon, locationLat);
+                    localTimeElement.textContent = updatedTime;
+                }, 30000);
+            }
+        }
+
     } catch (error) {
         console.error('Error displaying weather data:', error);
         showError('Error displaying weather data: ' + error.message);
@@ -187,9 +231,9 @@ function setWindDirection(direction) {
     const arrowElement = document.getElementById('wind-direction-arrow');
     const labelElement = document.getElementById('wind-direction-label');
     const container = document.querySelector('.wind-direction');
-    
+
     if (!arrowElement || !labelElement || !container) return;
-    
+
     // Check if we have valid direction data
     if (direction === undefined || direction === null) {
         container.classList.add('no-data');
@@ -197,31 +241,31 @@ function setWindDirection(direction) {
     } else {
         container.classList.remove('no-data');
     }
-    
+
     // Convert string cardinal direction to degrees if needed
     let directionDegrees = direction;
     if (typeof direction === 'string') {
         directionDegrees = cardinalToDirection(direction);
     }
-    
+
     // Make sure we have a valid number
     if (isNaN(directionDegrees)) {
         container.classList.add('no-data');
         return;
     }
-    
+
     // In meteorology, wind direction is reported as the direction FROM which the wind is coming
     // We want our arrow to point FROM that direction
     const visualDirection = directionDegrees;
-    
+
     // Get the icon element inside the arrow container
     const arrowIcon = arrowElement.querySelector('i');
-    
+
     // Apply rotation to the icon itself
     // The Font Awesome location-arrow icon points northeast (45°) by default
     // We need to adjust by 45° to make it point upward (north) at 0°
     arrowIcon.style.transform = `translate(-50%, -50%) rotate(${visualDirection - 45}deg)`;
-    
+
     // Set the cardinal direction label based on meteorological direction
     labelElement.textContent = getCardinalDirection(directionDegrees);
 }

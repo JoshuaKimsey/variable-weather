@@ -15,8 +15,9 @@
 import { resetLastUpdateTime } from './autoUpdate.js';
 import { getPirateWeatherApiKey, API_ENDPOINTS } from './config.js';
 import { displayWeatherData, displayWeatherWithAlerts, showLoading, hideLoading, hideError, showError } from './ui.js';
-import { getCountryCode, isUSLocation, formatLocationName, calculateDistance } from './utils.js';
+import { getCountryCode, isUSLocation, formatLocationName, calculateDistance, isDaytime } from './utils.js';
 import { updateRadarLocation } from './radarView.js';
+import { locationChanged } from './astronomicalView.js';
 
 //==============================================================================
 // 2. PUBLIC API FUNCTIONS
@@ -46,6 +47,15 @@ export function fetchWeather(lat, lon, locationName) {
         console.log('Radar view not yet initialized');
     }
 
+    // Update astronomical information
+    try {
+        if (typeof updateAstroInfo === 'function') {
+            updateAstroInfo(lat, lon);
+        }
+    } catch (error) {
+        console.error('Error updating astronomical data:', error);
+    }
+
     // Determine if the location is in the US
     const countryCode = locationName ? getCountryCode(locationName) : 'us'; // Default to US if unknown
 
@@ -55,6 +65,15 @@ export function fetchWeather(lat, lon, locationName) {
     } else {
         // Use Pirate Weather API for non-US locations
         fetchPirateWeather(lat, lon, locationName);
+    }
+
+    try {
+        // Notify the astro module of location changes
+        if (typeof locationChanged === 'function') {
+            locationChanged(lat, lon);
+        }
+    } catch (error) {
+        console.error('Error notifying astro module of location change:', error);
     }
 }
 
@@ -255,8 +274,8 @@ function mapNWSIconToGeneric(nwsIconUrl) {
 function fetchNWSWeather(lat, lon, locationName = null) {
     // First, we need to get the grid points
     // Make sure lat and lon are properly formatted
-    const formattedLat = parseFloat(lat).toFixed(4);
-    const formattedLon = parseFloat(lon).toFixed(4);
+    const formattedLat = parseFloat(lat).toFixed(3);
+    const formattedLon = parseFloat(lon).toFixed(3);
 
     const pointsUrl = `${API_ENDPOINTS.NWS_POINTS}/${formattedLat},${formattedLon}`;
 
@@ -381,7 +400,9 @@ function fetchNWSWeather(lat, lon, locationName = null) {
                                         alertsData,
                                         validObservation, // Use the valid observation data we found
                                         cityState,
-                                        locationName
+                                        locationName,
+                                        formattedLat,
+                                        formattedLon
                                     );
 
                                     // Display the weather data
@@ -429,9 +450,11 @@ function fetchNWSWeather(lat, lon, locationName = null) {
  * @param {Object} observationData - The station observation data
  * @param {string} cityState - The city and state formatted as "City, State"
  * @param {string} locationName - The raw location name from the input
+ * @param {number} lat - Latitude of the location
+ * @param {number} lon - Longitude of the location
  * @returns {Object} - Processed weather data in standardized format
  */
-function processNWSData(forecastData, hourlyData, alertsData, observationData, cityState, locationName) {
+function processNWSData(forecastData, hourlyData, alertsData, observationData, cityState, locationName, lat, lon) {
     // Get current forecast from the hourly forecast (for supplementary data only)
     const currentForecast = hourlyData.properties.periods[0];
 
@@ -466,7 +489,7 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
             humidity: 0.5,
             pressure: 1015,
             visibility: 10,
-            isDaytime: currentForecast.isDaytime
+            isDaytime: isDaytime(lat, lon)
         },
         daily: {
             data: []
@@ -774,6 +797,8 @@ function fetchPirateWeather(lat, lon, locationName = null) {
         .then(data => {
             // Add source information
             data.source = 'pirate';
+
+            data.currently.isDaytime = isDaytime(lat, lon);
 
             // Display the weather data
             displayWeatherWithAlerts(data, locationName);

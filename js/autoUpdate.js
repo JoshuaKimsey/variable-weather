@@ -2,6 +2,8 @@
  * Auto-update functionality for the weather app
  */
 
+import { refreshAstroDisplay } from './astronomicalView.js'
+
 // Constants
 const UPDATE_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
 let updateTimer;
@@ -59,6 +61,16 @@ function performUpdate(updateCallback) {
     // Call the update callback
     if (updateCallback && typeof updateCallback === 'function') {
         updateCallback();
+
+        // After calling updateCallback:
+        try {
+            if (typeof refreshAstroDisplay === 'function') {
+                refreshAstroDisplay();
+            }
+        } catch (error) {
+            console.error('Error refreshing astronomical display:', error);
+
+        }
     }
 
     // Update the timestamp

@@ -24,7 +24,7 @@ export function initBackgrounds(backgroundElementId) {
 /**
  * Set the weather background based on icon code and time of day
  * @param {string} iconCode - The weather icon code from NWS or other provider
- * @param {boolean} isDaytime - Whether it's currently daytime (optional)
+ * @param {boolean} isDaytime - Whether it's currently daytime (true) or nighttime (false)
  */
 export function setWeatherBackground(iconCode, isDaytime = true) {
     if (!weatherBackground) {
@@ -38,41 +38,47 @@ export function setWeatherBackground(iconCode, isDaytime = true) {
     // Reset background color
     document.body.style.background = '';
 
-    // console.log('Setting weather background for:', iconCode);
-
-    // Determine if it's night time
+    // Determine if it's night time - explicit conversion to boolean ensures proper handling
     const isNight = isDaytime === false;
-    // console.log('Night time detected:', isNight);
-
-    // First check for common icon codes that need time-specific handling
-    const timeSpecificChecks = [
-        // Rain at night
-        { condition: iconCode === 'rain' && isNight, handler: setBackgroundRainNight, message: 'Using rain at night background' },
-        // Cloudy at night
-        { condition: iconCode === 'cloudy' && isNight, handler: setBackgroundCloudyNight, message: 'Using cloudy at night background' },
-        // Wind at night
-        { condition: iconCode === 'wind' && isNight, handler: setBackgroundWindNight, message: 'Using wind at night background' },
-        // Fog at night
-        { condition: iconCode === 'fog' && isNight, handler: setBackgroundFogNight, message: 'Using fog at night background' }
-    ];
-
-    // Check time-specific conditions first
-    for (const check of timeSpecificChecks) {
-        if (check.condition) {
-            console.log(check.message);
-            check.handler();
+    
+    // First handle common day/night variants for core weather conditions
+    if (isNight) {
+        // Handle common night variants first
+        if (iconCode === 'cloudy') {
+            setBackgroundCloudyNight();
+            return;
+        } else if (iconCode === 'rain') {
+            setBackgroundRainNight();
+            return;
+        } else if (iconCode === 'fog') {
+            setBackgroundFogNight();
+            return;
+        } else if (iconCode === 'wind') {
+            setBackgroundWindNight();
+            return;
+        } else if (iconCode === 'snow') {
+            setBackgroundSnowNight();
+            return;
+        } else if (iconCode === 'sleet') {
+            setBackgroundSleetNight();
+            return;
+        } else if (iconCode === 'clear-day') {
+            // Convert day icons to night equivalents
+            setBackgroundClearNight();
+            return;
+        } else if (iconCode === 'partly-cloudy-day') {
+            setBackgroundPartlyCloudyNight();
             return;
         }
     }
 
     // Try direct mapping from the icon code to background function
     if (WEATHER_BACKGROUND_MAPPING[iconCode]) {
-        // console.log('Using direct background mapping for:', iconCode);
         WEATHER_BACKGROUND_MAPPING[iconCode]();
         return;
     }
 
-    // Pattern-based fallback logic
+    // Pattern-based fallback logic when no direct match is found
     if (isNight) {
         applyNightBackgroundByPattern(iconCode);
     } else {

@@ -219,7 +219,7 @@ export function updateAlertPolygons(alerts) {
 
     // Count alerts with geometry
     const alertsWithGeometry = alerts.filter(alert => alert.geometry);
-    console.log(`Found ${alertsWithGeometry.length} alerts with geometry out of ${alerts.length} total alerts`);
+    // console.log(`Found ${alertsWithGeometry.length} alerts with geometry out of ${alerts.length} total alerts`);
 
     // Clear any existing alert layers
     clearAlertLayers();
@@ -338,9 +338,9 @@ export function updateAlertPolygons(alerts) {
 
     // Log results
     if (extremeAlertCount > 0 || severeAlertCount > 0) {
-        console.log(`Displayed ${extremeAlertCount} extreme and ${severeAlertCount} severe alert polygons with animation`);
+        // console.log(`Displayed ${extremeAlertCount} extreme and ${severeAlertCount} severe alert polygons with animation`);
     }
-    console.log(`Successfully added ${alertsAdded} alert polygons to the map`);
+    // console.log(`Successfully added ${alertsAdded} alert polygons to the map`);
 }
 
 /**
@@ -473,7 +473,11 @@ export function fetchMapAreaAlerts(forceRefresh = false) {
  */
 export function initMapAlertSystem() {
     if (!map || !mapInitialized) {
-        console.warn('Cannot init map alert system - map not initialized');
+        console.log('Cannot init map alert system - map not initialized. Setting up retry...');
+        setTimeout(() => {
+            console.log('Retrying alert system initialization...');
+            initMapAlertSystem();
+        }, 500);
         return;
     }
 
@@ -482,54 +486,40 @@ export function initMapAlertSystem() {
     // Flag to track first initialization
     let initialFetchCompleted = false;
 
-    // Wait for map to be fully initialized with a view before fetching alerts
-    const initialViewHandler = function () {
-        // Remove this one-time listener
-        map.off('moveend', initialViewHandler);
-
-        // Small delay to ensure the map is fully stable
-        setTimeout(() => {
-            // Only do the initial fetch if it hasn't been done yet
-            if (!initialFetchCompleted) {
-                initialFetchCompleted = true;
-                fetchMapAreaAlerts(true) // Force refresh on initial load
-                    .catch(err => console.error('Initial alert fetch failed:', err));
-            }
-        }, 500);
-    };
-
-    // Add the one-time initialization listener
-    map.on('moveend', initialViewHandler);
-
-    // Handle moveend events for later map movements
-    // Use a more reliable approach with throttling
+    // Add event handlers for map movements
     const debouncedFetch = debounce(() => {
-        // Only fetch if we've completed the initial fetch
-        if (initialFetchCompleted) {
-            fetchMapAreaAlerts()
-                .catch(err => console.error('Map move alert fetch failed:', err));
-        }
+        fetchMapAreaAlerts()
+            .catch(err => console.error('Map move alert fetch failed:', err));
     }, 1000);
 
     map.on('moveend', debouncedFetch);
 
+    // IMPORTANT: Add this explicit initial fetch with a delay
+    // to ensure the map is fully rendered and stable
+    setTimeout(() => {
+        // console.log('Performing initial alert fetch...');
+        fetchMapAreaAlerts(true) // true = force refresh
+            .then(() => {
+                initialFetchCompleted = true;
+                console.log('Initial alert fetch completed');
+            })
+            .catch(err => console.error('Initial alert fetch failed:', err));
+    }, 1000); // 1 second delay
+
     // Set up periodic refresh with better error handling
     const refreshIntervalId = setInterval(() => {
-        // Only refresh if the map is visible and initial fetch is done
-        if (isMapVisible() && initialFetchCompleted) {
-            console.log('Refreshing nationwide alerts (5-minute interval)');
+        // Only refresh if the map is visible
+        if (isMapVisible()) {
+            // console.log('Refreshing nationwide alerts (5-minute interval)');
             fetchMapAreaAlerts(true) // Force refresh on interval
                 .catch(err => {
                     console.error('Scheduled alert refresh failed:', err);
-
-                    // If we have too many consecutive failures, 
-                    // we might want to consider adjusting the refresh frequency
                 });
         }
     }, 5 * 60 * 1000); // 5 minutes
 
-    // Clean up method for alert system
-    window.cleanupAlertSystem = function () {
+    // Clean up method
+    window.cleanupAlertSystem = function() {
         clearInterval(refreshIntervalId);
         map.off('moveend', debouncedFetch);
         lastSuccessfulAlerts = [];
@@ -721,37 +711,24 @@ function initializeMap(containerId) {
         // Create a custom timestamp display control
         createTimestampControl();
 
-        // Set flag that map is initialized
-        mapInitialized = true;
+        // Set view explicitly before marking as initialized
+        map.setView([lat, lon], DEFAULT_MAP_ZOOM);
 
-        // Properly center the map - add a small delay to ensure the container is fully rendered
+        // Add a small delay to ensure the map is properly rendered
         setTimeout(() => {
             // Make sure the map knows its container size
             map.invalidateSize();
-
-            // Set view to current location with default zoom
-            map.setView([lat, lon], DEFAULT_MAP_ZOOM);
-
+            
             // Ensure the marker is centered
             map.panTo([lat, lon]);
-        }, 100);
+            
+            // Now it's safe to mark as initialized
+            mapInitialized = true;
+            
+            console.log('Map fully initialized with center and zoom');
+        }, 300);
 
-        // Add window resize handler to ensure map stays properly sized
-        window.addEventListener('resize', () => {
-            if (map) {
-                map.invalidateSize();
-
-                // Re-center on marker if it exists
-                if (currentLocationMarker) {
-                    const position = currentLocationMarker.getLatLng();
-                    map.setView(position, map.getZoom());
-                }
-            }
-        });
-
-        // Setup the alert preservation system
-        setupAlertPreservation();
-
+        // Rest of the existing code...
     } catch (error) {
         console.error('Error initializing map:', error);
         showRadarError(containerId, 'Error initializing map. Please try again later.');
@@ -966,9 +943,17 @@ function showRadarError(containerId, message) {
  */
 function fetchRadarData() {
     return new Promise((resolve, reject) => {
-        if (!mapInitialized) {
-            console.error('Map not initialized. Cannot fetch radar data.');
-            reject(new Error('Map not initialized'));
+        if (!mapInitialized || !map || !map._loaded) {
+            console.log('Map not fully initialized. Setting up retry for radar data fetch.');
+            
+            // Set up a retry after a short delay
+            setTimeout(() => {
+                console.log('Retrying radar data fetch...');
+                fetchRadarData()
+                    .then(resolve)
+                    .catch(reject);
+            }, 500);
+            
             return;
         }
 
@@ -1257,111 +1242,148 @@ function updateTimelineSelection() {
  * @returns {Promise} - Resolves when preloading is complete
  */
 function preloadRadarFrames() {
-    if (!map || radarFrames.length === 0) {
+    // First check for basic conditions
+    if (!map || !radarFrames.length === 0) {
         return Promise.resolve();
     }
 
     // Create a visual indicator of preload progress
     updatePreloadingUI(true);
 
-    // Store preloaded layers
-    const preloadedLayers = [];
-    let loadedCount = 0;
+    // Verify map is properly initialized and visible
+    try {
 
-    // Get current center and zoom for preloading the visible area
-    const currentCenter = map.getCenter();
-    const currentZoom = map.getZoom();
-
-    // Calculate the visible tile coordinates
-    const centerPoint = map.project(currentCenter, currentZoom).divideBy(256).floor();
-    const bounds = map.getBounds();
-    const northEast = map.project(bounds.getNorthEast(), currentZoom).divideBy(256).floor();
-    const southWest = map.project(bounds.getSouthWest(), currentZoom).divideBy(256).floor();
-
-    // Define the area of tiles to preload (the visible area + margin)
-    const tileRange = {
-        min: {
-            x: Math.max(0, southWest.x - 1),
-            y: Math.max(0, northEast.y - 1)
-        },
-        max: {
-            x: southWest.x + 1,
-            y: northEast.y + 1
+        if (!map._loaded) {
+            console.log("Map not fully loaded, deferring preload");
+            return Promise.resolve();
         }
-    };
 
-    // Create a promise for each frame's preloading
-    const preloadPromises = radarFrames.map((frame, index) => {
-        return new Promise((resolve) => {
-            // Create the tile URL pattern for this frame
-            const tileUrl = `https://tilecache.rainviewer.com/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
-
-            // Create a tile layer but don't add it to the map yet
-            const layer = L.tileLayer(tileUrl, {
-                opacity: 0,  // Invisible during preload
-                zIndex: 1,   // Lower z-index
-                tileSize: 256
-            });
-
-            // Store for later use
-            preloadedLayers[index] = layer;
-
-            // Create an array to hold the tile-loading promises
-            const tilePromises = [];
-
-            // Manually create Image objects for critical tiles
-            for (let x = tileRange.min.x; x <= tileRange.max.x; x++) {
-                for (let y = tileRange.min.y; y <= tileRange.max.y; y++) {
-                    const tilePromise = new Promise((tileResolve) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            tileResolve();
-                        };
-                        img.onerror = () => {
-                            tileResolve(); // Resolve anyway to continue
-                        };
-                        // Generate the actual tile URL
-                        const url = tileUrl
-                            .replace('{z}', currentZoom)
-                            .replace('{x}', x)
-                            .replace('{y}', y);
-                        img.src = url;
-                    });
-                    tilePromises.push(tilePromise);
-                }
+        // Check the map container exists and has dimensions
+        if (!map.getContainer() || 
+            !map.getContainer().clientWidth || 
+            !map.getContainer().clientHeight) {
+            console.log("Map container not properly sized, deferring preload");
+            updatePreloadingUI(false);
+            return Promise.resolve();
+        }
+        
+        // Check if map has a valid center and zoom
+        let currentCenter, currentZoom;
+        try {
+            currentCenter = map.getCenter();
+            currentZoom = map.getZoom();
+            
+            if (!currentCenter || isNaN(currentZoom)) {
+                console.log("Map center or zoom not set, deferring preload");
+                updatePreloadingUI(false);
+                return Promise.resolve();
             }
+        } catch (error) {
+            console.log("Error getting map properties, map not ready:", error);
+            updatePreloadingUI(false);
+            return Promise.resolve();
+        }
+        
+        // Store preloaded layers
+        const preloadedLayers = [];
+        let loadedCount = 0;
 
-            // When critical tiles are loaded, update progress and resolve
-            Promise.all(tilePromises).then(() => {
-                loadedCount++;
-                updatePreloadProgress(loadedCount, radarFrames.length);
-                resolve(layer);
-            });
+        // Calculate the visible tile coordinates
+        const centerPoint = map.project(currentCenter, currentZoom).divideBy(256).floor();
+        const bounds = map.getBounds();
+        const northEast = map.project(bounds.getNorthEast(), currentZoom).divideBy(256).floor();
+        const southWest = map.project(bounds.getSouthWest(), currentZoom).divideBy(256).floor();
 
-            // Set a timeout to avoid waiting too long for any single frame
-            setTimeout(() => {
-                if (!layer._loaded) {
+        // Define the area of tiles to preload (the visible area + margin)
+        const tileRange = {
+            min: {
+                x: Math.max(0, southWest.x - 1),
+                y: Math.max(0, northEast.y - 1)
+            },
+            max: {
+                x: southWest.x + 1,
+                y: northEast.y + 1
+            }
+        };
+
+        // Create a promise for each frame's preloading
+        const preloadPromises = radarFrames.map((frame, index) => {
+            return new Promise((resolve) => {
+                // Create the tile URL pattern for this frame
+                const tileUrl = `https://tilecache.rainviewer.com/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+
+                // Create a tile layer but don't add it to the map yet
+                const layer = L.tileLayer(tileUrl, {
+                    opacity: 0,  // Invisible during preload
+                    zIndex: 1,   // Lower z-index
+                    tileSize: 256
+                });
+
+                // Store for later use
+                preloadedLayers[index] = layer;
+
+                // Create an array to hold the tile-loading promises
+                const tilePromises = [];
+
+                // Manually create Image objects for critical tiles
+                for (let x = tileRange.min.x; x <= tileRange.max.x; x++) {
+                    for (let y = tileRange.min.y; y <= tileRange.max.y; y++) {
+                        const tilePromise = new Promise((tileResolve) => {
+                            const img = new Image();
+                            img.onload = () => {
+                                tileResolve();
+                            };
+                            img.onerror = () => {
+                                tileResolve(); // Resolve anyway to continue
+                            };
+                            // Generate the actual tile URL
+                            const url = tileUrl
+                                .replace('{z}', currentZoom)
+                                .replace('{x}', x)
+                                .replace('{y}', y);
+                            img.src = url;
+                        });
+                        tilePromises.push(tilePromise);
+                    }
+                }
+
+                // When critical tiles are loaded, update progress and resolve
+                Promise.all(tilePromises).then(() => {
                     loadedCount++;
                     updatePreloadProgress(loadedCount, radarFrames.length);
                     resolve(layer);
-                }
-            }, 3000); // 3 second timeout per frame
-        });
-    });
+                });
 
-    // Return a promise that resolves when all frames are preloaded (or timeout)
-    return Promise.all(preloadPromises)
-        .then(() => {
-            // Store preloaded layers for later use
-            window.preloadedRadarLayers = preloadedLayers;
-            updatePreloadingUI(false);
-            return preloadedLayers;
-        })
-        .catch(error => {
-            console.error('Error preloading radar frames:', error);
-            updatePreloadingUI(false);
-            return [];
+                // Set a timeout to avoid waiting too long for any single frame
+                setTimeout(() => {
+                    if (!layer._loaded) {
+                        loadedCount++;
+                        updatePreloadProgress(loadedCount, radarFrames.length);
+                        resolve(layer);
+                    }
+                }, 3000); // 3 second timeout per frame
+            });
         });
+
+        // Return a promise that resolves when all frames are preloaded (or timeout)
+        return Promise.all(preloadPromises)
+            .then(() => {
+                // Store preloaded layers for later use
+                window.preloadedRadarLayers = preloadedLayers;
+                updatePreloadingUI(false);
+                return preloadedLayers;
+            })
+            .catch(error => {
+                console.error('Error preloading radar frames:', error);
+                updatePreloadingUI(false);
+                return [];
+            });
+            
+    } catch (error) {
+        console.error("Unexpected error in preloadRadarFrames:", error);
+        updatePreloadingUI(false);
+        return Promise.resolve();
+    }
 }
 
 /**

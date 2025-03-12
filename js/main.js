@@ -25,6 +25,7 @@ import { initBackgrounds } from './weatherBackgrounds.js';
 import { initApiSettings } from './apiSettings.js';
 import { initUnits } from './units.js';
 import { initRadarView, refreshRadarData, isRadarViewInitialized, updateAlertPolygons } from './radarView.js';
+import { initAstro, updateAstroInfo, refreshAstroDisplay } from './astronomicalView.js';
 
 //==============================================================================
 // 2. APPLICATION INITIALIZATION
@@ -51,6 +52,23 @@ function initApp() {
     setTimeout(() => {
         initRadarView('radar-view');
     }, 100); // Small delay to ensure other components are loaded
+
+    // Initialize astronomical display - with a longer delay to ensure it happens after other components
+    setTimeout(() => {
+        initAstro('astro-view');
+
+        // Force refresh the astro display after initialization
+        const urlParams = new URLSearchParams(window.location.search);
+        const lat = urlParams.get('lat');
+        const lon = urlParams.get('lon');
+
+        if (lat && lon) {
+            // Small additional delay to ensure initialization is complete
+            setTimeout(() => {
+                updateAstroInfo(parseFloat(lat), parseFloat(lon));
+            }, 100);
+        }
+    }, 200); // Longer delay to ensure other components are loaded first
 
     // Set up event listeners
     setupEventListeners(searchLocation);

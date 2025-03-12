@@ -88,11 +88,12 @@
 
                     <div class="weather-info">
                         <div class="weather-main">
-                            <div class="location" id="location">New York City, NY</div>
+                            <div class="location" id="location">Loading location...</div>
+                            <div class="local-time" id="local-time">Loading local time...</div>
                             <div class="date" id="date">Loading...</div>
                             <div class="last-updated" id="last-updated">Out of date. Refreshing...</div>
-                            <div class="temperature" id="temperature">72°F</div>
-                            <div class="weather-description" id="weather-description">Sunny</div>
+                            <div class="temperature" id="temperature">Loading temp...F</div>
+                            <div class="weather-description" id="weather-description">It's always sunny in Philly...</div>
                             <div class="station-info" id="station-info"></div>
                         </div>
 
@@ -159,6 +160,24 @@
                 <h3>Weather Radar</h3>
                 <div class="radar-container" id="radar-view">
                     <!-- Radar content will be generated dynamically by radarView.js -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Astronomical Card - Place this after the radar card in index.html -->
+        <div id="astro-container" class="weather-card">
+            <div class="astro-section">
+                <h3>Astronomical</h3>
+                <div class="astro-container" id="astro-view">
+                    <!-- Sun position indicator will be generated dynamically -->
+                    <div class="astro-loading">
+                        <div class="astro-loading-spinner">
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                        </div>
+                        <div>Loading sun & daylight data...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -238,6 +257,8 @@
             <i class="fas fa-download"></i> Install App
         </button>
     </div>
+
+    <script src="resources/tz-lookup/tz.js"></script>
 
     <!-- Import the PWA registration script -->
     <script type="module" src="js/pwa.js"></script>
