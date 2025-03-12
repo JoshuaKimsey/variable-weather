@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.5.2';
+const SW_VERSION = '1.5.3';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 const ASSETS = [
@@ -41,7 +41,8 @@ const ASSETS = [
   './resources/leaflet/images/marker-icon.png',
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
-  './icons/favicon-32x32.png'
+  './icons/favicon-32x32.png',
+  './icons/social-thumbnail.png'
 ];
 
 // Install event - cache the app shell

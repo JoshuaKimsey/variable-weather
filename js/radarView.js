@@ -618,7 +618,7 @@ function loadLeafletScript() {
 
         try {
             const script = document.createElement('script');
-            script.src = 'resources/leaflet/leaflet.js'; // Use local path
+            script.src = './resources/leaflet/leaflet.js'; // Use local path
             script.async = true;
 
             script.onload = () => {

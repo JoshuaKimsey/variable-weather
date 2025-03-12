@@ -6,16 +6,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Variable Weather</title>
 
-    <!-- PWA Meta Tags -->
+    <!-- Basic Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://joshuakimsey.github.io/variable-weather/">
+    <meta property="og:title" content="Variable Weather">
+    <meta property="og:description"
+        content="Inspired by Breezy Weather, Variable Weather makes it easy and fun to get the weather information you need. A modern, user-friendly weather application with real-time forecasts, radar, and astronomical data.">
+    <meta property="og:image" content="https://joshuakimsey.github.io/variable-weather/icons/social-thumbnail.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Variable Weather App Interface showing forecast and radar">
+    <meta property="og:site_name" content="Variable Weather">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Variable Weather">
+    <meta name="twitter:description"
+        content="Inspired by Breezy Weather, Variable Weather makes it easy and fun to get the weather information you need. A modern, user-friendly weather application with real-time forecasts, radar, and astronomical data.">
+    <meta name="twitter:image" content="https://joshuakimsey.github.io/variable-weather/icons/social-thumbnail.png">
+    <meta name="twitter:image:alt" content="Variable Weather App Interface">
+    <!-- If you have Twitter -->
+    <meta name="twitter:creator" content="@JKimsey95">
+
+    <!-- SEO Meta Tags -->
     <meta name="description"
-        content="Inspired by Breezy Weather, Variable Weather makes it easy and fun to get the weather information you need.">
-    <meta name="theme-color" content="#4A90E2">
+        content="Inspired by Breezy Weather, Variable Weather makes it easy and fun to get the weather information you need. A modern, user-friendly weather application with real-time forecasts, radar, and astronomical data.">
+    <meta name="keywords" content="weather, forecast, radar, astronomy, meteorology, PWA, weather app">
+    <meta name="author" content="Joshua Kimsey">
+    <link rel="canonical" href="https://joshuakimsey.github.io/variable-weather">
+    <meta name="url" content="https://joshuakimsey.github.io/variable-weather">
     <meta name="license" content="https://spdx.org/licenses/BSD-3-Clause.html">
     <link rel="license" href="https://spdx.org/licenses/BSD-3-Clause.html">
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#4A90E2">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Variable Weather">
+    <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512x512.png">
+
+    <!-- Microsoft Tile -->
+    <meta name="msapplication-TileColor" content="#4A90E2">
+    <meta name="msapplication-TileImage" content="./icons/icon-512x512.png">
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="./manifest.json">
@@ -27,9 +62,27 @@
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192x192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512x512.png">
 
-    <!-- Apple touch icons for different devices -->
-    <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512x512.png">
+    <!-- Structured Data (Schema.org) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Variable Weather",
+      "description": "Inspired by Breezy Weather, Variable Weather makes it easy and fun to get the weather information you need. A modern, user-friendly weather application with real-time forecasts, radar, and astronomical data.",
+      "applicationCategory": "WeatherApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+
+    <!-- Preload critical stylesheets -->
+    <link rel="preload" href="resources/bootstrap/css/bootstrap.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="styles.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="./resources/font-awesome/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="./resources/bootstrap/css/bootstrap.min.css">
@@ -93,7 +146,8 @@
                             <div class="date" id="date">Loading...</div>
                             <div class="last-updated" id="last-updated">Out of date. Refreshing...</div>
                             <div class="temperature" id="temperature">Loading temp...F</div>
-                            <div class="weather-description" id="weather-description">It's always sunny in Philly...</div>
+                            <div class="weather-description" id="weather-description">It's always sunny in Philly...
+                            </div>
                             <div class="station-info" id="station-info"></div>
                         </div>
 
