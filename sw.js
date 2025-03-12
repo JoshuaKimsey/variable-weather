@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.5.1';
+const SW_VERSION = '1.5.2';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 const ASSETS = [
@@ -31,6 +31,7 @@ const ASSETS = [
   './resources/font-awesome/webfonts/fa-solid-900.woff2',
   './resources/font-awesome/webfonts/fa-v4compatibility.ttf',
   './resources/font-awesome/webfonts/fa-v4compatibility.woff2',
+  './resources/tz-lookup/tz.js',
   './resources/leafet/leaflet.css',
   './resources/leafet/leaflet.js',
   './resources/leaflet/images/layers-2x.png',
@@ -38,7 +39,6 @@ const ASSETS = [
   './resources/leaflet/images/marker-shadow.png',
   './resources/leaflet/images/layers.png',
   './resources/leaflet/images/marker-icon.png',
-  './resources/tz-lookup/tz.js',
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
   './icons/favicon-32x32.png'
