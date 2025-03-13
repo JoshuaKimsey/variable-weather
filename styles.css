@@ -18,11 +18,31 @@
 /*-----------------------------------------------
  * 1. VARIABLES & BASE STYLES
  *-----------------------------------------------*/
-:root {
+ :root {
+    /* Primary palette */
     --primary-color: #1e88e5;
     --secondary-color: #ffffff;
     --text-color: #333333;
+    --text-light: #ffffff;
+    --text-muted: #cccccc;
+    
+    /* UI surface colors */
+    --body-bg-color: var(--primary-color);
+    --card-bg-color: rgba(100, 100, 100, 0.25);
+    --card-backdrop-blur: 2px;
+    --card-border-radius: 20px;
+    --card-box-shadow: 0 10px 30px var(--shadow-color);
+    
+    /* Component colors */
+    --detail-card-bg: rgba(255, 255, 255, 0.75);
+    --forecast-card-bg: rgba(255, 255, 255, 0.75);
+    --search-bg: rgba(255, 255, 255, 0.75);
+    
+    /* Utility colors */
     --shadow-color: rgba(0, 0, 0, 0.1);
+    --divider-color: rgba(255, 255, 255, 0.1);
+    
+    /* State colors */
     --error-color: #f44336;
     --success-color: #4CAF50;
     --warning-color: #ff9800;
@@ -38,7 +58,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: var(--primary-color);
+    background-color: var(--body-bg-color);
     transition: background 1000ms ease;
     min-height: 100vh;
     color: var(--text-color);
@@ -56,14 +76,14 @@ body {
 /* Shared card styles */
 .weather-card {
     position: relative;
-    border-radius: 20px;
+    border-radius: var(--card-border-radius);
     overflow: hidden;
     padding: 30px;
     margin-bottom: 20px;
     /* Add spacing between cards */
-    background-color: rgba(100, 100, 100, 0.55);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 10px 30px var(--shadow-color);
+    background-color: var(--card-bg-color);
+    backdrop-filter: blur(var(--card-backdrop-blur));
+    box-shadow: var(--card-box-shadow);
 }
 
 /* First card (main weather) gets top margin */
@@ -465,7 +485,7 @@ body {
 .detail-card {
     flex: 1;
     min-width: 120px;
-    background-color: rgba(255, 255, 255, 0.75);
+    background-color: var(--detail-card-bg);
     border-radius: 15px;
     padding: 15px;
     text-align: center;
@@ -571,7 +591,7 @@ body {
 .forecast-card {
     flex: 1;
     min-width: 120px;
-    background-color: rgba(255, 255, 255, 0.75);
+    background-color: var(--forecast-card-bg);
     border-radius: 15px;
     padding: 15px;
     text-align: center;

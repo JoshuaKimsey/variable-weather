@@ -2,6 +2,10 @@
  * Unit conversion and display utilities for the weather app
  */
 
+import { setWeatherIcon } from './weatherIcons.js';
+import { setWeatherBackground } from './weatherBackgrounds.js';
+import { isDaytime } from './utils.js';
+
 // Default to imperial units (°F)
 let currentDisplayUnits = 'imperial';
 
@@ -88,6 +92,7 @@ export function refreshWeatherWithCurrentUnits() {
     const windSpeedElement = document.getElementById('wind-speed');
     const pressureElement = document.getElementById('pressure');
     const visibilityElement = document.getElementById('visibility');
+    const weatherIconElement = document.getElementById('weather-icon');
 
     // If we have current weather data in a global variable or cache
     if (window.currentWeatherData) {
@@ -108,6 +113,30 @@ export function refreshWeatherWithCurrentUnits() {
 
         if (visibilityElement && data.currently) {
             visibilityElement.textContent = formatVisibility(data.currently.visibility);
+        }
+
+        if (weatherIconElement && data.currently) {
+            // Get current coordinates from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const lat = urlParams.get('lat');
+            const lon = urlParams.get('lon');
+            
+            if (lat && lon) {
+                // Recalculate if it's currently daytime
+                const currentIsDaytime = isDaytime(parseFloat(lat), parseFloat(lon));
+                
+                // Update the icon with current day/night status
+                setWeatherIcon(
+                    data.currently.icon || 'cloudy',
+                    weatherIconElement,
+                    currentIsDaytime
+                );
+                
+                // Also update the background if possible
+                if (typeof setWeatherBackground === 'function') {
+                    setWeatherBackground(data.currently.icon || 'cloudy', currentIsDaytime);
+                }
+            }
         }
 
         updateHourlyForecastUnits(data.hourly?.data || data.hourlyForecast);

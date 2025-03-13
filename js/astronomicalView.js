@@ -307,63 +307,66 @@ function calcSunriseSunset(date, lat, lng, timezone) {
  */
 function calculateMoonPhase() {
     // Constants
-    const SYNODIC_PERIOD = 29.530589; // Moon's synodic period in days
+    const SYNODIC_PERIOD = 29.530588861; // Moon's synodic period in days
     const ONE_DAY = 86400; // Length of one day in seconds
-    
+    const JULIAN_EPOCH = 2440588.5; // Julian epoch for January 1st, 1970
+    const NEW_MOON_JULIAN_REFERENCE = 2460734.530556; // Julian date for New Moon on February 28th, 2025, at 00:44UTC
+
     // Helper functions from MoonFx
     function normalize(value) {
         value = value - parseInt(value);
-        
+
         if (value < 0) {
             value = value + 1;
         }
-        
+
         return value;
     }
-    
+
     function deg2rad(x) {
         return x * (Math.PI / 180);
     }
-    
+
     // Current date
     const date = new Date();
     const moonDate = date.getTime();
-    
+
     // Calculate Julian Date
-    const julianDate = ((moonDate / 1000) / ONE_DAY) + 2440587.5;
-    
+    const julianDate = ((moonDate / 1000) / ONE_DAY) + JULIAN_EPOCH;
+
     // Calculate Synodic Phase (Moon's age)
-    const synodicPhase = normalize((julianDate - 2451550.1) / SYNODIC_PERIOD) * SYNODIC_PERIOD;
-    
+    const synodicPhase = normalize((julianDate - NEW_MOON_JULIAN_REFERENCE) / SYNODIC_PERIOD) * SYNODIC_PERIOD;
+
     // Calculate Phase Angle
     const phaseAngle = synodicPhase * (360 / SYNODIC_PERIOD);
     const normalizedPhaseAngle = phaseAngle > 360 ? phaseAngle - 360 : phaseAngle;
-    
+
     // Calculate Illumination Ratio
     const illuminationRatio = 0.5 * (1 - Math.cos(deg2rad(normalizedPhaseAngle)));
-    const illuminationPercent = Math.round(illuminationRatio * 100);
-    
+    // const illuminationPercent = Math.round(illuminationRatio * 100);
+    const illuminationPercent = parseFloat((illuminationRatio * 100).toFixed(1));
+
     // Convert phase angle to phase value (0-1)
     // Where 0/1 = new moon, 0.5 = full moon
     let phase = normalizedPhaseAngle / 360;
-    
+
     // Determine if waxing or waning
     const isWaxing = phase < 0.5;
     const isWaning = !isWaxing;
-    
+
     // Determine phase name
     const phaseName = getMoonPhaseName(phase);
-    
+
     // Calculate moon age in days from the new moon
     const moonAgeDays = synodicPhase;
-    
+
     // Calculate next full and new moon dates
     const daysToFullMoon = ((0.5 - phase) % 1) * SYNODIC_PERIOD;
     const nextFullMoon = new Date(date.getTime() + (daysToFullMoon * 24 * 60 * 60 * 1000));
-    
+
     const daysToNewMoon = ((1 - phase) % 1) * SYNODIC_PERIOD;
     const nextNewMoon = new Date(date.getTime() + (daysToNewMoon * 24 * 60 * 60 * 1000));
-    
+
     return {
         phase: phase,
         ageDays: moonAgeDays,
@@ -384,7 +387,7 @@ function calculateMoonPhase() {
 function getMoonPhaseName(phase) {
     // Normalize phase to ensure it's between 0 and 1
     phase = ((phase % 1) + 1) % 1;
-    
+
     // Define phase ranges and names based on astronomical definitions
     if (phase < 0.03 || phase >= 0.97) {
         return "New Moon";
@@ -418,16 +421,16 @@ function getMoonPhaseName(phase) {
 function createPolarClock(container, sunData, moonData) {
     // Clear existing content
     container.innerHTML = '';
-    
+
     // Get dimensions to ensure the clock is responsive
     const containerRect = container.getBoundingClientRect();
     const width = containerRect.width || 400;
     const height = containerRect.height || 400;
-    
+
     // Calculate the minimum dimension to make sure our clock fits
     const minDim = Math.min(width, height);
     const clockRadius = minDim * 0.42; // 42% of the minimum dimension
-    
+
     // Create SVG element with viewBox for better scaling
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
@@ -435,29 +438,29 @@ function createPolarClock(container, sunData, moonData) {
     svg.setAttribute("height", "100%");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("class", "polar-clock");
-    
+
     // Center coordinates 
     const centerX = width / 2;
     const centerY = height / 2;
-    
+
     // Add a unique ID to ensure filters and gradients don't conflict
     const uniqueId = `astro-clock-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    
+
     // Special case handling for polar day/night
     if (sunData.isPolarDay || sunData.isPolarNight) {
         createPolarDayNightVisualization(svg, width, height, sunData.isPolarDay);
         container.appendChild(svg);
-        
+
         // We'll still add the moon phase to the visualization
         addMoonPhaseToSVG(svg, centerX, centerY * 1.5, clockRadius * 0.4, moonData, uniqueId);
         return;
     }
-    
+
     //-------------------------------------------
     // Create defs section for gradients/filters
     //-------------------------------------------
     const defs = document.createElementNS(svgNS, "defs");
-    
+
     // Create gradient for day arc 
     const dayGradient = document.createElementNS(svgNS, "linearGradient");
     dayGradient.setAttribute("id", `dayGradient-${uniqueId}`);
@@ -465,33 +468,33 @@ function createPolarClock(container, sunData, moonData) {
     dayGradient.setAttribute("y1", "0%");
     dayGradient.setAttribute("x2", "100%");
     dayGradient.setAttribute("y2", "0%");
-    
+
     // Sunrise colors - just at the beginning
     const stop1 = document.createElementNS(svgNS, "stop");
     stop1.setAttribute("offset", "0%");
     stop1.setAttribute("stop-color", "#FF9E80");
-    
+
     // Transition to blue
     const stop2 = document.createElementNS(svgNS, "stop");
     stop2.setAttribute("offset", "10%");
     stop2.setAttribute("stop-color", "#4A90E2");
-    
+
     // Midday blue - most of the arc
     const stop3 = document.createElementNS(svgNS, "stop");
     stop3.setAttribute("offset", "90%");
     stop3.setAttribute("stop-color", "#4A90E2");
-    
+
     // Sunset colors - just at the end
     const stop4 = document.createElementNS(svgNS, "stop");
     stop4.setAttribute("offset", "100%");
     stop4.setAttribute("stop-color", "#FF7043");
-    
+
     dayGradient.appendChild(stop1);
     dayGradient.appendChild(stop2);
     dayGradient.appendChild(stop3);
     dayGradient.appendChild(stop4);
     defs.appendChild(dayGradient);
-    
+
     // Create gradient for night arc
     const nightGradient = document.createElementNS(svgNS, "linearGradient");
     nightGradient.setAttribute("id", `nightGradient-${uniqueId}`);
@@ -499,27 +502,27 @@ function createPolarClock(container, sunData, moonData) {
     nightGradient.setAttribute("y1", "0%");
     nightGradient.setAttribute("x2", "100%");
     nightGradient.setAttribute("y2", "0%");
-    
+
     // Evening twilight
     const nightStop1 = document.createElementNS(svgNS, "stop");
     nightStop1.setAttribute("offset", "0%");
     nightStop1.setAttribute("stop-color", "#121620");
-    
+
     // Deep night
     const nightStop2 = document.createElementNS(svgNS, "stop");
     nightStop2.setAttribute("offset", "50%");
     nightStop2.setAttribute("stop-color", "#0F2027");
-    
+
     // Dawn twilight
     const nightStop3 = document.createElementNS(svgNS, "stop");
     nightStop3.setAttribute("offset", "100%");
     nightStop3.setAttribute("stop-color", "#121620");
-    
+
     nightGradient.appendChild(nightStop1);
     nightGradient.appendChild(nightStop2);
     nightGradient.appendChild(nightStop3);
     defs.appendChild(nightGradient);
-    
+
     // Sun glow filter
     const sunFilter = document.createElementNS(svgNS, "filter");
     sunFilter.setAttribute("id", `sun-glow-${uniqueId}`);
@@ -527,20 +530,20 @@ function createPolarClock(container, sunData, moonData) {
     sunFilter.setAttribute("y", "-50%");
     sunFilter.setAttribute("width", "200%");
     sunFilter.setAttribute("height", "200%");
-    
+
     const sunGaussianBlur = document.createElementNS(svgNS, "feGaussianBlur");
     sunGaussianBlur.setAttribute("in", "SourceGraphic");
     sunGaussianBlur.setAttribute("stdDeviation", "2");
     sunGaussianBlur.setAttribute("result", "blur");
     sunFilter.appendChild(sunGaussianBlur);
-    
+
     defs.appendChild(sunFilter);
     svg.appendChild(defs);
-    
+
     //-------------------------------------------
     // Create the clock background and borders
     //-------------------------------------------
-    
+
     // Create the background circle
     const bgCircle = document.createElementNS(svgNS, "circle");
     bgCircle.setAttribute("cx", centerX);
@@ -550,31 +553,31 @@ function createPolarClock(container, sunData, moonData) {
     bgCircle.setAttribute("stroke", "rgba(255, 255, 255, 0.1)");
     bgCircle.setAttribute("stroke-width", "1");
     svg.appendChild(bgCircle);
-    
+
     // Calculate times and angles
     const now = new Date();
     const currentHour = now.getHours() + now.getMinutes() / 60;
-    
+
     // Parse the sunrise and sunset times from the data
     let sunriseHour, sunsetHour, sunriseAngle, sunsetAngle;
-    
+
     // Get current local time in decimal hours
     const locationTime = sunData.locationTime || (now.getHours() + now.getMinutes() / 60);
-    
+
     if (sunData.sunrise && sunData.sunset) {
         // Convert sunrise and sunset to hours
         sunriseHour = sunData.sunrise.getHours() + sunData.sunrise.getMinutes() / 60;
         sunsetHour = sunData.sunset.getHours() + sunData.sunset.getMinutes() / 60;
-        
+
         // Handle case where sunset is on next day (crosses midnight)
         if (sunsetHour < sunriseHour) {
             sunsetHour += 24;
         }
-        
+
         // Calculate angles (0 degrees is at the top, clockwise)
         sunriseAngle = (sunriseHour / 24) * 360;
         sunsetAngle = (sunsetHour / 24) * 360;
-        
+
         // Calculate the current time angle
         const currentAngle = (locationTime / 24) * 360;
     } else {
@@ -584,37 +587,37 @@ function createPolarClock(container, sunData, moonData) {
         sunriseAngle = 90;
         sunsetAngle = 270;
     }
-    
+
     // Calculate the day and night arcs
     const dayArcLength = (sunsetHour - sunriseHour) / 24 * 360;
     const nightArcLength = 360 - dayArcLength;
-    
+
     //-------------------------------------------
     // Draw the day and night arcs
     //-------------------------------------------
-    
+
     // Draw the day arc (from sunrise to sunset)
     const dayArc = document.createElementNS(svgNS, "path");
     const dayArcRadius = clockRadius * 0.85;
-    
+
     // Calculate the arc path
     // We'll rotate everything so noon is at the top and midnight at the bottom
     const midnightOffset = 90; // Start at the bottom (midnight)
-    
+
     // Calculate arc start and end points
     const dayStart = sunriseAngle + midnightOffset;
     const dayEnd = sunsetAngle + midnightOffset;
-    
+
     // Convert to radians for calculations
     const dayStartRad = (dayStart * Math.PI) / 180;
     const dayEndRad = (dayEnd * Math.PI) / 180;
-    
+
     // Calculate points on the arc
     const dayStartX = centerX + dayArcRadius * Math.cos(dayStartRad);
     const dayStartY = centerY + dayArcRadius * Math.sin(dayStartRad);
     const dayEndX = centerX + dayArcRadius * Math.cos(dayEndRad);
     const dayEndY = centerY + dayArcRadius * Math.sin(dayEndRad);
-    
+
     // Define the arc path (large arc flag depends on whether the angle > 180°)
     const largeArcFlagDay = dayArcLength > 180 ? 1 : 0;
     dayArc.setAttribute("d", `M ${dayStartX} ${dayStartY} A ${dayArcRadius} ${dayArcRadius} 0 ${largeArcFlagDay} 1 ${dayEndX} ${dayEndY}`);
@@ -623,25 +626,25 @@ function createPolarClock(container, sunData, moonData) {
     dayArc.setAttribute("stroke-width", clockRadius * 0.07);
     dayArc.setAttribute("stroke-linecap", "round");
     svg.appendChild(dayArc);
-    
+
     // Draw the night arc (from sunset to sunrise)
     const nightArc = document.createElementNS(svgNS, "path");
     const nightArcRadius = dayArcRadius;
-    
+
     // Night arc goes from sunset to sunrise (potentially crossing midnight)
     const nightStart = dayEnd;
     const nightEnd = dayStart + 360; // Ensure we go the long way around
-    
+
     // Convert to radians
     const nightStartRad = (nightStart * Math.PI) / 180;
     const nightEndRad = (nightEnd * Math.PI) / 180;
-    
+
     // Calculate points
     const nightStartX = centerX + nightArcRadius * Math.cos(nightStartRad);
     const nightStartY = centerY + nightArcRadius * Math.sin(nightStartRad);
     const nightEndX = centerX + nightArcRadius * Math.cos(nightEndRad);
     const nightEndY = centerY + nightArcRadius * Math.sin(nightEndRad);
-    
+
     // Define night arc path
     const largeArcFlagNight = nightArcLength > 180 ? 1 : 0;
     nightArc.setAttribute("d", `M ${nightStartX} ${nightStartY} A ${nightArcRadius} ${nightArcRadius} 0 ${largeArcFlagNight} 1 ${nightEndX} ${nightEndY}`);
@@ -650,7 +653,7 @@ function createPolarClock(container, sunData, moonData) {
     nightArc.setAttribute("stroke-width", clockRadius * 0.07);
     nightArc.setAttribute("stroke-linecap", "round");
     svg.appendChild(nightArc);
-    
+
     //-------------------------------------------
     // Add hour tick marks
     //-------------------------------------------
@@ -658,18 +661,18 @@ function createPolarClock(container, sunData, moonData) {
     const tickRadius = clockRadius * 0.95;
     const majorTickLength = clockRadius * 0.08;
     const minorTickLength = clockRadius * 0.04;
-    
+
     for (let hour = 0; hour < 24; hour++) {
         const angle = ((hour / 24) * 360 + midnightOffset) * (Math.PI / 180);
         // Make major ticks at 12am, 6am, 12pm, and 6pm for better readability with the new orientation
         const isMajor = hour % 6 === 0; // Major tick every 6 hours
-        
+
         const outerX = centerX + tickRadius * Math.cos(angle);
         const outerY = centerY + tickRadius * Math.sin(angle);
-        
+
         const innerX = centerX + (tickRadius - (isMajor ? majorTickLength : minorTickLength)) * Math.cos(angle);
         const innerY = centerY + (tickRadius - (isMajor ? majorTickLength : minorTickLength)) * Math.sin(angle);
-        
+
         const tick = document.createElementNS(svgNS, "line");
         tick.setAttribute("x1", outerX);
         tick.setAttribute("y1", outerY);
@@ -678,13 +681,13 @@ function createPolarClock(container, sunData, moonData) {
         tick.setAttribute("stroke", "rgba(255, 255, 255, 0.5)");
         tick.setAttribute("stroke-width", isMajor ? 2 : 1);
         tickGroup.appendChild(tick);
-        
+
         // Add hour labels for major ticks
         if (isMajor) {
             const labelRadius = tickRadius - majorTickLength - 10;
             const labelX = centerX + labelRadius * Math.cos(angle);
             const labelY = centerY + labelRadius * Math.sin(angle);
-            
+
             const hourLabel = document.createElementNS(svgNS, "text");
             hourLabel.setAttribute("x", labelX);
             hourLabel.setAttribute("y", labelY);
@@ -692,38 +695,38 @@ function createPolarClock(container, sunData, moonData) {
             hourLabel.setAttribute("dominant-baseline", "middle");
             hourLabel.setAttribute("fill", "rgba(255, 255, 255, 0.7)");
             hourLabel.setAttribute("font-size", "12px");
-            
+
             // Format hour label - convert 24h to 12h format with AM/PM
             const hour12 = hour % 12 || 12;
             const ampm = hour < 12 ? "AM" : "PM";
             // Make the labels more readable with a space
             hourLabel.textContent = `${hour12}${ampm}`;
-            
+
             tickGroup.appendChild(hourLabel);
         }
     }
-    
+
     svg.appendChild(tickGroup);
-    
+
     //-------------------------------------------
     // Add sunrise and sunset indicators
     //-------------------------------------------
-    
+
     // Add a small sun icon for sunrise
     const sunriseIcon = createSunIcon(svgNS, uniqueId, centerX, centerY, sunriseAngle + midnightOffset, dayArcRadius, clockRadius * 0.08);
     svg.appendChild(sunriseIcon);
-    
+
     // Add a small sun icon for sunset
     const sunsetIcon = createSunIcon(svgNS, uniqueId, centerX, centerY, sunsetAngle + midnightOffset, dayArcRadius, clockRadius * 0.08);
     svg.appendChild(sunsetIcon);
-    
+
     // Add sunrise/sunset time labels
     const sunriseLabel = document.createElementNS(svgNS, "text");
     const sunriseLabelAngle = dayStartRad;
     const sunriseLabelRadius = dayArcRadius - clockRadius * 0.15;
     const sunriseLabelX = centerX + sunriseLabelRadius * Math.cos(sunriseLabelAngle);
     const sunriseLabelY = centerY + sunriseLabelRadius * Math.sin(sunriseLabelAngle);
-    
+
     sunriseLabel.setAttribute("x", sunriseLabelX);
     sunriseLabel.setAttribute("y", sunriseLabelY);
     sunriseLabel.setAttribute("text-anchor", "middle");
@@ -732,13 +735,13 @@ function createPolarClock(container, sunData, moonData) {
     sunriseLabel.setAttribute("font-size", "12px");
     sunriseLabel.textContent = sunData.formattedSunrise || "N/A";
     svg.appendChild(sunriseLabel);
-    
+
     const sunsetLabel = document.createElementNS(svgNS, "text");
     const sunsetLabelAngle = dayEndRad;
     const sunsetLabelRadius = dayArcRadius - clockRadius * 0.15;
     const sunsetLabelX = centerX + sunsetLabelRadius * Math.cos(sunsetLabelAngle);
     const sunsetLabelY = centerY + sunsetLabelRadius * Math.sin(sunsetLabelAngle);
-    
+
     sunsetLabel.setAttribute("x", sunsetLabelX);
     sunsetLabel.setAttribute("y", sunsetLabelY);
     sunsetLabel.setAttribute("text-anchor", "middle");
@@ -747,7 +750,7 @@ function createPolarClock(container, sunData, moonData) {
     sunsetLabel.setAttribute("font-size", "12px");
     sunsetLabel.textContent = sunData.formattedSunset || "N/A";
     svg.appendChild(sunsetLabel);
-    
+
     //-------------------------------------------
     // Add day length indicator in the center
     //-------------------------------------------
@@ -760,24 +763,24 @@ function createPolarClock(container, sunData, moonData) {
     dayLengthText.setAttribute("font-weight", "bold");
     dayLengthText.textContent = `Day Length: ${sunData.formattedDayLength || "N/A"}`;
     svg.appendChild(dayLengthText);
-    
+
     //-------------------------------------------
     // Add current time indicator
     //-------------------------------------------
-    
+
     // Calculate the current time position
     const currentTimeAngle = ((locationTime / 24) * 360 + midnightOffset) * (Math.PI / 180);
     const currentTimeRadius = dayArcRadius;
-    
+
     // Create a marker for current time
     const currentTimeMarker = document.createElementNS(svgNS, "circle");
     currentTimeMarker.setAttribute("cx", centerX + currentTimeRadius * Math.cos(currentTimeAngle));
     currentTimeMarker.setAttribute("cy", centerY + currentTimeRadius * Math.sin(currentTimeAngle));
     currentTimeMarker.setAttribute("r", clockRadius * 0.04);
-    
+
     // Determine if current time is during day or night
     const isDaytime = locationTime >= sunriseHour && locationTime <= sunsetHour;
-    
+
     if (isDaytime) {
         // During day - yellow/orange sun
         currentTimeMarker.setAttribute("fill", "#FFD700");
@@ -788,15 +791,15 @@ function createPolarClock(container, sunData, moonData) {
         currentTimeMarker.setAttribute("stroke", "#A5B0C3");
         currentTimeMarker.setAttribute("stroke-width", "1");
     }
-    
+
     svg.appendChild(currentTimeMarker);
-    
+
     //-------------------------------------------
     // Add moon phase visualization
     //-------------------------------------------
     // Add moon phase to the center of the clock
     addMoonPhaseToSVG(svg, centerX, centerY, clockRadius * 0.3, moonData, uniqueId);
-    
+
     // Add the SVG to the container
     container.appendChild(svg);
 }
@@ -807,14 +810,14 @@ function createPolarClock(container, sunData, moonData) {
 function createSunIcon(svgNS, uniqueId, centerX, centerY, angle, radius, size) {
     // Convert angle to radians
     const angleRad = angle * (Math.PI / 180);
-    
+
     // Calculate position
     const x = centerX + radius * Math.cos(angleRad);
     const y = centerY + radius * Math.sin(angleRad);
-    
+
     // Create group for the sun
     const sunGroup = document.createElementNS(svgNS, "g");
-    
+
     // Create the sun circle
     const sunCircle = document.createElementNS(svgNS, "circle");
     sunCircle.setAttribute("cx", x);
@@ -822,9 +825,9 @@ function createSunIcon(svgNS, uniqueId, centerX, centerY, angle, radius, size) {
     sunCircle.setAttribute("r", size);
     sunCircle.setAttribute("fill", "#FFD700");
     sunCircle.setAttribute("filter", `url(#sun-glow-${uniqueId})`);
-    
+
     sunGroup.appendChild(sunCircle);
-    
+
     return sunGroup;
 }
 
@@ -834,32 +837,32 @@ function createSunIcon(svgNS, uniqueId, centerX, centerY, angle, radius, size) {
  */
 function addMoonPhaseToSVG(svg, centerX, centerY, radius, moonData, uniqueId) {
     const svgNS = "http://www.w3.org/2000/svg";
-    
+
     // Create a foreignObject to embed HTML/Canvas content in the SVG
     const foreignObject = document.createElementNS(svgNS, "foreignObject");
     foreignObject.setAttribute("x", centerX - radius);
     foreignObject.setAttribute("y", centerY - radius);
     foreignObject.setAttribute("width", radius * 2);
     foreignObject.setAttribute("height", radius * 2);
-    
+
     // Create a Canvas element for the moon
     const canvas = document.createElement("canvas");
     canvas.width = radius * 2;
     canvas.height = radius * 2;
     canvas.style.display = "block";
-    
+
     // Create the MoonPainter instance and draw the moon
     const painter = new MoonPainter(canvas);
     painter.paint(moonData.phase);
-    
+
     // Add the Canvas to the foreignObject
     foreignObject.appendChild(canvas);
-    
+
     // Add the foreignObject to the SVG
     svg.appendChild(foreignObject);
-    
+
     // Add text elements directly to the SVG for moon information
-    
+
     // Add moon phase name
     const moonText = document.createElementNS(svgNS, "text");
     moonText.setAttribute("x", centerX);
@@ -870,7 +873,7 @@ function addMoonPhaseToSVG(svg, centerX, centerY, radius, moonData, uniqueId) {
     moonText.setAttribute("font-weight", "bold");
     moonText.textContent = moonData.phaseName;
     svg.appendChild(moonText);
-    
+
     // Add illumination percentage
     const illumText = document.createElementNS(svgNS, "text");
     illumText.setAttribute("x", centerX);
@@ -878,23 +881,23 @@ function addMoonPhaseToSVG(svg, centerX, centerY, radius, moonData, uniqueId) {
     illumText.setAttribute("text-anchor", "middle");
     illumText.setAttribute("fill", "rgba(255, 255, 255, 0.8)");
     illumText.setAttribute("font-size", "12px");
-    illumText.textContent = `${Math.round(moonData.illumination)}% Illuminated`;
+    illumText.textContent = `${moonData.illumination}% Illuminated`;
     svg.appendChild(illumText);
-    
+
     // Add next full/new moon
     const now = new Date();
-    
+
     // Determine which is sooner - next full or new moon
     const daysToFull = (moonData.nextFullMoon - now) / (24 * 60 * 60 * 1000);
     const daysToNew = (moonData.nextNewMoon - now) / (24 * 60 * 60 * 1000);
-    
+
     const nextEvent = document.createElementNS(svgNS, "text");
     nextEvent.setAttribute("x", centerX);
     nextEvent.setAttribute("y", centerY + radius + 60);
     nextEvent.setAttribute("text-anchor", "middle");
     nextEvent.setAttribute("fill", "rgba(255, 255, 255, 0.7)");
     nextEvent.setAttribute("font-size", "11px");
-    
+
     let nextEventText;
     if (daysToFull <= daysToNew) {
         // Format date to show month and day
@@ -910,7 +913,7 @@ function addMoonPhaseToSVG(svg, centerX, centerY, radius, moonData, uniqueId) {
         });
         nextEventText = `New Moon: ${newMoonDate}`;
     }
-    
+
     nextEvent.textContent = nextEventText;
     svg.appendChild(nextEvent);
 }
@@ -937,26 +940,31 @@ class MoonPainter {
         this.ctx.fill();
     }
     _drawPhase(phase) {
-        // First draw a full shadow semicircle
-        this.ctx.beginPath();
-        this.ctx.arc(this.radius, this.radius, this.radius, -Math.PI / 2, Math.PI / 2, true);
-        this.ctx.closePath();
-        this.ctx.fillStyle = '#121826'; // Dark color for shadow
-        this.ctx.fill();
+        // Special case for nearly full moon - skip drawing the terminator line completely
+    if (Math.abs(phase) > 0.98) {
+        return; // Exit the function without drawing anything over the full moon
+    }
+    
+    // First draw a full shadow semicircle
+    this.ctx.beginPath();
+    this.ctx.arc(this.radius, this.radius, this.radius, -Math.PI/2, Math.PI/2, true);
+    this.ctx.closePath();
+    this.ctx.fillStyle = '#121826'; // Dark color for shadow
+    this.ctx.fill();
 
-        // Draw the illuminated portion with slight overlap to prevent the center line
-        this.ctx.save(); // Save state before scaling
-        this.ctx.translate(this.radius, this.radius);
-        this.ctx.scale(phase, 1);
-        this.ctx.translate(-this.radius, -this.radius);
+    // Draw the illuminated portion by scaling
+    this.ctx.save();
+    this.ctx.translate(this.radius, this.radius);
+    this.ctx.scale(phase, 1);
+    this.ctx.translate(-this.radius, -this.radius);
 
-        // Draw a slightly wider arc to prevent the center line
-        this.ctx.beginPath();
-        this.ctx.arc(this.radius, this.radius, this.radius + 1, -Math.PI / 2 - 0.01, Math.PI / 2 + 0.01, true);
-        this.ctx.closePath();
-        this.ctx.fillStyle = phase > 0 ? '#FFFDE7' : '#121826';
-        this.ctx.fill();
-        this.ctx.restore(); // Restore state after scaling
+    // Draw the semicircle with NO overlap
+    this.ctx.beginPath();
+    this.ctx.arc(this.radius, this.radius, this.radius, -Math.PI/2, Math.PI/2, true);
+    this.ctx.closePath();
+    this.ctx.fillStyle = phase > 0 ? '#FFFDE7' : '#121826';
+    this.ctx.fill();
+    this.ctx.restore();
     }
     _drawCraters() {
         const craters = [
@@ -1015,18 +1023,18 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) * 0.4;
-    
+
     // Create background
     const background = document.createElementNS(svgNS, "rect");
     background.setAttribute("x", "0");
     background.setAttribute("y", "0");
     background.setAttribute("width", width);
     background.setAttribute("height", height);
-    
+
     if (isDay) {
         // Polar day colors
         background.setAttribute("fill", "url(#polarDayGradient)");
-        
+
         // Create gradient for background
         const defs = document.createElementNS(svgNS, "defs");
         const gradient = document.createElementNS(svgNS, "linearGradient");
@@ -1035,15 +1043,15 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
         gradient.setAttribute("y1", "0%");
         gradient.setAttribute("x2", "0%");
         gradient.setAttribute("y2", "100%");
-        
+
         const stop1 = document.createElementNS(svgNS, "stop");
         stop1.setAttribute("offset", "0%");
         stop1.setAttribute("stop-color", "#4A90E2");
-        
+
         const stop2 = document.createElementNS(svgNS, "stop");
         stop2.setAttribute("offset", "100%");
         stop2.setAttribute("stop-color", "#85C1E9");
-        
+
         gradient.appendChild(stop1);
         gradient.appendChild(stop2);
         defs.appendChild(gradient);
@@ -1051,7 +1059,7 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
     } else {
         // Polar night colors
         background.setAttribute("fill", "url(#polarNightGradient)");
-        
+
         // Create gradient for background
         const defs = document.createElementNS(svgNS, "defs");
         const gradient = document.createElementNS(svgNS, "linearGradient");
@@ -1060,23 +1068,23 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
         gradient.setAttribute("y1", "0%");
         gradient.setAttribute("x2", "0%");
         gradient.setAttribute("y2", "100%");
-        
+
         const stop1 = document.createElementNS(svgNS, "stop");
         stop1.setAttribute("offset", "0%");
         stop1.setAttribute("stop-color", "#0C1445");
-        
+
         const stop2 = document.createElementNS(svgNS, "stop");
         stop2.setAttribute("offset", "100%");
         stop2.setAttribute("stop-color", "#1F2A5A");
-        
+
         gradient.appendChild(stop1);
         gradient.appendChild(stop2);
         defs.appendChild(gradient);
         svg.appendChild(defs);
     }
-    
+
     svg.appendChild(background);
-    
+
     // Create a circular path to represent the 24-hour cycle
     const circle = document.createElementNS(svgNS, "circle");
     circle.setAttribute("cx", centerX);
@@ -1087,7 +1095,7 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
     circle.setAttribute("stroke-width", "2");
     circle.setAttribute("stroke-dasharray", "4,4");
     svg.appendChild(circle);
-    
+
     // Add title text
     const title = document.createElementNS(svgNS, "text");
     title.setAttribute("x", centerX);
@@ -1098,7 +1106,7 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
     title.setAttribute("font-weight", "bold");
     title.textContent = isDay ? "24 Hours of Daylight" : "24 Hours of Night";
     svg.appendChild(title);
-    
+
     // Add description
     const description = document.createElementNS(svgNS, "text");
     description.setAttribute("x", centerX);
@@ -1108,13 +1116,13 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
     description.setAttribute("font-size", "14");
     description.textContent = isDay ? "The sun doesn't set today" : "The sun doesn't rise today";
     svg.appendChild(description);
-    
+
     // Create 24-hour markers
     for (let hour = 0; hour < 24; hour++) {
         const angle = (hour / 24) * 2 * Math.PI + Math.PI / 2; // Start at the bottom with midnight
         const x = centerX + radius * Math.cos(angle);
         const y = centerY + radius * Math.sin(angle);
-        
+
         // Create hour marker
         const marker = document.createElementNS(svgNS, "circle");
         marker.setAttribute("cx", x);
@@ -1122,13 +1130,13 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
         marker.setAttribute("r", "3");
         marker.setAttribute("fill", isDay ? "#FFD700" : "#E1E1E1");
         svg.appendChild(marker);
-        
+
         // Add hour label
         if (hour % 6 === 0) { // Only label every 6 hours
             const labelRadius = radius + 15;
             const labelX = centerX + labelRadius * Math.cos(angle);
             const labelY = centerY + labelRadius * Math.sin(angle);
-            
+
             const label = document.createElementNS(svgNS, "text");
             label.setAttribute("x", labelX);
             label.setAttribute("y", labelY);
@@ -1136,16 +1144,16 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
             label.setAttribute("dominant-baseline", "middle");
             label.setAttribute("fill", "white");
             label.setAttribute("font-size", "12");
-            
+
             // Format 24h to 12h time
             const hour12 = hour % 12 || 12;
             const ampm = hour < 12 ? "AM" : "PM";
             label.textContent = `${hour12}${ampm}`;
-            
+
             svg.appendChild(label);
         }
     }
-    
+
     // Add visual to represent the phenomenon
     if (isDay) {
         // Add a sun for polar day
@@ -1154,18 +1162,18 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
         sun.setAttribute("cy", centerY);
         sun.setAttribute("r", "25");
         sun.setAttribute("fill", "#FFD700");
-        
+
         // Add sun rays
         const sunGroup = document.createElementNS(svgNS, "g");
         sunGroup.appendChild(sun);
-        
+
         for (let i = 0; i < 12; i++) {
             const rayAngle = (i / 12) * 2 * Math.PI;
             const rayStartX = centerX + 30 * Math.cos(rayAngle);
             const rayStartY = centerY + 30 * Math.sin(rayAngle);
             const rayEndX = centerX + 45 * Math.cos(rayAngle);
             const rayEndY = centerY + 45 * Math.sin(rayAngle);
-            
+
             const ray = document.createElementNS(svgNS, "line");
             ray.setAttribute("x1", rayStartX);
             ray.setAttribute("y1", rayStartY);
@@ -1175,9 +1183,9 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
             ray.setAttribute("stroke-width", "2");
             sunGroup.appendChild(ray);
         }
-        
+
         svg.appendChild(sunGroup);
-        
+
         // Add animation for the sun
         const animateTransform = document.createElementNS(svgNS, "animateTransform");
         animateTransform.setAttribute("attributeName", "transform");
@@ -1187,21 +1195,21 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
         animateTransform.setAttribute("dur", "60s");
         animateTransform.setAttribute("repeatCount", "indefinite");
         sunGroup.appendChild(animateTransform);
-        
+
     } else {
         // Add stars for polar night
         for (let i = 0; i < 30; i++) {
             const starX = centerX + (Math.random() - 0.5) * radius * 1.8;
             const starY = centerY + (Math.random() - 0.5) * radius * 1.8;
             const starSize = Math.random() * 2 + 1;
-            
+
             const star = document.createElementNS(svgNS, "circle");
             star.setAttribute("cx", starX);
             star.setAttribute("cy", starY);
             star.setAttribute("r", starSize);
             star.setAttribute("fill", "#E1E1E1");
             star.setAttribute("class", "star-twinkle");
-            
+
             // Add simple animation for twinkling
             const animate = document.createElementNS(svgNS, "animate");
             animate.setAttribute("attributeName", "opacity");
@@ -1209,10 +1217,10 @@ function createPolarDayNightVisualization(svg, width, height, isDay) {
             animate.setAttribute("dur", `${Math.random() * 3 + 2}s`);
             animate.setAttribute("repeatCount", "indefinite");
             star.appendChild(animate);
-            
+
             svg.appendChild(star);
         }
-        
+
         // Add a moon
         const moon = document.createElementNS(svgNS, "circle");
         moon.setAttribute("cx", centerX);
@@ -1345,10 +1353,10 @@ function updateAstronomicalDisplay(container) {
     try {
         // Calculate moon phase data
         const moonData = calculateMoonPhase();
-        
+
         // Update with both sun and moon data integrated into one visualization
         createPolarClock(container, currentAstroData, moonData);
-        
+
     } catch (error) {
         console.error('Error calculating astronomical data:', error);
         container.innerHTML = `
@@ -1394,7 +1402,7 @@ function setupResizeHandling() {
     if (resizeHandler) {
         window.removeEventListener('resize', resizeHandler);
     }
-    
+
     // Create a debounced resize handler
     resizeHandler = debounce(() => {
         // Only redraw if we have data
@@ -1413,7 +1421,7 @@ function setupResizeHandling() {
             }
         }
     }, 250); // 250ms debounce time
-    
+
     // Add the event listener
     window.addEventListener('resize', resizeHandler);
 }
@@ -1426,7 +1434,7 @@ function setupResizeHandling() {
  */
 function debounce(func, wait) {
     let timeout;
-    return function(...args) {
+    return function (...args) {
         const context = this;
         clearTimeout(timeout);
         timeout = setTimeout(() => func.apply(context, args), wait);
@@ -1442,7 +1450,7 @@ export function cleanupAstro() {
         window.removeEventListener('resize', resizeHandler);
         resizeHandler = null;
     }
-    
+
     // Reset state
     isInitialized = false;
     currentAstroData = null;
@@ -1453,7 +1461,7 @@ export function cleanupAstro() {
 window.refreshAstronomicalDisplay = refreshAstroDisplay;
 
 // Force recalculation on demand
-window.forceAstroRecalculation = function() {
+window.forceAstroRecalculation = function () {
     const urlParams = new URLSearchParams(window.location.search);
     const lat = urlParams.get('lat');
     const lon = urlParams.get('lon');
@@ -1478,7 +1486,7 @@ export function checkIsDaytime(lat, lon) {
     try {
         // Create a fresh Date object for now
         const now = new Date();
-        
+
         // Get timezone from the location
         let timezone = 'UTC';
         try {
@@ -1488,15 +1496,15 @@ export function checkIsDaytime(lat, lon) {
         } catch (e) {
             console.warn('Error with timezone lookup, using UTC');
         }
-        
+
         // Calculate sunrise/sunset using the same logic 
         const result = calcSunriseSunset(now, lat, lon);
         const { sunrise, sunset, isPolarDay, isPolarNight } = result;
-        
+
         // Handle polar day/night
         if (isPolarDay) return true;
         if (isPolarNight) return false;
-        
+
         // If no sunrise/sunset (error case), use hour-based approximation
         if (!sunrise || !sunset) {
             // Longitude-based time approximation
@@ -1505,7 +1513,7 @@ export function checkIsDaytime(lat, lon) {
             const locationHour = ((utcHours + timezoneOffset) % 24 + 24) % 24;
             return locationHour >= 6 && locationHour < 18;
         }
-        
+
         // Compare current time with sunrise/sunset
         // Try to use the proper timezone if available
         let currentLocalTime;
@@ -1518,7 +1526,7 @@ export function checkIsDaytime(lat, lon) {
                     minute: 'numeric',
                     second: 'numeric'
                 };
-                
+
                 const timeStr = now.toLocaleString('en-US', options);
                 const [hours, minutes, seconds] = timeStr.split(':').map(Number);
                 currentLocalTime = hours + (minutes / 60) + (seconds / 3600);
@@ -1528,19 +1536,19 @@ export function checkIsDaytime(lat, lon) {
                 const timezoneOffset = lon / 15;
                 currentLocalTime = ((utcHours + timezoneOffset) % 24 + 24) % 24;
             }
-            
+
             // Extract sunrise/sunset hours
             const sunriseHour = sunrise.getHours() + (sunrise.getMinutes() / 60);
             const sunsetHour = sunset.getHours() + (sunset.getMinutes() / 60);
-            
+
             // Handle case where sunset is after midnight
             let adjustedSunsetHour = sunsetHour;
             if (sunsetHour < sunriseHour) {
                 adjustedSunsetHour += 24;
             }
-            
+
             return currentLocalTime >= sunriseHour && currentLocalTime < adjustedSunsetHour;
-            
+
         } catch (e) {
             console.warn('Error comparing times, using simple check:', e);
             // Fallback to simple hour check
