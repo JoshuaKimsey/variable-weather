@@ -30,7 +30,7 @@
   - 7 day forecast
   - Hourly forecasts
   - Weather alerts
-  - Weather radar, with integrated severe weather alert polygons
+  - Weather radar, with integrated severe weather alert polygons (now in it's own larger popout modal)
   - Astronomical data, including sunrise/sunset times, day length, and moon phases (more to come!)
 - **Dual API System** - Uses National Weather Service data for US locations and Pirate Weather API globally
 - **Smart Location Detection** - Automatic geolocation with manual search options
@@ -77,7 +77,7 @@ cd variable-weather
 - **Details**: View wind speed, humidity, pressure, and visibility information
 - **Forecast**: Scroll horizontally to view the 7-day forecast
 - **Alerts**: Any active weather alerts will appear at the top - click to expand for details
-- **Weather Radar**: See precipitation in your area or around the world
+- **Weather Radar**: See precipitation in your area or around the world, click the radar icon in the bottom-right to view it
   - **Integrated Severe Alert Polygons**: See Severe Weather Alerts on the map (US only currently)
 - **Astronomical Data**: Progression of the sun, when it rises and sets, and the phases of the moon
 
@@ -92,10 +92,11 @@ When a new version is available, and it has not already automatically updated, y
 
 ## Technology
 
-- **Frontend**: HTML5, CSS3, & Plain JavaScript (ES6+)
+- **Frontend**: HTML5, CSS3, & Plain JavaScript (ES6+), with Bootstrap for styling and font-icons
 - **Weather Data**: National Weather Service API, Pirate Weather API, Rain Viewer
 - **Geocoding**: OpenStreetMap Nominatim API, Leaflet
 - **Timezone Lookup**: TZ-Lookup
+- **Weather Icons**: Dynamically generated icons, Meteocons
 - **Animation**: CSS Animations, SVG Graphics
 
 ## API Keys
@@ -131,5 +132,6 @@ This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICE
 - Radar data provided by [Rain Viewer](https://www.rainviewer.com/)
 - Mapping data provided by [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors via [Leaflet](https://leafletjs.com/)
 - Timezone lookup functionality provided by PhotoStructure's [tz-lookup](https://github.com/photostructure/tz-lookup)
-- Icons and animations created with CSS and SVG
+- Dynamic icons and animations created with CSS and SVG
+- Meteocons created and provided by [Bas Milius](https://github.com/basmilius/weather-icons)
 - Special thanks to Anthropic's <a href="https://claude.ai">Claude 3.7 Sonnet</a> for helping in the building and creation of this app

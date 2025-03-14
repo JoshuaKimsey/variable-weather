@@ -13,10 +13,9 @@
 //==============================================================================
 
 import { resetLastUpdateTime } from './autoUpdate.js';
-import { getPirateWeatherApiKey, API_ENDPOINTS } from './config.js';
+import { getPirateWeatherApiKey, API_ENDPOINTS, createNWSRequestOptions } from './config.js';
 import { displayWeatherData, displayWeatherWithAlerts, showLoading, hideLoading, hideError, showError } from './ui.js';
 import { getCountryCode, isUSLocation, formatLocationName, calculateDistance, isDaytime } from './utils.js';
-import { updateRadarLocation } from './radarView.js';
 import { locationChanged } from './astronomicalView.js';
 
 //==============================================================================
@@ -265,21 +264,124 @@ function mapNWSIconToGeneric(nwsIconUrl) {
 //==============================================================================
 
 /**
- * Fetch weather from National Weather Service API with proper current conditions
+ * Fetch the observation data from stations sequentially
+ * @param {Array} stations - Array of station objects with ids
+ * @param {number} lat - User's requested latitude
+ * @param {number} lon - User's requested longitude
+ * @returns {Promise<Object>} - Promise resolving to valid observation data or null
+ */
+async function fetchStationObservationsSequentially(stations, lat, lon) {
+    // Sort stations by distance if coordinates are available
+    const stationsWithDistance = stations.map(station => {
+        let distance = null;
+        
+        // Calculate distance if station has coordinates
+        if (station.geometry && station.geometry.coordinates) {
+            const stationLon = station.geometry.coordinates[0];
+            const stationLat = station.geometry.coordinates[1];
+            distance = calculateDistance(lat, lon, stationLat, stationLon);
+        }
+        
+        return {
+            ...station,
+            distance
+        };
+    });
+    
+    // Sort by distance (null distances will be at the end)
+    const sortedStations = stationsWithDistance.sort((a, b) => {
+        // If both have distance, compare them
+        if (a.distance !== null && b.distance !== null) {
+            return a.distance - b.distance;
+        }
+        // If only a has distance, put a first
+        if (a.distance !== null) {
+            return -1;
+        }
+        // If only b has distance, put b first
+        if (b.distance !== null) {
+            return 1;
+        }
+        // If neither has distance, keep original order
+        return 0;
+    });
+    
+    // Limit to first 3 stations for performance
+    const stationsToTry = sortedStations.slice(0, 3);
+    
+    // Try stations one by one
+    for (const station of stationsToTry) {
+        try {
+            console.log(`Trying station: ${station.properties?.name || station.id}`);
+            
+            // Create metadata for the station
+            const stationMetadata = {
+                id: station.id,
+                name: station.properties?.name || 'Weather Station',
+                distance: station.distance
+            };
+            
+            // Fetch observation data
+            const response = await fetch(`${station.id}/observations/latest`);
+            
+            // Check if response is OK
+            if (!response.ok) {
+                console.warn(`Station ${stationMetadata.name} returned error: ${response.status}`);
+                continue; // Try next station
+            }
+            
+            // Parse the response
+            const data = await response.json();
+            
+            // Attach station metadata to data
+            data.stationMetadata = stationMetadata;
+            
+            // Check if observation has valid temperature data
+            if (data.properties && 
+                data.properties.temperature && 
+                data.properties.temperature.value !== null) {
+                
+                // Check if observation is not too old (less than 2 hours old)
+                const observationTime = new Date(data.properties.timestamp);
+                const now = new Date();
+                const timeDiffMs = now - observationTime;
+                const hoursDiff = timeDiffMs / (1000 * 60 * 60);
+                
+                if (hoursDiff < 2) {
+                    console.log(`Using valid observation from ${stationMetadata.name}, age: ${hoursDiff.toFixed(1)} hours`);
+                    return data; // Return valid observation
+                } else {
+                    console.warn(`Observation from ${stationMetadata.name} is too old: ${hoursDiff.toFixed(1)} hours`);
+                }
+            } else {
+                console.warn(`Station ${stationMetadata.name} missing temperature data`);
+            }
+        } catch (error) {
+            console.warn(`Error fetching from station:`, error);
+        }
+    }
+    
+    // If we get here, no valid observations were found
+    console.warn('No valid observations found from any station');
+    return null;
+}
+
+/**
+ * Fetch weather from National Weather Service API with sequential station checking
  * 
  * @param {number} lat - Latitude
  * @param {number} lon - Longitude
  * @param {string} locationName - Optional location name
  */
 function fetchNWSWeather(lat, lon, locationName = null) {
-    // First, we need to get the grid points
-    // Make sure lat and lon are properly formatted
+    // Format lat and lon properly
     const formattedLat = parseFloat(lat).toFixed(3);
     const formattedLon = parseFloat(lon).toFixed(3);
 
     const pointsUrl = `${API_ENDPOINTS.NWS_POINTS}/${formattedLat},${formattedLon}`;
+    const requestOptions = createNWSRequestOptions();
 
-    fetch(pointsUrl)
+    fetch(pointsUrl, requestOptions)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Unable to get weather data from NWS. Falling back to Pirate Weather.');
@@ -301,7 +403,7 @@ function fetchNWSWeather(lat, lon, locationName = null) {
             }
 
             // First, get nearby observation stations
-            fetch(observationStationsUrl)
+            fetch(observationStationsUrl, requestOptions)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Unable to get observation stations from NWS.');
@@ -309,79 +411,17 @@ function fetchNWSWeather(lat, lon, locationName = null) {
                     return response.json();
                 })
                 .then(stationsData => {
-                    // Instead of just grabbing the first station, let's try to get one that has recent data
-                    const stationPromises = [];
-
-                    // Try the first 3 stations (to increase chances of getting good data)
-                    const maxStations = Math.min(3, stationsData.features.length);
-
-                    for (let i = 0; i < maxStations; i++) {
-                        if (stationsData.features[i] && stationsData.features[i].id) {
-                            const station = stationsData.features[i];
-                            const stationUrl = station.id;
-
-                            // Capture station metadata for later use
-                            const stationMetadata = {
-                                id: stationUrl,
-                                name: station.properties.name,
-                                distance: null // Will calculate this later if coordinates are available
-                            };
-
-                            // If station has coordinates, calculate distance from requested location
-                            if (station.geometry && station.geometry.coordinates) {
-                                const stationLon = station.geometry.coordinates[0];
-                                const stationLat = station.geometry.coordinates[1];
-                                stationMetadata.distance = calculateDistance(lat, lon, stationLat, stationLon);
-                            }
-
-                            // Create a promise for each station's latest observation
-                            stationPromises.push(
-                                fetch(`${stationUrl}/observations/latest`)
-                                    .then(response => {
-                                        if (!response.ok) {
-                                            // If this station fails, we'll try the next one
-                                            return { properties: null, stationMetadata: null };
-                                        }
-                                        return response.json().then(data => {
-                                            // Attach station metadata to the observation data
-                                            return { ...data, stationMetadata };
-                                        });
-                                    })
-                                    .catch(() => {
-                                        // If this station fails, we'll try the next one
-                                        return { properties: null, stationMetadata: null };
-                                    })
-                            );
-                        }
-                    }
-
-                    // Try to get data from any of the stations
-                    Promise.all(stationPromises)
-                        .then(stationResults => {
-                            // Find the first station with valid data
-                            let validObservation = null;
-
-                            for (const result of stationResults) {
-                                if (result.properties &&
-                                    result.properties.temperature &&
-                                    result.properties.temperature.value !== null) {
-                                    validObservation = result;
-                                    break;
-                                }
-                            }
-
-                            if (!validObservation) {
-                                console.warn('No valid observation data found from any nearby stations.');
-                            }
-
+                    // Now fetch observations sequentially using our new function
+                    fetchStationObservationsSequentially(stationsData.features, lat, lon, requestOptions)
+                        .then(validObservation => {
                             // Now get forecast, hourly forecast, and alerts in parallel
                             Promise.all([
                                 // Get forecast
-                                fetch(`${API_ENDPOINTS.NWS_GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast`),
+                                fetch(`${API_ENDPOINTS.NWS_GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast`, requestOptions),
                                 // Get hourly forecast
-                                fetch(`${API_ENDPOINTS.NWS_GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast/hourly`),
+                                fetch(`${API_ENDPOINTS.NWS_GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast/hourly`, requestOptions),
                                 // Get alerts
-                                fetch(`${API_ENDPOINTS.NWS_ALERTS}?point=${formattedLat},${formattedLon}`)
+                                fetch(`${API_ENDPOINTS.NWS_ALERTS}?point=${formattedLat},${formattedLon}`, requestOptions)
                             ])
                                 .then(responses => {
                                     // Check if all responses are ok
@@ -420,9 +460,9 @@ function fetchNWSWeather(lat, lon, locationName = null) {
                                 });
                         })
                         .catch(error => {
-                            console.error('Error processing station observations:', error);
+                            console.error('Error fetching station observations:', error);
                             // Fall back to Pirate Weather API
-                            console.log('Falling back to Pirate Weather API');
+                            console.log('Falling back to Pirate Weather API due to station observation error');
                             fetchPirateWeather(lat, lon, locationName);
                         });
                 })

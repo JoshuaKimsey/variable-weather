@@ -24,7 +24,8 @@ import { updateURLParameters } from './utils.js';
 import { initBackgrounds } from './weatherBackgrounds.js';
 import { initApiSettings } from './apiSettings.js';
 import { initUnits } from './units.js';
-import { initRadarView, refreshRadarData, isRadarViewInitialized, updateAlertPolygons } from './radarView.js';
+import { initIconSettings } from './iconPerformance.js';
+import { initModalController } from './modalRadarController.js';
 import { initAstro, updateAstroInfo, refreshAstroDisplay } from './astronomicalView.js';
 
 //==============================================================================
@@ -48,11 +49,12 @@ function initApp() {
     // Then initialize API settings that might use the units system
     initApiSettings();
 
-    // Initialize the radar view
-    setTimeout(() => {
-        initRadarView('radar-view');
-    }, 100); // Small delay to ensure other components are loaded
+    // Initialize icon settings and performance detection
+    initIconSettings();
 
+    // DO NOT initialize radar view on page load
+    // We'll handle this from the modal now
+    
     // Initialize astronomical display - with a longer delay to ensure it happens after other components
     setTimeout(() => {
         initAstro('astro-view');
@@ -84,11 +86,7 @@ function initApp() {
         if (lat && lon) {
             fetchWeather(lat, lon, locationName);
 
-            // Also refresh radar data if available
-            if (typeof refreshRadarData === 'function' && isRadarViewInitialized()) {
-                // console.log("Attempting radar update");
-                refreshRadarData();
-            }
+            // We'll no longer refresh radar data here since it's now modal-based
         } else {
             fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
         }
@@ -99,6 +97,9 @@ function initApp() {
 
     // Check for initial location source
     determineInitialLocation();
+
+    // Initialize the modal controller
+    initModalController();
 }
 
 /**
@@ -151,7 +152,7 @@ function getUserLocation() {
     const loadingElement = document.getElementById('loading');
     const geoText = document.createElement('div');
     geoText.className = 'geo-loading-text';
-    geoText.innerHTML = '<i class="fas fa-location-arrow"></i> Getting your location...';
+    geoText.innerHTML = '<i class="bi bi-geo-alt-fill"></i> Getting your location...';
     loadingElement.appendChild(geoText);
 
     // Options for geolocation request
@@ -276,7 +277,7 @@ function showGeolocationPrompt() {
     promptContainer.innerHTML = `
         <div class="geo-prompt-content">
             <div class="geo-prompt-header">
-                <i class="fas fa-location-arrow"></i>
+                <i class="bi bi-geo-alt-fill"></i>
                 <h3>Enable Location Services?</h3>
             </div>
             <p>Would you like to see weather for your current location?</p>

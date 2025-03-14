@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.5.4';
+const SW_VERSION = '1.6.0';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 const ASSETS = [
@@ -22,15 +22,9 @@ const ASSETS = [
   './js/astronomicalView.js',
   // Add fonts, images, and other assets as needed
   './resources/bootstrap/css/bootstrap.min.css',
-  './resources/font-awesome/css/all.min.css',
-  './resources/font-awesome/webfonts/fa-brands-400.ttf',
-  './resources/font-awesome/webfonts/fa-brands-400.woff2',
-  './resources/font-awesome/webfonts/fa-regular-400.ttf',
-  './resources/font-awesome/webfonts/fa-regular-400.woff2',
-  './resources/font-awesome/webfonts/fa-solid-900.ttf',
-  './resources/font-awesome/webfonts/fa-solid-900.woff2',
-  './resources/font-awesome/webfonts/fa-v4compatibility.ttf',
-  './resources/font-awesome/webfonts/fa-v4compatibility.woff2',
+  './resources/bootstrap/icons/bootstrap-icons.css',
+  './resources/bootstrap/icons/fonts/bootstrap-icons.woff',
+  './resources/bootstrap/icons/fonts/bootstrap-icons.woff2',
   './resources/tz-lookup/tz.js',
   './resources/leafet/leaflet.css',
   './resources/leafet/leaflet.js',
@@ -42,7 +36,28 @@ const ASSETS = [
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
   './icons/favicon-32x32.png',
-  './icons/social-thumbnail.png'
+  './icons/social-thumbnail.png',
+  // Meteocons SVG icons
+  './resources/meteocons/all/clear-day.svg',
+  './resources/meteocons/all/partly-cloudy-day.svg',
+  './resources/meteocons/all/overcast-day.svg',
+  './resources/meteocons/all/cloudy.svg',
+  './resources/meteocons/all/wind.svg',
+  './resources/meteocons/all/snow.svg',
+  './resources/meteocons/all/rain.svg',
+  './resources/meteocons/all/thunderstorms-rain.svg',
+  './resources/meteocons/all/tornado.svg',
+  './resources/meteocons/all/hurricane.svg',
+  './resources/meteocons/all/dust.svg',
+  './resources/meteocons/all/smoke.svg',
+  './resources/meteocons/all/haze.svg',
+  './resources/meteocons/all/thermometer-warmer.svg',
+  './resources/meteocons/all/thermometer-colder.svg',
+  './resources/meteocons/all/fog.svg',
+  './resources/meteocons/all/sleet.svg',
+  './resources/meteocons/all/clear-night.svg',
+  './resources/meteocons/all/partly-cloudy-night.svg',
+  './resources/meteocons/all/overcast-night.svg',
 ];
 
 // Install event - cache the app shell

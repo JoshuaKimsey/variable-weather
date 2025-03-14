@@ -80,13 +80,14 @@
     </script>
 
     <!-- Preload critical stylesheets -->
-    <link rel="preload" href="resources/bootstrap/css/bootstrap.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="resources/bootstrap/css/bootstrap.min.css" as="style"
+        onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="resources/bootstrap/icons/bootstrap-icons.min.css" as="style"
+        onload="this.onload=null;this.rel='stylesheet'">
     <link rel="preload" href="styles.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <link rel="preload" href="./resources/font-awesome/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
 
-    <!-- Stylesheets -->
     <link rel="stylesheet" href="./resources/bootstrap/css/bootstrap.min.css">
-    <link rel="stylesheet" href="./resources/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="./resources/bootstrap/icons/bootstrap-icons.min.css">
     <link href="styles.css" rel="stylesheet">
 
     <style>
@@ -156,13 +157,11 @@
 
                     <div class="weather-details">
                         <div class="detail-card">
-                            <i class="fas fa-wind"></i>
+                            <i class="bi bi-wind"></i>
                             <div class="title">Wind Speed</div>
                             <div class="wind-row">
                                 <div class="wind-direction">
-                                    <div class="wind-arrow" id="wind-direction-arrow">
-                                        <i class="fas fa-location-arrow"></i>
-                                    </div>
+                                    <i id="wind-direction-arrow" class="bi bi-arrow-up-circle-fill"></i>
                                     <div class="wind-label" id="wind-direction-label"></div>
                                 </div>
                                 <div class="value" id="wind-speed"></div>
@@ -170,19 +169,19 @@
                         </div>
 
                         <div class="detail-card">
-                            <i class="fas fa-tint"></i>
+                            <i class="bi bi-droplet-fill"></i>
                             <div class="title">Humidity</div>
                             <div class="value" id="humidity">45%</div>
                         </div>
 
                         <div class="detail-card">
-                            <i class="fas fa-compress-arrows-alt"></i>
+                            <i class="bi bi-arrow-down-up"></i>
                             <div class="title">Pressure</div>
                             <div class="value" id="pressure">1015 hPa</div>
                         </div>
 
                         <div class="detail-card">
-                            <i class="fas fa-eye"></i>
+                            <i class="bi bi-binoculars-fill"></i>
                             <div class="title">Visibility</div>
                             <div class="value" id="visibility">10 mi</div>
                         </div>
@@ -204,16 +203,6 @@
                 <h3>Hourly Forecast</h3>
                 <div class="hourly-forecast-container" id="hourly-forecast-items">
                     <!-- Hourly forecast cards will be added dynamically -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Radar Card -->
-        <div id="radar-container" class="weather-card">
-            <div class="radar-section">
-                <h3>Weather Radar</h3>
-                <div class="radar-container" id="radar-view">
-                    <!-- Radar content will be generated dynamically by radarView.js -->
                 </div>
             </div>
         </div>
@@ -242,10 +231,9 @@
                 <div class="search-container">
                     <div class="search-box">
                         <input type="text" id="location-input" placeholder="Enter location (city, state, country)">
-                        <button id="search-button" aria-label="Search"><i class="fas fa-search"></i></button>
+                        <button id="search-button" aria-label="Search"><i class="bi bi-search"></i></i></button>
                     </div>
-                    <button id="geo-button" aria-label="Get My Location" title="Use my current location"><i
-                            class="fas fa-location-arrow"></i></button>
+                    <button id="geo-button" aria-label="Get My Location" title="Use my current location"><i class="bi bi-geo-alt-fill"></i></button>
                 </div>
                 <!-- API attribution section -->
                 <div class="attribution-footer">
@@ -284,6 +272,7 @@
                     Key</button>
             </div>
         </div>
+
         <div class="settings-divider"></div>
 
         <div class="settings-form-group">
@@ -296,19 +285,42 @@
                 <div class="unit-toggle-slider"></div>
             </div>
         </div>
+
+        <div class="settings-divider"></div>
+
+        <div class="settings-form-group">
+            <label>Weather Icons:</label>
+            <div class="icon-toggle-container">
+                <input type="radio" id="dynamic-icons" name="icon-type" value="dynamic" class="unit-toggle-input"
+                    checked>
+                <input type="radio" id="lightweight-icons" name="icon-type" value="lightweight"
+                    class="unit-toggle-input">
+                <label for="dynamic-icons" class="unit-toggle-label">Dynamic</label>
+                <label for="lightweight-icons" class="unit-toggle-label">Light</label>
+                <div class="unit-toggle-slider"></div>
+            </div>
+            <div class="icon-type-description">Lightweight icons improve performance on older devices</div>
+        </div>
     </div>
 
     <!-- Settings button in footer -->
     <div class="settings-button-container">
         <button id="open-settings" title="API Settings">
-            <i class="fas fa-cog"></i>
+            <i class="bi bi-gear-wide-connected"></i>
+        </button>
+    </div>
+
+    <!-- Add this right after the settings button container -->
+    <div class="radar-button-container">
+        <button id="open-radar" title="Open Radar">
+            <i class="bi bi-radar"></i>
         </button>
     </div>
 
     <!-- PWA Install Button -->
     <div id="install-container">
         <button id="install-button">
-            <i class="fas fa-download"></i> Install App
+            <i class="bi bi-file-arrow-down"></i> Install App
         </button>
     </div>
 
@@ -319,6 +331,27 @@
 
     <!-- Import the main script as a module -->
     <script type="module" src="./js/main.js"></script>
+
+    <div id="radar-modal-backdrop" class="radar-modal-backdrop" style="display: none;"></div>
+    <div id="radar-modal" class="radar-modal" style="display: none;">
+        <div class="radar-modal-header">
+            <h2>Weather Radar</h2>
+            <button id="close-radar-modal" class="radar-modal-close">&times;</button>
+        </div>
+        <div class="radar-modal-content">
+            <div id="modal-radar-view" class="modal-radar-container">
+                <!-- Radar content will be generated here -->
+                <div class="radar-loading">
+                    <div class="radar-loading-spinner">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                    </div>
+                    <div class="radar-loading-text">Loading radar data...</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

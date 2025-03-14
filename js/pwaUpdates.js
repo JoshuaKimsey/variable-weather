@@ -9,7 +9,7 @@
  */
 
 // App version - change this with each release
-const APP_VERSION = '1.5.4';
+const APP_VERSION = '1.6.0';
 
 // Configuration
 const CHECK_INTERVAL = 60 * 120 * 1000; // Check for updates every 2 hours (in milliseconds)
@@ -137,7 +137,7 @@ function createUpdateNotification() {
     updateNotification.innerHTML = `
         <div class="update-content">
             <div class="update-icon">
-                <i class="fas fa-download"></i>
+                <i class="bi bi-file-arrow-down"></i>
             </div>
             <div class="update-message">
                 <strong>Update Available</strong>

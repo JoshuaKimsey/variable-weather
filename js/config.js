@@ -5,6 +5,9 @@
 // Default API key for Pirate Weather (fallback for non-US locations)
 let PIRATE_WEATHER_API_KEY = '*insert-your-api-key-here*';
 
+// User Agent for NWS API
+export const NWS_USER_AGENT = '(joshuakimsey.github.io/variable-weather, https://github.com/JoshuaKimsey)';
+
 // Function to update the API key
 window.updatePirateWeatherApiKey = function (newKey) {
     PIRATE_WEATHER_API_KEY = newKey;
@@ -34,3 +37,13 @@ export const API_ENDPOINTS = {
     PIRATE_WEATHER: 'https://api.pirateweather.net/forecast',
     GEOCODING: 'https://nominatim.openstreetmap.org/search'
 };
+
+// Create request options with proper headers for NWS API calls
+export function createNWSRequestOptions() {
+    return {
+        headers: {
+            'User-Agent': NWS_USER_AGENT,
+            'Accept': 'application/geo+json'
+        }
+    };
+}

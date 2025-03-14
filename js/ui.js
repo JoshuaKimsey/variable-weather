@@ -16,7 +16,6 @@ import { setWeatherIcon, setForecastIcon } from './weatherIcons.js';
 import { setWeatherBackground } from './weatherBackgrounds.js';
 import { formatDate, formatLocationName, updatePageTitle, getLocalTimeForLocation } from './utils.js';
 import { getDisplayUnits, formatTemperature, formatWindSpeed, formatPressure, formatVisibility } from './units.js';
-import { updateAlertPolygons, isRadarViewInitialized } from './radarView.js';
 
 // DOM elements
 let locationInput, searchButton, weatherData, loadingIndicator, errorMessage,
@@ -255,16 +254,8 @@ function setWindDirection(direction) {
     }
 
     // In meteorology, wind direction is reported as the direction FROM which the wind is coming
-    // We want our arrow to point FROM that direction
-    const visualDirection = directionDegrees;
-
-    // Get the icon element inside the arrow container
-    const arrowIcon = arrowElement.querySelector('i');
-
-    // Apply rotation to the icon itself
-    // The Font Awesome location-arrow icon points northeast (45°) by default
-    // We need to adjust by 45° to make it point upward (north) at 0°
-    arrowIcon.style.transform = `translate(-50%, -50%) rotate(${visualDirection - 45}deg)`;
+    // Apply rotation to the arrow element - no need for nested structure anymore
+    arrowElement.style.transform = `rotate(${directionDegrees}deg)`;
 
     // Set the cardinal direction label based on meteorological direction
     labelElement.textContent = getCardinalDirection(directionDegrees);
@@ -718,7 +709,7 @@ function displayAlerts(alerts) {
                         <span class="alert-severity ${severityClass}">${capitalizeFirst(severity)}</span>
                         <h3 class="alert-title">${alertTitle}</h3>
                         <button class="alert-expand-btn" aria-label="Expand alert details">
-                            <i class="fas fa-chevron-down"></i>
+                            <i class="bi bi-chevron-down"></i>
                         </button>
                     </div>
                     <div class="alert-subtitle">${alertDescription}</div>
@@ -748,8 +739,8 @@ function displayAlerts(alerts) {
 
                 // Toggle the icon
                 expandBtn.innerHTML = isExpanded
-                    ? '<i class="fas fa-chevron-down"></i>'
-                    : '<i class="fas fa-chevron-up"></i>';
+                    ? '<i class="bi bi-chevron-down"></i>'
+                    : '<i class="bi bi-chevron-up"></i>';
 
                 // Add or remove expanded class
                 alertElement.classList.toggle('alert-expanded', !isExpanded);

@@ -5,7 +5,13 @@
  * for different weather conditions, with day and night variants.
  * Icons are dynamically generated with random variations for a more
  * natural appearance.
+ * 
+ * New: Includes support for lightweight Meteocons as an alternative
+ * to the dynamic JS-generated icons.
  */
+
+// Import the icon preference function if available
+import { useLightweightIcons } from './iconPerformance.js';
 
 //----------------------------------------------------------------------
 // EXPORTS AND MAIN INTERFACES
@@ -101,19 +107,160 @@ export const weatherIcons = {
     'thunderstorm': createThunderstormIcon
 };
 
+// Mapping from weather codes to Meteocons file names
+const meteoconsMapping = {
+    // Day icons
+    'skc': 'clear-day',
+    'few': 'partly-cloudy-day',
+    'sct': 'partly-cloudy-day',
+    'bkn': 'overcast-day',
+    'ovc': 'cloudy',
+    'wind': 'wind',
+    'snow': 'snow',
+    'rain': 'rain',
+    'rain_showers': 'rain',
+    'rain_showers_hi': 'rain',
+    'tsra': 'thunderstorms-rain',
+    'tsra_sct': 'thunderstorms-rain',
+    'tsra_hi': 'thunderstorms-rain',
+    'tornado': 'tornado',
+    'hurricane': 'hurricane',
+    'tropical_storm': 'hurricane',
+    'dust': 'dust',
+    'smoke': 'smoke',
+    'haze': 'haze',
+    'hot': 'thermometer-warmer',
+    'cold': 'thermometer-colder',
+    'blizzard': 'snow',
+    'fog': 'fog',
+    'sleet': 'sleet',
+    'fzra': 'sleet',
+
+    // Night icons
+    'nskc': 'clear-night',
+    'nfew': 'partly-cloudy-night',
+    'nsct': 'partly-cloudy-night',
+    'nbkn': 'overcast-night',
+    'novc': 'cloudy',
+    'nrain': 'rain',
+    'ntsra': 'thunderstorms-rain',
+    'nfog': 'fog',
+    'nsnow': 'snow',
+    'nsleet': 'sleet',
+    'nfzra': 'sleet',
+
+    // Pirate weather codes
+    'clear-day': 'clear-day',
+    'clear-night': 'clear-night',
+    'partly-cloudy-day': 'partly-cloudy-day',
+    'partly-cloudy-night': 'partly-cloudy-night',
+    'cloudy': 'cloudy',
+    'rain': 'rain',
+    'sleet': 'sleet',
+    'snow': 'snow',
+    'wind': 'wind',
+    'fog': 'fog',
+    'thunderstorm': 'thunderstorms-rain'
+};
+
 /**
- * Update the setWeatherIcon function to handle night variants
+ * Create a Meteocon icon
+ * @param {HTMLElement} element - DOM element to append the icon to
+ * @param {string} iconName - The Meteocon icon name
+ * @param {boolean} isForecast - Whether this is a smaller forecast icon
+ */
+function createMeteoconIcon(element, iconName, isForecast = false) {
+    const size = isForecast ? 60 : 150;
+
+    try {
+        // Create an img element for the SVG
+        const icon = document.createElement('img');
+        icon.src = `./resources/meteocons/all/${iconName}.svg`;
+        icon.alt = iconName.replace(/-/g, ' ') + ' weather icon';
+        icon.style.width = `${size}px`;
+        icon.style.height = `${size}px`;
+        icon.style.display = 'block';
+
+        // Add animation classes for precipitation and stormy conditions
+        if (iconName.includes('rain') || iconName.includes('snow') ||
+            iconName.includes('sleet') || iconName.includes('thunderstorm')) {
+            icon.classList.add('meteocon-animated');
+        }
+
+        element.appendChild(icon);
+    } catch (error) {
+        console.error(`Error creating Meteocon icon for ${iconName}:`, error);
+        // Fallback to a simple text representation if image fails
+        const fallback = document.createElement('div');
+        fallback.textContent = iconName.replace(/-/g, ' ');
+        fallback.style.width = `${size}px`;
+        fallback.style.height = `${size}px`;
+        fallback.style.display = 'flex';
+        fallback.style.alignItems = 'center';
+        fallback.style.justifyContent = 'center';
+        fallback.style.textAlign = 'center';
+        fallback.style.fontSize = isForecast ? '12px' : '16px';
+        fallback.style.color = '#FFF';
+        element.appendChild(fallback);
+    }
+}
+
+/**
+ * Update the setWeatherIcon function to handle night variants and lightweight icons
  * This function needs to be updated to check for nighttime and use night variants
  */
 export function setWeatherIcon(iconCode, element, isDaytime = true) {
     // Clear previous icon
     element.innerHTML = '';
 
+    console.log(iconCode)
+
     // Create a wrapper to ensure proper positioning
     const wrapper = document.createElement('div');
     wrapper.className = 'weather-icon-wrapper';
     element.appendChild(wrapper);
 
+    // Determine if we should use lightweight icons - multiple detection methods
+    let useLightweight = false;
+
+    // Method 1: Use the imported function if available
+    if (typeof useLightweightIcons === 'function') {
+        useLightweight = useLightweightIcons();
+    }
+    // Method 2: Check window global variable directly
+    else if (typeof window.currentIconPreference !== 'undefined') {
+        useLightweight = window.currentIconPreference === 'lightweight';
+    }
+    // Method 3: Check localStorage directly as a last resort
+    else {
+        useLightweight = localStorage.getItem('weather_app_icon_preference') === 'lightweight';
+    }
+
+    if (useLightweight) {
+        // Use Meteocons (lightweight option)
+        let meteoconsName = meteoconsMapping[iconCode] || 'cloudy'; // Default to cloudy if mapping not found
+
+        // Handle night variants
+        if (!isDaytime) {
+            // Try specific night version for NWS codes
+            const nightIconCode = 'n' + iconCode;
+            if (meteoconsMapping[nightIconCode]) {
+                meteoconsName = meteoconsMapping[nightIconCode];
+            }
+            // Try to convert day variant to night for pirate weather codes
+            else if (iconCode === 'clear-day') {
+                meteoconsName = 'clear-night';
+            } else if (iconCode === 'partly-cloudy-day') {
+                meteoconsName = 'partly-cloudy-night';
+            }
+        }
+
+        // Create the Meteocon
+        createMeteoconIcon(wrapper, meteoconsName);
+        return;
+    }
+
+    // If using dynamic icons, continue with the original logic
     // Check if we should use a night variant
     if (!isDaytime) {
         // Check for specific night version
@@ -126,6 +273,14 @@ export function setWeatherIcon(iconCode, element, isDaytime = true) {
         // Check for generic night mappings for Pirate Weather codes
         if (iconCode === 'cloudy') {
             createCloudyNightIcon(wrapper);
+            return;
+        } else if (iconCode === 'partly-cloudy-day') {
+            // Add this check for partly-cloudy-day
+            createPartlyCloudyNightIcon(wrapper);
+            return;
+        } else if (iconCode === 'clear-day') {
+            // Add this check for clear-day
+            createClearNightIcon(wrapper);
             return;
         } else if (iconCode === 'rain') {
             createRainNightIcon(wrapper);
@@ -153,7 +308,7 @@ export function setWeatherIcon(iconCode, element, isDaytime = true) {
 }
 
 /**
- * Similarly update the setForecastIcon function to handle night variants
+ * Similarly update the setForecastIcon function to handle night variants and lightweight icons
  */
 export function setForecastIcon(iconCode, element, isDaytime = true) {
     // Clear previous icon
@@ -164,7 +319,47 @@ export function setForecastIcon(iconCode, element, isDaytime = true) {
     wrapper.className = 'weather-icon-wrapper';
     element.appendChild(wrapper);
 
-    // Check if we should use a night variant
+    // Determine if we should use lightweight icons - multiple detection methods
+    let useLightweight = false;
+
+    // Method 1: Use the imported function if available
+    if (typeof useLightweightIcons === 'function') {
+        useLightweight = useLightweightIcons();
+    }
+    // Method 2: Check window global variable directly
+    else if (typeof window.currentIconPreference !== 'undefined') {
+        useLightweight = window.currentIconPreference === 'lightweight';
+    }
+    // Method 3: Check localStorage directly as a last resort
+    else {
+        useLightweight = localStorage.getItem('weather_app_icon_preference') === 'lightweight';
+    }
+
+    if (useLightweight) {
+        // Use Meteocons (lightweight option)
+        let meteoconsName = meteoconsMapping[iconCode] || 'cloudy'; // Default to cloudy if mapping not found
+
+        // Handle night variants
+        if (!isDaytime) {
+            // Try specific night version for NWS codes
+            const nightIconCode = 'n' + iconCode;
+            if (meteoconsMapping[nightIconCode]) {
+                meteoconsName = meteoconsMapping[nightIconCode];
+            }
+            // Try to convert day variant to night for pirate weather codes
+            else if (iconCode === 'clear-day') {
+                meteoconsName = 'clear-night';
+            } else if (iconCode === 'partly-cloudy-day') {
+                meteoconsName = 'partly-cloudy-night';
+            }
+        }
+
+        // Create the Meteocon
+        createMeteoconIcon(wrapper, meteoconsName, true);
+        return;
+    }
+
+    // If using dynamic icons, continue with the original logic
     if (!isDaytime) {
         // Check for specific night version
         const nightIconCode = 'n' + iconCode;
@@ -2025,14 +2220,14 @@ function createFogIcon(element, isForecast = false) {
         { height: 16, top: 60, opacity: 0.9, delay: 1, duration: 20, direction: 1 },
         { height: 10, top: 75, opacity: 0.7, delay: 3, duration: 22, direction: -1 }
     ];
-    
+
     // Add wispy fog elements
     const wispyElements = [
         { width: 60, height: 25, top: 38, left: 20, opacity: 0.5, delay: 0, duration: 8 },
         { width: 40, height: 20, top: 55, left: 40, opacity: 0.4, delay: 2, duration: 10 },
         { width: 50, height: 22, top: 70, left: 25, opacity: 0.5, delay: 4, duration: 9 }
     ];
-    
+
     // Create the key animation if not already added
     if (!document.getElementById('fog-animations')) {
         const animationStyle = document.createElement('style');
@@ -2070,60 +2265,60 @@ function createFogIcon(element, isForecast = false) {
     fogLayers.forEach(layer => {
         const fogLayer = document.createElement('div');
         fogLayer.className = 'animation-element fog-layer';
-        
+
         // Size and position
         fogLayer.style.position = 'absolute';
         fogLayer.style.height = `${layer.height}px`;
         fogLayer.style.left = '0';
         fogLayer.style.right = '0';
         fogLayer.style.top = `${layer.top}%`;
-        
+
         // Visual appearance
         fogLayer.style.borderRadius = `${layer.height}px`;
         fogLayer.style.background = `linear-gradient(to bottom, 
                                     rgba(220, 220, 220, 0) 0%, 
                                     rgba(220, 220, 220, ${layer.opacity}) 50%, 
                                     rgba(220, 220, 220, 0) 100%)`;
-        
+
         // Animation
         const animationName = layer.direction > 0 ? 'fogDrift' : 'fogDriftReverse';
         fogLayer.style.animation = `${animationName} ${layer.duration}s infinite ease-in-out`;
         fogLayer.style.animationDelay = `${layer.delay}s`;
-        
+
         container.appendChild(fogLayer);
     });
-    
+
     // Add wispy fog elements (circular/oval shapes that add depth)
     wispyElements.forEach(wisp => {
         const wispElement = document.createElement('div');
         wispElement.className = 'animation-element fog-wisp';
-        
+
         // Size and position
         wispElement.style.position = 'absolute';
         wispElement.style.width = `${wisp.width}px`;
         wispElement.style.height = `${wisp.height}px`;
         wispElement.style.top = `${wisp.top}%`;
         wispElement.style.left = `${wisp.left}%`;
-        
+
         // Visual appearance
         wispElement.style.borderRadius = '50%';
         wispElement.style.background = `radial-gradient(ellipse at center,
                                         rgba(255, 255, 255, ${wisp.opacity}) 0%,
                                         rgba(255, 255, 255, 0) 70%)`;
-        
+
         // Animation
         wispElement.style.animation = `fogWisp ${wisp.duration}s infinite ease-in-out`;
         wispElement.style.animationDelay = `${wisp.delay}s`;
-        
+
         container.appendChild(wispElement);
     });
-    
+
     // Add subtle fog particles for added realism
     if (!isForecast) { // Only for main icon, not forecast
         for (let i = 0; i < 12; i++) {
             const particle = document.createElement('div');
             particle.className = 'fog-particle';
-            
+
             // Size and position
             const particleSize = Math.random() * 4 + 3;
             particle.style.position = 'absolute';
@@ -2131,23 +2326,23 @@ function createFogIcon(element, isForecast = false) {
             particle.style.height = `${particleSize}px`;
             particle.style.top = `${Math.random() * 60 + 20}%`;
             particle.style.left = `${Math.random() * 60 + 20}%`;
-            
+
             // Random movement directions
             const moveX = (Math.random() * 40 - 20);
             const moveY = (Math.random() * 20 - 10);
             particle.style.setProperty('--move-x', `${moveX}px`);
             particle.style.setProperty('--move-y', `${moveY}px`);
-            
+
             // Visual appearance
             particle.style.borderRadius = '50%';
             particle.style.background = 'rgba(255, 255, 255, 0.4)';
             particle.style.filter = 'blur(1px)';
-            
+
             // Animation
             const duration = Math.random() * 3 + 7;
             particle.style.animation = `fogParticle ${duration}s infinite`;
             particle.style.animationDelay = `${Math.random() * 5}s`;
-            
+
             container.appendChild(particle);
         }
     }
@@ -2169,18 +2364,18 @@ function createFogNightIcon(element, isForecast = false) {
     container.style.overflow = 'hidden';
 
     // For night fog, we'll use a darker blue-gray color palette
-    
+
     // Add very few stars - only visible through gaps in fog
     for (let i = 0; i < 8; i++) {
         const star = document.createElement('div');
         star.className = 'animation-element star';
-        star.style.top = `${Math.random() * 30}%`; 
+        star.style.top = `${Math.random() * 30}%`;
         star.style.left = `${Math.random() * 100}%`;
         star.style.opacity = Math.random() * 0.15 + 0.05; // Very faint stars
         star.style.animationDuration = `${Math.random() * 3 + 2}s`;
         container.appendChild(star);
     }
-    
+
     // Define fog layer configurations for night (darker, more blue-tinted)
     const fogLayers = [
         { height: 14, top: 30, opacity: 0.85, delay: 0, duration: 18, direction: 1 },
@@ -2188,7 +2383,7 @@ function createFogNightIcon(element, isForecast = false) {
         { height: 16, top: 60, opacity: 0.85, delay: 1, duration: 20, direction: 1 },
         { height: 10, top: 75, opacity: 0.65, delay: 3, duration: 22, direction: -1 }
     ];
-    
+
     // Add wispy fog elements - more subtle for night
     const wispyElements = [
         { width: 60, height: 25, top: 38, left: 20, opacity: 0.45, delay: 0, duration: 8 },
@@ -2233,60 +2428,60 @@ function createFogNightIcon(element, isForecast = false) {
     fogLayers.forEach(layer => {
         const fogLayer = document.createElement('div');
         fogLayer.className = 'animation-element fog-layer';
-        
+
         // Size and position
         fogLayer.style.position = 'absolute';
         fogLayer.style.height = `${layer.height}px`;
         fogLayer.style.left = '0';
         fogLayer.style.right = '0';
         fogLayer.style.top = `${layer.top}%`;
-        
+
         // Visual appearance - blue-gray for night
         fogLayer.style.borderRadius = `${layer.height}px`;
         fogLayer.style.background = `linear-gradient(to bottom, 
                                     rgba(160, 180, 200, 0) 0%, 
                                     rgba(160, 180, 200, ${layer.opacity}) 50%, 
                                     rgba(160, 180, 200, 0) 100%)`;
-        
+
         // Animation
         const animationName = layer.direction > 0 ? 'fogDrift' : 'fogDriftReverse';
         fogLayer.style.animation = `${animationName} ${layer.duration}s infinite ease-in-out`;
         fogLayer.style.animationDelay = `${layer.delay}s`;
-        
+
         container.appendChild(fogLayer);
     });
-    
+
     // Add wispy fog elements with night coloring
     wispyElements.forEach(wisp => {
         const wispElement = document.createElement('div');
         wispElement.className = 'animation-element fog-wisp';
-        
+
         // Size and position
         wispElement.style.position = 'absolute';
         wispElement.style.width = `${wisp.width}px`;
         wispElement.style.height = `${wisp.height}px`;
         wispElement.style.top = `${wisp.top}%`;
         wispElement.style.left = `${wisp.left}%`;
-        
+
         // Visual appearance
         wispElement.style.borderRadius = '50%';
         wispElement.style.background = `radial-gradient(ellipse at center,
                                         rgba(180, 200, 220, ${wisp.opacity}) 0%,
                                         rgba(180, 200, 220, 0) 70%)`;
-        
+
         // Animation
         wispElement.style.animation = `fogWisp ${wisp.duration}s infinite ease-in-out`;
         wispElement.style.animationDelay = `${wisp.delay}s`;
-        
+
         container.appendChild(wispElement);
     });
-    
+
     // Add subtle fog particles with blue tint
     if (!isForecast) {
         for (let i = 0; i < 10; i++) {
             const particle = document.createElement('div');
             particle.className = 'fog-particle';
-            
+
             // Size and position
             const particleSize = Math.random() * 4 + 3;
             particle.style.position = 'absolute';
@@ -2294,23 +2489,23 @@ function createFogNightIcon(element, isForecast = false) {
             particle.style.height = `${particleSize}px`;
             particle.style.top = `${Math.random() * 60 + 20}%`;
             particle.style.left = `${Math.random() * 60 + 20}%`;
-            
+
             // Random movement directions
             const moveX = (Math.random() * 40 - 20);
             const moveY = (Math.random() * 20 - 10);
             particle.style.setProperty('--move-x', `${moveX}px`);
             particle.style.setProperty('--move-y', `${moveY}px`);
-            
+
             // Visual appearance - blue tinted for night
             particle.style.borderRadius = '50%';
             particle.style.background = 'rgba(180, 200, 220, 0.4)';
             particle.style.filter = 'blur(1px)';
-            
+
             // Animation
             const duration = Math.random() * 3 + 7;
             particle.style.animation = `fogParticle ${duration}s infinite`;
             particle.style.animationDelay = `${Math.random() * 5}s`;
-            
+
             container.appendChild(particle);
         }
     }
