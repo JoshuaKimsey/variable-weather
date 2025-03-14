@@ -264,7 +264,7 @@ function mapNWSIconToGeneric(nwsIconUrl) {
 //==============================================================================
 
 /**
- * Fetch the observation data from stations sequentially
+ * Fetch the observation data from stations sequentially with improved logging and handling
  * @param {Array} stations - Array of station objects with ids
  * @param {number} lat - User's requested latitude
  * @param {number} lon - User's requested longitude
@@ -309,6 +309,13 @@ async function fetchStationObservationsSequentially(stations, lat, lon) {
     // Limit to first 3 stations for performance
     const stationsToTry = sortedStations.slice(0, 3);
     
+    console.log(`Attempting to fetch data from ${stationsToTry.length} weather stations`);
+    
+    // Track best observation in case all have some issues
+    let bestObservation = null;
+    let bestObservationAge = Infinity;
+    let bestObservationHasDescription = false;
+    
     // Try stations one by one
     for (const station of stationsToTry) {
         try {
@@ -347,9 +354,30 @@ async function fetchStationObservationsSequentially(stations, lat, lon) {
                 const timeDiffMs = now - observationTime;
                 const hoursDiff = timeDiffMs / (1000 * 60 * 60);
                 
+                // Check if this observation has a textDescription
+                const hasDescription = data.properties.textDescription !== undefined && 
+                                      data.properties.textDescription !== null &&
+                                      data.properties.textDescription !== '';
+                                      
+                console.log(`Station ${stationMetadata.name}: age=${hoursDiff.toFixed(1)}h, hasDescription=${hasDescription}`);
+                
                 if (hoursDiff < 2) {
-                    console.log(`Using valid observation from ${stationMetadata.name}, age: ${hoursDiff.toFixed(1)} hours`);
-                    return data; // Return valid observation
+                    // This is a valid observation based on age
+                    
+                    // If it has a description, return it immediately as it's complete
+                    if (hasDescription) {
+                        console.log(`Using complete observation from ${stationMetadata.name}`);
+                        return data;
+                    }
+                    
+                    // No description but still a valid observation - keep track of it 
+                    // as our best option so far, especially if it's newer
+                    if (hoursDiff < bestObservationAge) {
+                        bestObservation = data;
+                        bestObservationAge = hoursDiff;
+                        bestObservationHasDescription = hasDescription;
+                        console.log(`Setting as best observation so far (age: ${hoursDiff.toFixed(1)}h)`);
+                    }
                 } else {
                     console.warn(`Observation from ${stationMetadata.name} is too old: ${hoursDiff.toFixed(1)} hours`);
                 }
@@ -359,6 +387,12 @@ async function fetchStationObservationsSequentially(stations, lat, lon) {
         } catch (error) {
             console.warn(`Error fetching from station:`, error);
         }
+    }
+    
+    // After trying all stations, return the best one we found (even if it's missing description)
+    if (bestObservation) {
+        console.log(`Using best observation (age: ${bestObservationAge.toFixed(1)}h, hasDescription: ${bestObservationHasDescription})`);
+        return bestObservation;
     }
     
     // If we get here, no valid observations were found

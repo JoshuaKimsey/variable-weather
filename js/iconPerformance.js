@@ -1,7 +1,7 @@
 /**
  * Icon Performance and Settings Module
  * 
- * This module handles the performance measurement and preferences
+ * This module handles device detection and preferences
  * for switching between dynamic weather icons and lightweight Meteocons.
  */
 
@@ -15,7 +15,7 @@ let dynamicIconsRadio, lightweightIconsRadio;
 let currentIconPreference = 'dynamic';
 
 /**
- * Initialize the icon settings and detect performance
+ * Initialize the icon settings and detect device type
  */
 export function initIconSettings() {
     // Get DOM elements
@@ -28,22 +28,22 @@ export function initIconSettings() {
         lightweightIconsRadio.addEventListener('change', updateIconPreference);
     }
 
-    // Load saved preference or detect performance
+    // Load saved preference or detect device
     loadSavedPreferenceOrDetect();
 }
 
 /**
- * Load saved preference or run performance detection
+ * Load saved preference or run device detection
  */
 function loadSavedPreferenceOrDetect() {
     const savedPreference = localStorage.getItem(ICON_PREFERENCE_STORAGE);
     
     if (savedPreference) {
-        // Use saved preference
+        // Use saved preference - user's explicit choice overrides automatic detection
         setIconPreference(savedPreference);
     } else {
-        // First time - detect performance and set recommendation
-        detectPerformanceAndRecommend();
+        // First time - detect device type and set recommendation
+        detectDeviceAndSetIcons();
     }
 }
 
@@ -53,11 +53,13 @@ function loadSavedPreferenceOrDetect() {
 function setIconPreference(preference) {
     currentIconPreference = preference;
     
-    // Update UI
-    if (preference === 'lightweight') {
-        lightweightIconsRadio.checked = true;
-    } else {
-        dynamicIconsRadio.checked = true;
+    // Update UI if elements exist
+    if (lightweightIconsRadio && dynamicIconsRadio) {
+        if (preference === 'lightweight') {
+            lightweightIconsRadio.checked = true;
+        } else {
+            dynamicIconsRadio.checked = true;
+        }
     }
     
     // Save to storage
@@ -97,20 +99,15 @@ function updateIconPreference() {
 }
 
 /**
- * Detect performance and recommend appropriate icon type
+ * Detect device type and set appropriate icons
  */
-function detectPerformanceAndRecommend() {
-    // Start with a default of dynamic icons
+function detectDeviceAndSetIcons() {
+    // Default to dynamic icons for tablets, desktops, etc.
     let recommendation = 'dynamic';
     
-    // Check if the device is likely low-powered
-    if (isLowPoweredDevice()) {
+    // Set lightweight icons for mobile phones
+    if (isMobileDevice()) {
         recommendation = 'lightweight';
-    } else {
-        // Measure performance of creating a dynamic icon
-        if (testIconPerformance()) {
-            recommendation = 'lightweight';
-        }
     }
     
     // Set the recommendation
@@ -118,80 +115,21 @@ function detectPerformanceAndRecommend() {
 }
 
 /**
- * Test if the device appears to be low-powered
- * @returns {boolean} True if device seems low-powered
+ * Test if the device is a mobile phone (not a tablet)
+ * @returns {boolean} True if device is a mobile phone
  */
-function isLowPoweredDevice() {
-    // Check hardware concurrency (CPU cores)
-    if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) {
-        return true;
-    }
+function isMobileDevice() {
+    // Check for mobile user agent
+    const mobileUserAgent = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // Check device memory
-    if (navigator.deviceMemory && navigator.deviceMemory < 4) {
-        return true;
-    }
+    // Check if it's a phone-sized screen (typically under 768px width)
+    const isPhoneSize = window.innerWidth < 768;
     
-    // Check for battery saver mode or connection save-data
-    if (navigator.connection && navigator.connection.saveData) {
-        return true;
-    }
+    // Try to exclude tablets (they usually have mobile user agents but larger screens)
+    const isNotTablet = !/iPad|Android(?!.*Mobile)/i.test(navigator.userAgent);
     
-    // Check if it's a mobile device (simplified check)
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobile) {
-        // Mobile devices are more likely to have performance constraints
-        return Math.random() > 0.7; // 30% chance for mobile to use lightweight
-    }
-    
-    return false;
-}
-
-/**
- * Test the performance of creating a dynamic weather icon
- * @returns {boolean} True if dynamic icons might be too heavy
- */
-function testIconPerformance() {
-    // Create a test container off-screen
-    const testContainer = document.createElement('div');
-    testContainer.style.position = 'absolute';
-    testContainer.style.left = '-9999px';
-    testContainer.style.top = '-9999px';
-    document.body.appendChild(testContainer);
-    
-    // Measure time to create several DOM elements to simulate icon creation
-    try {
-        const startTime = performance.now();
-        
-        // Create a bunch of elements with styles to simulate icon creation
-        for (let i = 0; i < 30; i++) {
-            const div = document.createElement('div');
-            div.className = 'test-element';
-            div.style.width = '10px';
-            div.style.height = '10px';
-            div.style.borderRadius = '50%';
-            div.style.position = 'absolute';
-            div.style.backgroundColor = '#FFFFFF';
-            div.style.opacity = Math.random().toString();
-            div.style.top = (Math.random() * 100) + 'px';
-            div.style.left = (Math.random() * 100) + 'px';
-            testContainer.appendChild(div);
-        }
-        
-        const endTime = performance.now();
-        
-        // Clean up
-        document.body.removeChild(testContainer);
-        
-        // If creation took more than 50ms, recommend lightweight icons
-        return (endTime - startTime) > 50;
-    } catch (error) {
-        // On error, clean up and default to not having performance issues
-        if (document.body.contains(testContainer)) {
-            document.body.removeChild(testContainer);
-        }
-        return false;
-    }
+    // Consider it a mobile phone if it has a mobile user agent, phone-sized screen, and is not a tablet
+    return mobileUserAgent && isPhoneSize && isNotTablet;
 }
 
 /**

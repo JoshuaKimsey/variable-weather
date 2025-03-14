@@ -386,7 +386,7 @@ function applyScrollbarTheme(weatherIcon) {
 //==============================================================================
 
 /**
- * Update the station info display
+ * Update the station info display with clearer messaging
  */
 function updateStationInfo(data) {
     if (!stationInfoElement) return;
@@ -396,9 +396,9 @@ function updateStationInfo(data) {
             if (data.observation && data.observation.fromStation) {
                 let stationInfo = '';
 
-                // Add indication about weather description source
+                // Add indication about weather description source - improved messaging
                 if (data.observation.usingForecastDescription) {
-                    stationInfo += '<span class="description-source forecast-description">Forecast conditions</span> • ';
+                    stationInfo += '<span class="description-source forecast-description">Using forecast description</span> • ';
                 } else if (data.observation.descriptionAdjusted) {
                     stationInfo += '<span class="description-source">Observed conditions</span> • ';
                 }

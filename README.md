@@ -37,7 +37,7 @@
 - **Progressive Web App (PWA)** - Install on any device with automatic updates
 - **Built Using Plain JS** - No heavy frameworks such as React or Vue, built using standard HTML/CSS/JS
 - **Unit Conversion** - Toggle between imperial (°F) and metric (°C) units
-- **Responsive Design** - Optimized for all devices from mobile to desktop
+- **Responsive Design** - Optimized for all devices from desktop to mobile
 - **Weather Alerts** - Color-coded severity indicators for active weather alerts
 - **More To Come** - More features are to be added... Stay tuned! 
 
@@ -51,7 +51,9 @@
 4. The app will now be available from your home screen or app launcher
 
 ### From Source
-*Please note: Because the PWA is currently setup to operate from GitHub Pages, you will need to adjust the manifest and service workers files to allow for the PWA function to be activated if you are hosting this on your own machine or elsewhere.*
+*Please note: Because the PWA is currently setup to operate from GitHub Pages, you may need to adjust the manifest and service workers files to allow for the PWA function to be activated if you are hosting this on your own machine or elsewhere.*
+
+*Note on NWS User-Agent: If you deploy this app elsewhere, please change the user-agent string found in the config.js file to match your contact information.*
 
 ```bash
 # Clone the repository
@@ -85,6 +87,8 @@ cd variable-weather
 
 - **Unit Toggle**: Switch between Fahrenheit and Celsius using the settings menu
 - **API Settings**: Add your Pirate Weather API key for non-US locations
+- **Icon Switching**: Switch between the dynamically generated icons or meteocons
+  - Note: On mobile devices, Meteocons will be enabled as the default choice upon first start. However, once this is changed, the user's choice will become the default instead.
 
 ### PWA Updates
 

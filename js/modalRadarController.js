@@ -13,6 +13,10 @@ let alertLayers = [];
 let timestampDisplay = null;
 let alertFetchInProgress = false;
 let lastAlertFetchTime = 0;
+let historyStateAdded = false;
+
+// Define a unique identifier for our history state
+const MODAL_STATE_ID = 'weather_radar_modal_open';
 
 // Constants
 const RAINVIEWER_API_URL = 'https://api.rainviewer.com/public/weather-maps.json';
@@ -49,6 +53,18 @@ export function initModalController() {
                 closeRadarModal();
             }
         });
+        
+        // Set up history event listener for back button/gesture
+        // This should capture any history navigation while the modal is open
+        window.addEventListener('popstate', function(event) {
+            console.log('History navigation detected', event.state);
+            if (radarModalOpen) {
+                // If the modal is open and we navigate back, close it
+                // We don't need to check the state because any back navigation
+                // while the modal is open should close it
+                closeRadarModal(true); // true = coming from popstate event
+            }
+        });
     } else {
         console.error('Could not find radar modal elements');
     }
@@ -73,6 +89,20 @@ function openRadarModal() {
         return;
     }
     
+    // Add a history entry for back button support
+    // This simpler approach just pushes a new state when opening the modal
+    // The popstate event will then handle closing it when navigating back
+    try {
+        // Get current URL to preserve it
+        const currentUrl = window.location.href;
+        // Push state with our modal identifier
+        history.pushState({modalId: MODAL_STATE_ID}, document.title, currentUrl);
+        historyStateAdded = true;
+        console.log('Added history state for radar modal');
+    } catch (e) {
+        console.error('Failed to add history state:', e);
+    }
+    
     // Display modal
     radarModal.style.display = 'block';
     radarBackdrop.style.display = 'block';
@@ -92,8 +122,25 @@ function openRadarModal() {
 
 /**
  * Close the radar modal
+ * @param {boolean} fromPopState - Whether this was triggered from a popstate event
  */
-function closeRadarModal() {
+function closeRadarModal(fromPopState = false) {
+    // Only manipulate history when closing directly (not from back button)
+    // This prevents infinite loops where back -> close -> back -> close...
+    if (historyStateAdded && !fromPopState) {
+        // If we're closing the modal by clicking the X or outside, 
+        // we should go back in history to remove our state
+        console.log('Manually going back in history');
+        history.back();
+        // Don't set historyStateAdded to false here, because the popstate will fire
+        // and we'll handle the actual closing there
+        return; // Exit early - the popstate will call this function again
+    }
+    
+    // If we get here, we're either closing from popstate or historyStateAdded is false
+    // Reset the flag
+    historyStateAdded = false;
+    
     // Update state
     radarModalOpen = false;
     
