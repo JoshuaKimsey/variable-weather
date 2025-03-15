@@ -107,9 +107,11 @@ function initApp() {
     initModalController();
 }
 
+// Modify the determineInitialLocation function in main.js to remove the custom prompt
+
 /**
  * Determine the initial location to display weather for
- * Checks URL parameters first, then cached location, then geolocation preference, then default
+ * Checks URL parameters first, then cached location, then directly uses geolocation
  */
 function determineInitialLocation() {
     // Check for location in URL parameters
@@ -139,28 +141,24 @@ function determineInitialLocation() {
         const cacheAge = Date.now() - cachedLocation.timestamp;
         const cacheAgeHours = cacheAge / (1000 * 60 * 60);
         
-        // If cache is older than 2 hours and geolocation is enabled, check for location changes
-        if (cacheAgeHours > 2 && localStorage.getItem('geolocation_enabled') === 'true') {
+        // If cache is older than 2 hours, check for location changes
+        if (cacheAgeHours > 2) {
             // Get current location in the background
             checkLocationChange();
         }
     } else {
         console.log('No cached location found');
-        // Check geolocation settings
+        // Check if user has explicitly disabled geolocation
         const geoEnabled = localStorage.getItem('geolocation_enabled');
         
-        if (geoEnabled === 'true') {
-            console.log('Geolocation enabled, getting user location');
-            // Try to get location automatically
-            getUserLocation();
-        } else if (geoEnabled !== 'false') {
-            console.log('First-time user, showing geolocation prompt');
-            // Show a prompt for first-time users
-            showGeolocationPrompt();
-        } else {
+        if (geoEnabled === 'false') {
+            // User has explicitly opted out of geolocation
             console.log('Geolocation disabled, using default location');
-            // Just load default location
             fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
+        } else {
+            // First time user or geolocation is enabled - directly try geolocation
+            console.log('Attempting to get user location');
+            getUserLocation();
         }
     }
 }
@@ -361,44 +359,6 @@ function checkLocationChange() {
 //==============================================================================
 // 4. USER INTERFACE INTERACTIONS
 //==============================================================================
-
-/**
- * Show a prompt asking if user wants to enable geolocation
- * Displayed to first-time users who haven't made a geolocation choice yet
- */
-function showGeolocationPrompt() {
-    // Create a prompt container
-    const promptContainer = document.createElement('div');
-    promptContainer.className = 'geo-prompt';
-    promptContainer.innerHTML = `
-        <div class="geo-prompt-content">
-            <div class="geo-prompt-header">
-                <i class="bi bi-geo-alt-fill"></i>
-                <h3>Enable Location Services?</h3>
-            </div>
-            <p>Would you like to see weather for your current location?</p>
-            <div class="geo-prompt-buttons">
-                <button id="geo-prompt-yes" class="geo-prompt-btn geo-prompt-yes">Yes, use my location</button>
-                <button id="geo-prompt-no" class="geo-prompt-btn geo-prompt-no">No, use default</button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(promptContainer);
-
-    // Add event listeners
-    document.getElementById('geo-prompt-yes').addEventListener('click', () => {
-        localStorage.setItem('geolocation_enabled', 'true');
-        promptContainer.remove();
-        getUserLocation();
-    });
-
-    document.getElementById('geo-prompt-no').addEventListener('click', () => {
-        localStorage.setItem('geolocation_enabled', 'false');
-        promptContainer.remove();
-        fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
-    });
-}
 
 /**
  * Search for location function
