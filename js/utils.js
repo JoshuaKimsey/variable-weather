@@ -221,6 +221,54 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
+ * Save the user's location to localStorage
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @param {string} locationName - Optional location name
+ */
+export function saveLocationToCache(lat, lon, locationName = null) {
+    const locationData = {
+        lat: lat,
+        lon: lon,
+        locationName: locationName,
+        timestamp: Date.now()
+    };
+    localStorage.setItem('cached_location', JSON.stringify(locationData));
+}
+
+/**
+ * Get the cached location from localStorage
+ * @returns {Object|null} - Location object or null if not found
+ */
+export function getCachedLocation() {
+    const cachedData = localStorage.getItem('cached_location');
+    if (!cachedData) return null;
+    
+    try {
+        return JSON.parse(cachedData);
+    } catch (error) {
+        console.error('Error parsing cached location:', error);
+        return null;
+    }
+}
+
+/**
+ * Calculate if the current location is significantly different from the cached one
+ * @param {number} currentLat - Current latitude
+ * @param {number} currentLon - Current longitude
+ * @param {number} cachedLat - Cached latitude
+ * @param {number} cachedLon - Cached longitude
+ * @returns {boolean} - True if location has changed significantly
+ */
+export function hasLocationChangedSignificantly(currentLat, currentLon, cachedLat, cachedLon) {
+    // Calculate distance between points
+    const distance = calculateDistance(currentLat, currentLon, cachedLat, cachedLon);
+    
+    // Consider a change significant if more than 10km
+    return distance > 10;
+}
+
+/**
  * Convert degrees to radians
  * @param {number} deg - Degrees
  * @returns {number} - Radians

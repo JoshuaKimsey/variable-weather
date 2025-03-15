@@ -74,6 +74,15 @@ export function fetchWeather(lat, lon, locationName) {
     } catch (error) {
         console.error('Error notifying astro module of location change:', error);
     }
+    
+    // Cache the location after successful fetch request is initiated
+    try {
+        if (typeof saveLocationToCache === 'function') {
+            saveLocationToCache(lat, lon, locationName);
+        }
+    } catch (error) {
+        console.error('Error caching location:', error);
+    }
 }
 
 //==============================================================================
@@ -307,7 +316,7 @@ async function fetchStationObservationsSequentially(stations, lat, lon) {
     });
     
     // Limit to first 3 stations for performance
-    const stationsToTry = sortedStations.slice(0, 3);
+    const stationsToTry = sortedStations.slice(0, 5);
     
     console.log(`Attempting to fetch data from ${stationsToTry.length} weather stations`);
     

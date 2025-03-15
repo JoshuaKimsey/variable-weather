@@ -104,7 +104,7 @@ function initApp() {
 
 /**
  * Determine the initial location to display weather for
- * Checks URL parameters first, then geolocation preference, then default
+ * Checks URL parameters first, then cached location, then geolocation preference, then default
  */
 function determineInitialLocation() {
     // Check for location in URL parameters
@@ -114,18 +114,41 @@ function determineInitialLocation() {
     const locationName = urlParams.get('location');
 
     if (lat && lon) {
+        // URL parameters take highest priority
         fetchWeather(lat, lon, locationName);
     } else {
-        // Check if this is first load with no parameters
-        if (localStorage.getItem('geolocation_enabled') === 'true') {
-            // Try to get location automatically
-            getUserLocation();
-        } else if (localStorage.getItem('geolocation_enabled') !== 'false') {
-            // Show a prompt for first-time users
-            showGeolocationPrompt();
+        // Check for cached location
+        const cachedLocation = getCachedLocation();
+        
+        if (cachedLocation) {
+            console.log('Using cached location');
+            // Use cached location data immediately
+            fetchWeather(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
+            
+            // Update URL with cached location
+            updateURLParameters(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
+            
+            // Check if we should get current location in the background
+            const cacheAge = Date.now() - cachedLocation.timestamp;
+            const cacheAgeHours = cacheAge / (1000 * 60 * 60);
+            
+            // If cache is older than 2 hours and geolocation is enabled, check for location changes
+            if (cacheAgeHours > 2 && localStorage.getItem('geolocation_enabled') === 'true') {
+                // Get current location in the background
+                checkLocationChange();
+            }
         } else {
-            // Just load default location
-            fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
+            // No cached location, fall back to original behavior
+            if (localStorage.getItem('geolocation_enabled') === 'true') {
+                // Try to get location automatically
+                getUserLocation();
+            } else if (localStorage.getItem('geolocation_enabled') !== 'false') {
+                // Show a prompt for first-time users
+                showGeolocationPrompt();
+            } else {
+                // Just load default location
+                fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
+            }
         }
     }
 }
@@ -260,6 +283,67 @@ function reverseGeocode(lat, lon) {
                 reject(error);
             });
     });
+}
+
+/**
+ * Check if the user's location has changed significantly
+ * If it has, update the weather for the new location
+ */
+function checkLocationChange() {
+    // Get cached location
+    const cachedLocation = getCachedLocation();
+    if (!cachedLocation) return;
+    
+    // Check current location in the background without showing UI indicators
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            // Success callback
+            (position) => {
+                const currentLat = position.coords.latitude;
+                const currentLon = position.coords.longitude;
+                
+                // Check if location has changed significantly
+                if (hasLocationChangedSignificantly(
+                    currentLat, currentLon, 
+                    cachedLocation.lat, cachedLocation.lon
+                )) {
+                    console.log('Location has changed significantly, updating weather');
+                    
+                    // Get location name using reverse geocoding
+                    reverseGeocode(currentLat, currentLon)
+                        .then(locationName => {
+                            // Update URL and fetch new weather
+                            updateURLParameters(currentLat, currentLon, locationName);
+                            fetchWeather(currentLat, currentLon, locationName);
+                            
+                            // Update the cache
+                            saveLocationToCache(currentLat, currentLon, locationName);
+                        })
+                        .catch(error => {
+                            console.error('Error getting location name:', error);
+                            // Even without a location name, we can still update
+                            updateURLParameters(currentLat, currentLon);
+                            fetchWeather(currentLat, currentLon);
+                            
+                            // Update the cache
+                            saveLocationToCache(currentLat, currentLon);
+                        });
+                } else {
+                    console.log('Location has not changed significantly');
+                }
+            },
+            // Error callback - silent fail, just keep using cached location
+            (error) => {
+                console.log('Unable to get current location, using cached location');
+            },
+            // Options - quick timeout for background check
+            {
+                enableHighAccuracy: false,
+                timeout: 5000,
+                maximumAge: 60000
+            }
+        );
+    }
 }
 
 //==============================================================================

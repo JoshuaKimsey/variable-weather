@@ -2614,8 +2614,6 @@ body.modal-open {
     font-size: 1.2em; /* Adjust as needed for visual balance */
 }
 
-/* Add these styles to styles.css in the Forecast Elements section (around line 430) */
-
 /* Forecast card layout modifications to include precipitation chance */
 .forecast-card {
     flex: 1;
@@ -2639,7 +2637,7 @@ body.modal-open {
 .forecast-card .forecast-icon {
     height: 60px;
     width: 60px;
-    margin: 0 auto 15px; /* Reduced bottom margin */
+    margin: 0 auto 20px; /* Reduced bottom margin */
     position: relative;
 }
 
@@ -2649,20 +2647,24 @@ body.modal-open {
     flex-direction: column;
     align-items: center;
     width: 100%;
+    margin-top: 5px;
 }
+
 
 .forecast-card .temp {
     font-size: 1.2rem;
     font-weight: 600;
     margin-bottom: 3px;
+    white-space: nowrap; /* Prevent wrapping */
 }
 
 /* Precipitation chance styling */
-.precip-chance {
+.forecast-card .precip-chance {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    color: #29b6f6;
     gap: 3px;
 }
 
@@ -2670,11 +2672,32 @@ body.modal-open {
     color: #29b6f6;
 }
 
+/* Mobile adjustments */
+@media (max-width: 480px) {
+    
+    /* Reduce font size of temperature on mobile */
+    .forecast-card .temp {
+        font-size: 1.1rem;
+    }
+    
+    /* Make precip chance smaller on mobile */
+    .forecast-card .precip-chance {
+        font-size: 0.8rem;
+    }
+    
+    /* If needed, we can create a more compact layout for very small screens */
+    @media (max-width: 350px) {
+        .forecast-card .temp {
+            font-size: 0.9rem;
+        }
+    }
+}
+
 /* Similar changes for hourly forecast cards */
 .hourly-forecast-card {
     flex: 1;
     min-width: 120px;
-    background-color: rgba(255, 255, 255, 0.75);
+    background-color: var(--detail-card-bg);
     border-radius: 15px;
     padding: 15px 10px; /* Slightly reduced horizontal padding */
     text-align: center;
@@ -2693,7 +2716,7 @@ body.modal-open {
 .hourly-forecast-card .forecast-icon {
     height: 60px;
     width: 60px;
-    margin: 0 auto 15px; /* Reduced bottom margin */
+    margin: 0 auto 20px; /* Reduced bottom margin */
     position: relative;
 }
 
