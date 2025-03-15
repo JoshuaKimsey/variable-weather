@@ -497,10 +497,18 @@ function handleForecastDisplay(data) {
                 tempDisplay = `${Math.round(highTemp)}° / ${Math.round(lowTemp)}°`;
             }
 
+            // Get precipitation chance with fallbacks
+            const precipChance = day.precipChance !== undefined ? day.precipChance : 0;
+
             forecastCard.innerHTML = `
                 <div class="day">${dayName}</div>
                 <div class="forecast-icon" id="forecast-icon-${i}"></div>
-                <div class="temp">${tempDisplay}</div>
+                <div class="forecast-details">
+                    <div class="temp">${tempDisplay}</div>
+                    ${precipChance >= 5 ? 
+                        `<div class="precip-chance"><i class="bi bi-droplet-fill"></i> ${precipChance}%</div>` : 
+                        ''}
+                </div>
             `;
 
             forecastContainer.appendChild(forecastCard);
@@ -596,10 +604,18 @@ function handleHourlyForecastDisplay(data) {
                 tempDisplay = `${Math.round(temp)}°`;
             }
 
+            // Get precipitation chance with fallbacks
+            const precipChance = hour.precipChance !== undefined ? hour.precipChance : 0;
+
             hourlyForecastCard.innerHTML = `
                 <div class="time">${timeString}</div>
                 <div class="forecast-icon" id="hourly-forecast-icon-${i}"></div>
-                <div class="temp">${tempDisplay}</div>
+                <div class="forecast-details">
+                    <div class="temp">${tempDisplay}</div>
+                    ${precipChance >= 5 ? 
+                        `<div class="precip-chance"><i class="bi bi-droplet-fill"></i> ${precipChance}%</div>` : 
+                        ''}
+                </div>
             `;
 
             hourlyForecastContainer.appendChild(hourlyForecastCard);
@@ -637,7 +653,164 @@ function handleHourlyForecastDisplay(data) {
 //==============================================================================
 
 /**
- * Display alerts with error handling
+ * Identifies all hazards mentioned in an alert
+ * @param {string} alertTitle - Alert title
+ * @param {string} alertDescription - Short description
+ * @param {string} fullDescription - Full alert text
+ * @returns {Array} - Array of identified hazard types
+ */
+function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
+    // Create a set to store unique hazard types
+    const hazards = new Set();
+    
+    // Combine all text for analysis
+    const combinedText = (alertTitle + " " + alertDescription + " " + fullDescription).toLowerCase();
+    
+    // Define hazard keywords and their corresponding types
+    const hazardPatterns = [
+        { pattern: /tornado/g, type: 'tornado' },
+        { pattern: /hail/g, type: 'hail' },
+        { pattern: /flash flood|flooding|flood/g, type: 'flood' },
+        { pattern: /thunder|lightning/g, type: 'thunderstorm' },
+        { pattern: /snow|blizzard|winter/g, type: 'snow' },
+        { pattern: /freez|ice|sleet/g, type: 'ice' },
+        { pattern: /wind|gust/g, type: 'wind' },
+        { pattern: /dust/g, type: 'dust' },
+        { pattern: /smoke/g, type: 'smoke' },
+        { pattern: /fog/g, type: 'fog' },
+        { pattern: /heat/g, type: 'heat' },
+        { pattern: /cold|chill/g, type: 'cold' },
+        { pattern: /rain|shower/g, type: 'rain' },
+        { pattern: /hurricane|tropical/g, type: 'hurricane' }
+    ];
+    
+    // Check each pattern against the combined text
+    hazardPatterns.forEach(({ pattern, type }) => {
+        if (pattern.test(combinedText)) {
+            hazards.add(type);
+        }
+    });
+    
+    return Array.from(hazards);
+}
+
+/**
+ * Get the primary hazard type from an alert title
+ * @param {string} alertTitle - The alert title
+ * @returns {string} - Primary hazard type
+ */
+function getPrimaryHazardType(alertTitle) {
+    const title = alertTitle.toLowerCase();
+    
+    // Check title for primary hazard type in order of priority
+    if (title.includes('tornado')) return 'tornado';
+    if (title.includes('hurricane') || title.includes('tropical storm')) return 'hurricane';
+    if (title.includes('flash flood')) return 'flood';
+    if (title.includes('thunderstorm')) return 'thunderstorm';
+    if (title.includes('flood')) return 'flood';
+    if (title.includes('snow') || title.includes('blizzard')) return 'snow';
+    if (title.includes('ice') || title.includes('freezing')) return 'ice';
+    if (title.includes('wind')) return 'wind';
+    if (title.includes('heat')) return 'heat';
+    if (title.includes('cold')) return 'cold';
+    if (title.includes('fog')) return 'fog';
+    if (title.includes('dust')) return 'dust';
+    if (title.includes('smoke')) return 'smoke';
+    if (title.includes('rain')) return 'rain';
+    
+    // Default to the first word of the title as a fallback
+    return title.split(' ')[0];
+}
+
+/**
+ * Get icon path for a specific hazard type
+ * @param {string} hazardType - The hazard type
+ * @returns {string} - Path to the icon
+ */
+function getHazardIcon(hazardType) {
+    const baseIconPath = './resources/meteocons/all/';
+    
+    switch(hazardType) {
+        case 'tornado': return `${baseIconPath}tornado.svg`;
+        case 'hail': return `${baseIconPath}hail.svg`;
+        case 'flood': return `${baseIconPath}raindrops.svg`;
+        case 'thunderstorm': return `${baseIconPath}thunderstorms-rain.svg`;
+        case 'snow': return `${baseIconPath}snow.svg`;
+        case 'ice': return `${baseIconPath}sleet.svg`;
+        case 'wind': return `${baseIconPath}wind.svg`;
+        case 'dust': return `${baseIconPath}dust.svg`;
+        case 'smoke': return `${baseIconPath}smoke.svg`;
+        case 'fog': return `${baseIconPath}fog.svg`;
+        case 'heat': return `${baseIconPath}thermometer-warmer.svg`;
+        case 'cold': return `${baseIconPath}thermometer-colder.svg`;
+        case 'rain': return `${baseIconPath}rain.svg`;
+        case 'hurricane': return `${baseIconPath}hurricane.svg`;
+        default: return `${baseIconPath}cloudy.svg`; // Fallback icon
+    }
+}
+
+/**
+ * Map weather alert type to an appropriate Meteocon icon path
+ * @param {string} alertTitle - The title of the alert
+ * @param {string} alertDescription - The description of the alert (optional, for future enhancement)
+ * @returns {string} - Path to the appropriate Meteocon SVG icon
+ */
+function getAlertIcon(alertTitle, alertDescription = '') {
+    // Convert to lowercase for easier matching
+    const title = alertTitle.toLowerCase();
+    
+    // Map for common weather alert types to Meteocon SVG files
+    // Base path to Meteocon icons
+    const baseIconPath = './resources/meteocons/all/';
+    
+    // Check for specific alert types and map them to appropriate icons
+    if (title.includes('tornado')) {
+        return `${baseIconPath}tornado.svg`;
+    } else if (title.includes('thunderstorm') || title.includes('thunder')) {
+        return `${baseIconPath}thunderstorms-rain.svg`;
+    } else if (title.includes('wind') || title.includes('gale')) {
+        return `${baseIconPath}wind.svg`;
+    } else if (title.includes('flood') || title.includes('flooding')) {
+        return `${baseIconPath}raindrops.svg`;
+    } else if (title.includes('hurricane') || title.includes('tropical storm')) {
+        return `${baseIconPath}hurricane.svg`;
+    } else if (title.includes('snow') || title.includes('blizzard')) {
+        return `${baseIconPath}snow.svg`;
+    } else if (title.includes('ice') || title.includes('freezing')) {
+        return `${baseIconPath}sleet.svg`;
+    } else if (title.includes('fog')) {
+        return `${baseIconPath}fog.svg`;
+    } else if (title.includes('heat')) {
+        return `${baseIconPath}thermometer-warmer.svg`;
+    } else if (title.includes('cold') || title.includes('freeze')) {
+        return `${baseIconPath}thermometer-colder.svg`;
+    } else if (title.includes('dust') || title.includes('air quality')) {
+        return `${baseIconPath}dust.svg`;
+    } else if (title.includes('smoke')) {
+        return `${baseIconPath}smoke.svg`;
+    } else if (title.includes('haze')) {
+        return `${baseIconPath}haze.svg`;
+    } else if (title.includes('rain') || title.includes('shower')) {
+        return `${baseIconPath}rain.svg`;
+    } else if (title.includes('storm')) {
+        return `${baseIconPath}thunderstorms.svg`;
+    } else if (title.includes('advisory')) {
+        // For generic advisories, try to determine from description
+        if (alertDescription.toLowerCase().includes('wind')) {
+            return `${baseIconPath}wind.svg`;
+        } else if (alertDescription.toLowerCase().includes('rain')) {
+            return `${baseIconPath}rain.svg`;
+        } else {
+            return `${baseIconPath}cloudy.svg`; // Default for advisories
+        }
+    } else {
+        // Default icon for any other alert type
+        return `${baseIconPath}not-available.svg`; // You might need to create this generic alert icon
+    }
+}
+
+/**
+ * Display alerts with error handling and multi-hazard icons in a single row
  */
 function displayAlerts(alerts) {
     try {
@@ -697,6 +870,18 @@ function displayAlerts(alerts) {
             const severity = getAlertSeverity(alert);
             const severityClass = `alert-${severity}`;
 
+            // Identify all hazards mentioned in the alert
+            const allHazards = identifyAlertHazards(alertTitle, alertDescription, fullDescription);
+
+            // Determine the primary hazard based on the alert title
+            const primaryHazard = getPrimaryHazardType(alertTitle);
+
+            // Get secondary hazards (filtering out the primary)
+            const secondaryHazards = allHazards.filter(hazard => hazard !== primaryHazard);
+
+            // Get primary icon path
+            const primaryIconPath = getHazardIcon(primaryHazard);
+
             // Create alert element
             const alertElement = document.createElement('div');
             alertElement.className = `alert-item ${severityClass}`;
@@ -704,24 +889,32 @@ function displayAlerts(alerts) {
 
             // Create the collapsed view (shown by default)
             alertElement.innerHTML = `
-                <div class="alert-header">
-                    <div class="alert-title-row">
-                        <span class="alert-severity ${severityClass}">${capitalizeFirst(severity)}</span>
-                        <h3 class="alert-title">${alertTitle}</h3>
-                        <button class="alert-expand-btn" aria-label="Expand alert details">
-                            <i class="bi bi-chevron-down"></i>
-                        </button>
-                    </div>
-                    <div class="alert-subtitle">${alertDescription}</div>
-                </div>
-                <div class="alert-content" style="display: none;">
-                    <div class="alert-metadata">
-                        ${urgency ? `<div class="alert-urgency">Urgency: ${urgency}</div>` : ''}
-                        ${expires ? `<div class="alert-expires">Expires: ${expires}</div>` : ''}
-                    </div>
-                    <div class="alert-full-description">${formatAlertText(fullDescription)}</div>
-                </div>
-            `;
+    <div class="alert-header">
+        <div class="alert-title-row">
+            <div class="alert-title-severity">
+                <span class="alert-severity ${severityClass}">${capitalizeFirst(severity)}</span>
+                <h3 class="alert-title">${alertTitle}</h3>
+            </div>
+            <div class="alert-icon-container">
+                <img src="${primaryIconPath}" alt="${alertTitle} icon" class="alert-meteocon" />
+                ${secondaryHazards.map(hazard => 
+                    `<img src="${getHazardIcon(hazard)}" alt="${hazard} hazard" class="alert-meteocon" />`
+                ).join('')}
+            </div>
+            <button class="alert-expand-btn" aria-label="Expand alert details">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="alert-subtitle">${alertDescription}</div>
+    </div>
+    <div class="alert-content" style="display: none;">
+        <div class="alert-metadata">
+            ${urgency ? `<div class="alert-urgency">Urgency: ${urgency}</div>` : ''}
+            ${expires ? `<div class="alert-expires">Expires: ${expires}</div>` : ''}
+        </div>
+        <div class="alert-full-description">${formatAlertText(fullDescription)}</div>
+    </div>
+`;
 
             alertsContainer.appendChild(alertElement);
 

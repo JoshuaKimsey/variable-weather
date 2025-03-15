@@ -170,6 +170,9 @@ function updateForecastUnits(forecastData) {
                     tempElement.textContent = `${Math.round(highTemp)}° / ${Math.round(lowTemp)}°`;
                 }
             }
+            
+            // Precipitation chance doesn't need to be updated since it's a percentage
+            // and the same in both unit systems
         }
     });
 }
@@ -198,6 +201,9 @@ function updateHourlyForecastUnits(hourlyData) {
                     tempElement.textContent = `${Math.round(temp)}°`;
                 }
             }
+            
+            // Precipitation chance doesn't need to be updated since it's a percentage
+            // and the same in both unit systems
         }
     });
 }

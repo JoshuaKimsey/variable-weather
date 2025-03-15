@@ -790,16 +790,11 @@ body {
     padding: 12px 15px;
     border-radius: 10px;
     margin-bottom: 12px;
-    background-color: rgba(255, 255, 255, 0.85);
+    background-color: var(--detail-card-bg);
     border-left: 5px solid var(--warning-color);
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.alert-item:hover {
-    background-color: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .alert-expanded {
@@ -890,11 +885,6 @@ body {
     animation: flash-alert 2s infinite;
 }
 
-.alert-item.alert-extreme:hover {
-    background-color: rgba(255, 200, 200, 0.95);
-    animation: flash-alert 2s infinite;
-}
-
 .alert-severe {
     border-left-color: var(--severe-color);
 }
@@ -946,6 +936,115 @@ body {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* Alert title row layout */
+.alert-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    position: relative; /* Add position relative for absolute positioning context */
+    width: 100%; /* Ensure full width */
+}
+
+/* Title and severity container */
+.alert-title-severity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Keep the title compact */
+.alert-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    white-space: nowrap; /* Prevent title from wrapping */
+}
+
+/* Icon container - positioned to the right of title in desktop */
+.alert-icon-container {
+    display: flex;
+    align-items: center;
+    background-color: var(--card-bg-color);
+    border-radius: 10px;
+    gap: 5px;
+    margin-left: 8px; /* Space between title and icons */
+    flex-wrap: nowrap; /* Prevent wrapping to multiple lines */
+}
+
+/* Make all icons the same size */
+.alert-meteocon {
+    width: 3.5em;
+    height: 3.5em;
+    object-fit: contain;
+}
+
+/* Position the expand button at the far right for desktop */
+.alert-expand-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 2; /* Ensure it's above other elements */
+}
+
+/* Mobile adjustments */
+@media (max-width: 650px) {
+    /* Structure for mobile view */
+    .alert-title-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    /* Keep severity, title, and expand button on same row */
+    .alert-title-severity {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        position: relative; /* For absolute positioning of expand button */
+    }
+    
+    /* Reposition expand button for mobile */
+    .alert-expand-btn {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    /* Icons container below title, but left-aligned */
+    .alert-icon-container {
+        margin-left: 0;
+        margin-top: 8px;
+        margin-bottom: 4px;
+        padding: 5px;
+        justify-content: flex-start; /* Left-align icons */
+        align-self: flex-start; /* Align container to the left */
+        width: auto; /* Auto width instead of full width */
+        overflow-x: auto; /* Allow scrolling if too many icons */
+    }
+    
+    .alert-meteocon {
+        width: 2.5em;
+        height: 2.5em;
+    }
+    
+    .alert-icon-container {
+        gap: 3px;
     }
 }
 
@@ -2513,4 +2612,109 @@ body.modal-open {
 /* Bootstrap Icons have different sizing requirements */
 .radar-play-pause i {
     font-size: 1.2em; /* Adjust as needed for visual balance */
+}
+
+/* Add these styles to styles.css in the Forecast Elements section (around line 430) */
+
+/* Forecast card layout modifications to include precipitation chance */
+.forecast-card {
+    flex: 1;
+    min-width: 120px;
+    background-color: var(--forecast-card-bg);
+    border-radius: 15px;
+    padding: 15px 10px; /* Slightly reduced horizontal padding */
+    text-align: center;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.forecast-card .day {
+    font-weight: 600;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.forecast-card .forecast-icon {
+    height: 60px;
+    width: 60px;
+    margin: 0 auto 15px; /* Reduced bottom margin */
+    position: relative;
+}
+
+/* New forecast details container */
+.forecast-details {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.forecast-card .temp {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+
+/* Precipitation chance styling */
+.precip-chance {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    gap: 3px;
+}
+
+.precip-chance i {
+    color: #29b6f6;
+}
+
+/* Similar changes for hourly forecast cards */
+.hourly-forecast-card {
+    flex: 1;
+    min-width: 120px;
+    background-color: rgba(255, 255, 255, 0.75);
+    border-radius: 15px;
+    padding: 15px 10px; /* Slightly reduced horizontal padding */
+    text-align: center;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hourly-forecast-card .time {
+    font-weight: 600;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.hourly-forecast-card .forecast-icon {
+    height: 60px;
+    width: 60px;
+    margin: 0 auto 15px; /* Reduced bottom margin */
+    position: relative;
+}
+
+.hourly-forecast-card .temp {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+
+/* Media queries for small screens */
+@media (max-width: 480px) {
+    .precip-chance {
+        font-size: 0.75rem;
+    }
+    
+    .precip-chance i {
+        font-size: 0.7rem;
+    }
+    
+    .forecast-card, .hourly-forecast-card {
+        min-width: 90px; /* Smaller minimum width on mobile */
+        padding: 12px 8px; /* Further reduced padding */
+    }
 }

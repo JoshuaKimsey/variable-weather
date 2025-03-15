@@ -765,33 +765,53 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         }
     }
 
-    // Process daily forecast data
-    // NWS provides separate day and night forecasts, so we need to combine them
-    for (let i = 0; i < dailyForecast.length; i += 2) {
-        if (i + 1 < dailyForecast.length) {
-            const day = dailyForecast[i];
-            const night = dailyForecast[i + 1];
+    // Process daily forecast data using name-based approach
+    // Organize periods into day and night collections
+    let dayPeriods = {};
+    let nightPeriods = {};
 
-            weatherData.daily.data.push({
-                time: new Date(day.startTime).getTime() / 1000,
-                icon: mapNWSIconToGeneric(day.icon),
-                temperatureHigh: day.temperature, // Day temperature is the high
-                temperatureLow: night.temperature, // Night temperature is the low
-                summary: day.shortForecast
-            });
+    dailyForecast.forEach(period => {
+        if (period.isDaytime) {
+            // This is a day period (e.g., "Saturday", "Sunday")
+            dayPeriods[period.name] = period;
         } else {
-            // Handle case where we only have one period left
-            const period = dailyForecast[i];
-
-            weatherData.daily.data.push({
-                time: new Date(period.startTime).getTime() / 1000,
-                icon: mapNWSIconToGeneric(period.icon),
-                temperatureHigh: period.isDaytime ? period.temperature : period.temperature + 10,
-                temperatureLow: !period.isDaytime ? period.temperature : period.temperature - 10,
-                summary: period.shortForecast
-            });
+            // This is a night period (e.g., "Saturday Night", "Sunday Night")
+            // Extract the day name from "X Night" format
+            const dayName = period.name.replace(" Night", "");
+            nightPeriods[dayName] = period;
         }
-    }
+    });
+
+    // Get unique day names (e.g., "Saturday", "Sunday", etc.)
+    const dayNames = Object.keys(dayPeriods);
+
+    // Create properly paired day/night forecast data
+    dayNames.forEach(dayName => {
+        const dayPeriod = dayPeriods[dayName];
+        const nightPeriod = nightPeriods[dayName]; // Corresponding night period
+        
+        // Get precipitation chances with null checking
+        const dayPrecipChance = dayPeriod && dayPeriod.probabilityOfPrecipitation && 
+                              dayPeriod.probabilityOfPrecipitation.value !== null ? 
+                              dayPeriod.probabilityOfPrecipitation.value : 0;
+                              
+        const nightPrecipChance = nightPeriod && nightPeriod.probabilityOfPrecipitation && 
+                                nightPeriod.probabilityOfPrecipitation.value !== null ? 
+                                nightPeriod.probabilityOfPrecipitation.value : 0;
+        
+        // Use the higher of the day and night precipitation chances
+        const precipChance = Math.max(dayPrecipChance, nightPrecipChance);
+        
+        // Create the forecast entry for this day
+        weatherData.daily.data.push({
+            time: dayPeriod ? new Date(dayPeriod.startTime).getTime() / 1000 : Date.now() / 1000,
+            icon: dayPeriod ? mapNWSIconToGeneric(dayPeriod.icon) : 'cloudy',
+            temperatureHigh: dayPeriod ? dayPeriod.temperature : 70,
+            temperatureLow: nightPeriod ? nightPeriod.temperature : 50,
+            summary: dayPeriod ? dayPeriod.shortForecast : 'Forecast unavailable',
+            precipChance: precipChance
+        });
+    });
 
     // Ensure we have at least 7 days of forecast data
     while (weatherData.daily.data.length < 7) {
@@ -810,12 +830,18 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
 
         for (let i = 0; i < periodsToUse; i++) {
             const period = hourlyPeriods[i];
+            
+            // Get precipitation chance with robust null checking
+            const precipChance = period.probabilityOfPrecipitation && 
+                                period.probabilityOfPrecipitation.value !== null ? 
+                                period.probabilityOfPrecipitation.value : 0;
 
             weatherData.hourlyForecast.push({
                 time: new Date(period.startTime).getTime() / 1000, // Convert to Unix timestamp
                 temperature: period.temperature,
                 icon: mapNWSIconToGeneric(period.icon),
-                summary: period.shortForecast
+                summary: period.shortForecast,
+                precipChance: precipChance // Add precipitation chance
             });
         }
     }
@@ -873,6 +899,33 @@ function fetchPirateWeather(lat, lon, locationName = null) {
             data.source = 'pirate';
 
             data.currently.isDaytime = isDaytime(lat, lon);
+            
+            // Process precipitation chances for Pirate Weather data
+            // Pirate Weather uses precipProbability as a decimal (0.4 = 40%)
+            
+            // Process daily forecast precipitation
+            if (data.daily && data.daily.data) {
+                data.daily.data.forEach(day => {
+                    if (day.precipProbability !== undefined) {
+                        // Convert decimal to percentage and round
+                        day.precipChance = Math.round(day.precipProbability * 100);
+                    } else {
+                        day.precipChance = 0;
+                    }
+                });
+            }
+            
+            // Process hourly forecast precipitation
+            if (data.hourly && data.hourly.data) {
+                data.hourly.data.forEach(hour => {
+                    if (hour.precipProbability !== undefined) {
+                        // Convert decimal to percentage and round
+                        hour.precipChance = Math.round(hour.precipProbability * 100);
+                    } else {
+                        hour.precipChance = 0;
+                    }
+                });
+            }
 
             // Display the weather data
             displayWeatherWithAlerts(data, locationName);

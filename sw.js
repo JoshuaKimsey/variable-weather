@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.6.1';
+const SW_VERSION = '1.7.0';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 const ASSETS = [
@@ -58,6 +58,10 @@ const ASSETS = [
   './resources/meteocons/all/clear-night.svg',
   './resources/meteocons/all/partly-cloudy-night.svg',
   './resources/meteocons/all/overcast-night.svg',
+  './resources/meteocons/all/raindrops.svg',
+  './resources/meteocons/all/hail.svg',
+  './resources/meteocons/all/thunderstorms.svg',
+  './resources/meteocons/all/not-available.svg',
 ];
 
 // Install event - cache the app shell
