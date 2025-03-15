@@ -653,7 +653,7 @@ function handleHourlyForecastDisplay(data) {
 //==============================================================================
 
 /**
- * Identifies all hazards mentioned in an alert
+ * Identifies all hazards mentioned in an alert with improved word boundary matching
  * @param {string} alertTitle - Alert title
  * @param {string} alertDescription - Short description
  * @param {string} fullDescription - Full alert text
@@ -667,21 +667,22 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
     const combinedText = (alertTitle + " " + alertDescription + " " + fullDescription).toLowerCase();
     
     // Define hazard keywords and their corresponding types
+    // Using \b for word boundaries to match whole words only
     const hazardPatterns = [
-        { pattern: /tornado/g, type: 'tornado' },
-        { pattern: /hail/g, type: 'hail' },
-        { pattern: /flash flood|flooding|flood/g, type: 'flood' },
-        { pattern: /thunder|lightning/g, type: 'thunderstorm' },
-        { pattern: /snow|blizzard|winter/g, type: 'snow' },
-        { pattern: /freez|ice|sleet/g, type: 'ice' },
-        { pattern: /wind|gust/g, type: 'wind' },
-        { pattern: /dust/g, type: 'dust' },
-        { pattern: /smoke/g, type: 'smoke' },
-        { pattern: /fog/g, type: 'fog' },
-        { pattern: /heat/g, type: 'heat' },
-        { pattern: /cold|chill/g, type: 'cold' },
-        { pattern: /rain|shower/g, type: 'rain' },
-        { pattern: /hurricane|tropical/g, type: 'hurricane' }
+        { pattern: /\btornado\b/g, type: 'tornado' },
+        { pattern: /\bhail\b/g, type: 'hail' },
+        { pattern: /\bflash flood\b|\bflooding\b|\bflood\b/g, type: 'flood' },
+        { pattern: /\bthunder\b|\blightning\b|\bthunderstorm\b|\bsevere thunderstorm\b/g, type: 'thunderstorm' },
+        { pattern: /\bsnow\b|\bblizzard\b|\bwinter\b/g, type: 'snow' },
+        { pattern: /\bfreez(e|ing)\b|\bice\b|\bsleet\b/g, type: 'ice' },
+        { pattern: /\bwind\b|\bgust\b/g, type: 'wind' },
+        { pattern: /\bdust\b/g, type: 'dust' },
+        { pattern: /\bsmoke\b/g, type: 'smoke' },
+        { pattern: /\bfog\b/g, type: 'fog' },
+        { pattern: /\bheat\b/g, type: 'heat' },
+        { pattern: /\bcold\b|\bchill\b/g, type: 'cold' },
+        { pattern: /\brain\b|\bshower\b/g, type: 'rain' },
+        { pattern: /\bhurricane\b|\btropical\b/g, type: 'hurricane' }
     ];
     
     // Check each pattern against the combined text
@@ -695,31 +696,34 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
 }
 
 /**
- * Get the primary hazard type from an alert title
+ * Get the primary hazard type from an alert title with word boundary matching
  * @param {string} alertTitle - The alert title
  * @returns {string} - Primary hazard type
  */
 function getPrimaryHazardType(alertTitle) {
     const title = alertTitle.toLowerCase();
     
-    // Check title for primary hazard type in order of priority
-    if (title.includes('tornado')) return 'tornado';
-    if (title.includes('hurricane') || title.includes('tropical storm')) return 'hurricane';
-    if (title.includes('flash flood')) return 'flood';
-    if (title.includes('thunderstorm')) return 'thunderstorm';
-    if (title.includes('flood')) return 'flood';
-    if (title.includes('snow') || title.includes('blizzard')) return 'snow';
-    if (title.includes('ice') || title.includes('freezing')) return 'ice';
-    if (title.includes('wind')) return 'wind';
-    if (title.includes('heat')) return 'heat';
-    if (title.includes('cold')) return 'cold';
-    if (title.includes('fog')) return 'fog';
-    if (title.includes('dust')) return 'dust';
-    if (title.includes('smoke')) return 'smoke';
-    if (title.includes('rain')) return 'rain';
+    // Check title for primary hazard type with word boundaries
+    if (/\btornado\b/.test(title)) return 'tornado';
+    if (/\bhurricane\b|\btropical storm\b/.test(title)) return 'hurricane';
+    if (/\bflash flood\b/.test(title)) return 'flood';
+    if (/\bthunderstorm\b/.test(title)) return 'thunderstorm';
+    if (/\bflood\b/.test(title)) return 'flood';
+    if (/\bsnow\b|\bblizzard\b/.test(title)) return 'snow';
+    if (/\bice\b|\bfreezing\b/.test(title)) return 'ice';
+    if (/\bwind\b/.test(title)) return 'wind';
+    if (/\bheat\b/.test(title)) return 'heat';
+    if (/\bcold\b/.test(title)) return 'cold';
+    if (/\bfog\b/.test(title)) return 'fog';
+    if (/\bdust\b/.test(title)) return 'dust';
+    if (/\bsmoke\b/.test(title)) return 'smoke';
+    if (/\brain\b/.test(title)) return 'rain';
     
     // Default to the first word of the title as a fallback
-    return title.split(' ')[0];
+    const firstWord = title.split(' ')[0];
+    return firstWord === 'watch' || firstWord === 'warning' || firstWord === 'advisory' 
+        ? title.split(' ')[1] || 'unknown'  // If first word is watch/warning, use second word
+        : firstWord;  // Otherwise use first word
 }
 
 /**
@@ -745,67 +749,7 @@ function getHazardIcon(hazardType) {
         case 'cold': return `${baseIconPath}thermometer-colder.svg`;
         case 'rain': return `${baseIconPath}rain.svg`;
         case 'hurricane': return `${baseIconPath}hurricane.svg`;
-        default: return `${baseIconPath}cloudy.svg`; // Fallback icon
-    }
-}
-
-/**
- * Map weather alert type to an appropriate Meteocon icon path
- * @param {string} alertTitle - The title of the alert
- * @param {string} alertDescription - The description of the alert (optional, for future enhancement)
- * @returns {string} - Path to the appropriate Meteocon SVG icon
- */
-function getAlertIcon(alertTitle, alertDescription = '') {
-    // Convert to lowercase for easier matching
-    const title = alertTitle.toLowerCase();
-    
-    // Map for common weather alert types to Meteocon SVG files
-    // Base path to Meteocon icons
-    const baseIconPath = './resources/meteocons/all/';
-    
-    // Check for specific alert types and map them to appropriate icons
-    if (title.includes('tornado')) {
-        return `${baseIconPath}tornado.svg`;
-    } else if (title.includes('thunderstorm') || title.includes('thunder')) {
-        return `${baseIconPath}thunderstorms-rain.svg`;
-    } else if (title.includes('wind') || title.includes('gale')) {
-        return `${baseIconPath}wind.svg`;
-    } else if (title.includes('flood') || title.includes('flooding')) {
-        return `${baseIconPath}raindrops.svg`;
-    } else if (title.includes('hurricane') || title.includes('tropical storm')) {
-        return `${baseIconPath}hurricane.svg`;
-    } else if (title.includes('snow') || title.includes('blizzard')) {
-        return `${baseIconPath}snow.svg`;
-    } else if (title.includes('ice') || title.includes('freezing')) {
-        return `${baseIconPath}sleet.svg`;
-    } else if (title.includes('fog')) {
-        return `${baseIconPath}fog.svg`;
-    } else if (title.includes('heat')) {
-        return `${baseIconPath}thermometer-warmer.svg`;
-    } else if (title.includes('cold') || title.includes('freeze')) {
-        return `${baseIconPath}thermometer-colder.svg`;
-    } else if (title.includes('dust') || title.includes('air quality')) {
-        return `${baseIconPath}dust.svg`;
-    } else if (title.includes('smoke')) {
-        return `${baseIconPath}smoke.svg`;
-    } else if (title.includes('haze')) {
-        return `${baseIconPath}haze.svg`;
-    } else if (title.includes('rain') || title.includes('shower')) {
-        return `${baseIconPath}rain.svg`;
-    } else if (title.includes('storm')) {
-        return `${baseIconPath}thunderstorms.svg`;
-    } else if (title.includes('advisory')) {
-        // For generic advisories, try to determine from description
-        if (alertDescription.toLowerCase().includes('wind')) {
-            return `${baseIconPath}wind.svg`;
-        } else if (alertDescription.toLowerCase().includes('rain')) {
-            return `${baseIconPath}rain.svg`;
-        } else {
-            return `${baseIconPath}cloudy.svg`; // Default for advisories
-        }
-    } else {
-        // Default icon for any other alert type
-        return `${baseIconPath}not-available.svg`; // You might need to create this generic alert icon
+        default: return `${baseIconPath}not-available.svg`; // Fallback icon
     }
 }
 
