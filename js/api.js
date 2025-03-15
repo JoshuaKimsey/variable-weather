@@ -15,7 +15,14 @@
 import { resetLastUpdateTime } from './autoUpdate.js';
 import { getPirateWeatherApiKey, API_ENDPOINTS, createNWSRequestOptions } from './config.js';
 import { displayWeatherData, displayWeatherWithAlerts, showLoading, hideLoading, hideError, showError } from './ui.js';
-import { getCountryCode, isUSLocation, formatLocationName, calculateDistance, isDaytime } from './utils.js';
+import { 
+    getCountryCode, 
+    isUSLocation, 
+    formatLocationName, 
+    calculateDistance, 
+    isDaytime,
+    saveLocationToCache 
+} from './utils.js';
 import { locationChanged } from './astronomicalView.js';
 
 //==============================================================================

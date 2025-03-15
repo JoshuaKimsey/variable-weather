@@ -20,7 +20,12 @@ import {
     hideLoading,
     hideError
 } from './ui.js';
-import { updateURLParameters } from './utils.js';
+import { 
+    updateURLParameters,
+    getCachedLocation,
+    saveLocationToCache,
+    hasLocationChangedSignificantly
+} from './utils.js';
 import { initBackgrounds } from './weatherBackgrounds.js';
 import { initApiSettings } from './apiSettings.js';
 import { initUnits } from './units.js';
