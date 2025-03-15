@@ -237,17 +237,32 @@ export function saveLocationToCache(lat, lon, locationName = null) {
 }
 
 /**
- * Get the cached location from localStorage
- * @returns {Object|null} - Location object or null if not found
+ * Get the cached location from localStorage with validation
+ * @returns {Object|null} - Location object or null if not found/invalid
  */
 export function getCachedLocation() {
     const cachedData = localStorage.getItem('cached_location');
     if (!cachedData) return null;
     
     try {
-        return JSON.parse(cachedData);
+        const parsedData = JSON.parse(cachedData);
+        
+        // Validate the data structure
+        if (!parsedData || 
+            typeof parsedData.lat !== 'number' || 
+            typeof parsedData.lon !== 'number' ||
+            !parsedData.timestamp) {
+            // Invalid or incomplete data
+            console.log('Invalid cached location data, clearing cache');
+            localStorage.removeItem('cached_location');
+            return null;
+        }
+        
+        return parsedData;
     } catch (error) {
         console.error('Error parsing cached location:', error);
+        // Clear invalid cache data
+        localStorage.removeItem('cached_location');
         return null;
     }
 }

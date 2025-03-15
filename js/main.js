@@ -119,41 +119,48 @@ function determineInitialLocation() {
     const locationName = urlParams.get('location');
 
     if (lat && lon) {
-        // URL parameters take highest priority
+        console.log('Using location from URL parameters');
         fetchWeather(lat, lon, locationName);
-    } else {
-        // Check for cached location
-        const cachedLocation = getCachedLocation();
+        return;
+    }
+    
+    // Check for cached location
+    const cachedLocation = getCachedLocation();
+    
+    if (cachedLocation) {
+        console.log('Using cached location from localStorage');
+        // Use cached location data immediately
+        fetchWeather(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
         
-        if (cachedLocation) {
-            console.log('Using cached location');
-            // Use cached location data immediately
-            fetchWeather(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
-            
-            // Update URL with cached location
-            updateURLParameters(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
-            
-            // Check if we should get current location in the background
-            const cacheAge = Date.now() - cachedLocation.timestamp;
-            const cacheAgeHours = cacheAge / (1000 * 60 * 60);
-            
-            // If cache is older than 2 hours and geolocation is enabled, check for location changes
-            if (cacheAgeHours > 2 && localStorage.getItem('geolocation_enabled') === 'true') {
-                // Get current location in the background
-                checkLocationChange();
-            }
+        // Update URL with cached location
+        updateURLParameters(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
+        
+        // Check if we should get current location in the background
+        const cacheAge = Date.now() - cachedLocation.timestamp;
+        const cacheAgeHours = cacheAge / (1000 * 60 * 60);
+        
+        // If cache is older than 2 hours and geolocation is enabled, check for location changes
+        if (cacheAgeHours > 2 && localStorage.getItem('geolocation_enabled') === 'true') {
+            // Get current location in the background
+            checkLocationChange();
+        }
+    } else {
+        console.log('No cached location found');
+        // Check geolocation settings
+        const geoEnabled = localStorage.getItem('geolocation_enabled');
+        
+        if (geoEnabled === 'true') {
+            console.log('Geolocation enabled, getting user location');
+            // Try to get location automatically
+            getUserLocation();
+        } else if (geoEnabled !== 'false') {
+            console.log('First-time user, showing geolocation prompt');
+            // Show a prompt for first-time users
+            showGeolocationPrompt();
         } else {
-            // No cached location, fall back to original behavior
-            if (localStorage.getItem('geolocation_enabled') === 'true') {
-                // Try to get location automatically
-                getUserLocation();
-            } else if (localStorage.getItem('geolocation_enabled') !== 'false') {
-                // Show a prompt for first-time users
-                showGeolocationPrompt();
-            } else {
-                // Just load default location
-                fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
-            }
+            console.log('Geolocation disabled, using default location');
+            // Just load default location
+            fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
         }
     }
 }
