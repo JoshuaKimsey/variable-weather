@@ -597,6 +597,8 @@ function determineAlertSeverity(props) {
 
 /**
  * Identifies all hazards mentioned in an alert with improved word boundary matching
+ * and context awareness to avoid place name false positives
+ * 
  * @param {string} alertTitle - Alert title
  * @param {string} alertDescription - Short description
  * @param {string} fullDescription - Full alert text
@@ -609,6 +611,27 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
     // Combine all text for analysis
     const combinedText = (alertTitle + " " + alertDescription + " " + fullDescription).toLowerCase();
     
+    // Place name indicators - used to exclude matches that are likely place names
+    const placeNamePatterns = [
+        /\b(road|rd\.?|street|st\.?|ave\.?|avenue|ln\.?|lane|blvd\.?|boulevard|dr\.?|drive|way|place|pl\.?|parkway|pkwy\.?|highway|hwy\.?)\b/i,
+        /\b(city|town|county|village|district|neighborhood|park|plaza|center|square|region|area|zone)\b/i,
+        /\b(creek|river|lake|pond|bay|mountain|hill|valley|canyon|ridge|peak|summit|basin)\b/i
+    ];
+    
+    // Helper function to check if a match is likely part of a place name
+    const isLikelyPlaceName = (matchText, context = 50) => {
+        // Extract surrounding context from the combined text
+        const matchIndex = combinedText.indexOf(matchText.toLowerCase());
+        if (matchIndex === -1) return false;
+        
+        const start = Math.max(0, matchIndex - context);
+        const end = Math.min(combinedText.length, matchIndex + matchText.length + context);
+        const surroundingContext = combinedText.substring(start, end);
+        
+        // Check if any place name patterns appear in the surrounding context
+        return placeNamePatterns.some(pattern => pattern.test(surroundingContext));
+    };
+    
     // Define hazard keywords and their corresponding types
     // Using \b for word boundaries to match whole words only
     const hazardPatterns = [
@@ -616,7 +639,13 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
         { pattern: /\bhail\b/g, type: 'hail' },
         { pattern: /\bflash flood\b|\bflooding\b|\bflood\b/g, type: 'flood' },
         { pattern: /\bthunder\b|\blightning\b|\bthunderstorm\b|\bsevere thunderstorm\b/g, type: 'thunderstorm' },
-        { pattern: /\bsnow\b|\bblizzard\b|\bwinter\b/g, type: 'snow' },
+        
+        // Improved snow pattern - requires weather context or excludes place name indicators
+        { 
+            pattern: /\b(?:winter storm|winter weather|heavy snow|snowfall|snow accumulation|snow and ice|snow advisory|snow warning|snow emergency|snowstorm|snow covered|snow level)\b/gi,
+            type: 'snow' 
+        },
+        
         { pattern: /\bfreez(e|ing)\b|\bice\b|\bsleet\b/g, type: 'ice' },
         { pattern: /\bwind\b|\bgust\b/g, type: 'wind' },
         { pattern: /\bdust\b/g, type: 'dust' },
@@ -625,7 +654,12 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
         { pattern: /\bheat\b/g, type: 'heat' },
         { pattern: /\bcold\b|\bchill\b/g, type: 'cold' },
         { pattern: /\brain\b|\bshower\b/g, type: 'rain' },
-        { pattern: /\bhurricane\b|\btropical\b/g, type: 'hurricane' }
+        
+        // Improved hurricane pattern that avoids matching place names
+        { 
+            pattern: /\b(?:hurricane warning|hurricane watch|hurricane advisory|hurricane threat|approaching hurricane|major hurricane|potential hurricane|category \d hurricane|hurricane force|tropical storm|tropical cyclone|tropical depression)\b/g, 
+            type: 'hurricane' 
+        }
     ];
     
     // Check each pattern against the combined text
@@ -635,24 +669,97 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
         }
     });
     
+    // Special handling for generic "snow" mentions - requires more context checks
+    if (!hazards.has('snow')) {
+        const snowMatches = combinedText.match(/\bsnow\b/gi);
+        if (snowMatches) {
+            // Specific exclusion for known false positive
+            if (combinedText.includes("snow creek rd")) {
+                console.log("Excluded 'Snow Creek Rd' from snow hazards");
+            } else {
+                // Check if there are weather-related terms near "snow"
+                const hasWeatherContext = /snow.{0,30}(weather|forecast|warning|advisory|inches|feet|heavy|condition|expect|potential|accumulation|amount|total|depth|fall|coverage)/gi.test(combinedText);
+                
+                // Add snow hazard only if it has weather context and doesn't appear to be a place name
+                for (const match of snowMatches) {
+                    if (hasWeatherContext && !isLikelyPlaceName(match)) {
+                        hazards.add('snow');
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Also check for "blizzard" and "winter" with appropriate context
+        const blizzardMatch = /\bblizzard\b/gi.test(combinedText);
+        if (blizzardMatch && !isLikelyPlaceName("blizzard")) {
+            hazards.add('snow');
+        }
+        
+        const winterMatch = /\bwinter\b/gi.test(combinedText);
+        if (winterMatch && /winter.{0,20}(weather|storm|advisory|warning)/gi.test(combinedText) && !isLikelyPlaceName("winter")) {
+            hazards.add('snow');
+        }
+    }
+    
+    // Additional check specifically for hurricane but excluding place names
+    if (!hazards.has('hurricane')) {
+        // If we have "hurricane" by itself, verify it's not a place name by checking context
+        const hurricaneMatch = /\bhurricane\b/gi.test(combinedText);
+        
+        if (hurricaneMatch) {
+            // Look for contextual clues that suggest it's a weather event, not a place
+            const weatherContextMatch = /hurricane.{0,30}(warning|watch|advisory|category|mph|wind|storm|evacuat|weather|intensity|eye|cyclone|damage|impact|approach|strength)/gi.test(combinedText);
+            
+            // If it has weather context and doesn't appear to be a place name, add it
+            if (weatherContextMatch && !isLikelyPlaceName("hurricane")) {
+                hazards.add('hurricane');
+            }
+        }
+    }
+    
     return Array.from(hazards);
 }
 
 /**
- * Get the primary hazard type from an alert title with word boundary matching
+ * Get the primary hazard type from an alert title with improved pattern matching
+ * that avoids false positives from place names
+ * 
  * @param {string} alertTitle - The alert title
  * @returns {string} - Primary hazard type
  */
 function getPrimaryHazardType(alertTitle) {
     const title = alertTitle.toLowerCase();
     
+    // Helper function to check if a term appears to be part of a place name
+    const isLikelyPlaceName = (term) => {
+        const placePatterns = [
+            /(city|town|county|village|district|road|rd\.?|street|st\.?|avenue|ave\.?|lane|ln\.?|drive|dr\.?|way|blvd\.?|plaza|park)/i,
+            /(creek|river|lake|pond|bay|mountain|hill|valley|canyon|ridge)/i
+        ];
+        
+        // Check if any place name pattern appears near the term
+        return placePatterns.some(pattern => 
+            new RegExp(term + '\\s+' + pattern.source, 'i').test(title) || 
+            new RegExp(pattern.source + '\\s+' + term, 'i').test(title)
+        );
+    };
+    
     // Check title for primary hazard type with word boundaries
     if (/\btornado\b/.test(title)) return 'tornado';
-    if (/\bhurricane\b|\btropical storm\b/.test(title)) return 'hurricane';
+    
+    // Improved hurricane detection - look for specific weather phrases, not just "hurricane"
+    if (/\bhurricane warning\b|\bhurricane watch\b|\btropical storm\b|\bcategory \d hurricane\b/.test(title)) return 'hurricane';
+    
     if (/\bflash flood\b/.test(title)) return 'flood';
     if (/\bthunderstorm\b/.test(title)) return 'thunderstorm';
     if (/\bflood\b/.test(title)) return 'flood';
-    if (/\bsnow\b|\bblizzard\b|\bwinter\b/.test(title)) return 'snow';
+    
+    // Improved snow detection with context and exclusions
+    if (/\b(winter storm|winter weather|heavy snow|snowfall|snowstorm)\b/.test(title)) return 'snow';
+    if (/\bsnow\b/.test(title) && !/\bsnow creek\b/.test(title) && !isLikelyPlaceName('snow')) return 'snow';
+    if (/\bblizzard\b/.test(title) && !isLikelyPlaceName('blizzard')) return 'snow';
+    
     if (/\bice\b|\bfreezing\b/.test(title)) return 'ice';
     if (/\bwind\b/.test(title)) return 'wind';
     if (/\bheat\b/.test(title)) return 'heat';
@@ -661,6 +768,11 @@ function getPrimaryHazardType(alertTitle) {
     if (/\bdust\b/.test(title)) return 'dust';
     if (/\bsmoke\b/.test(title)) return 'smoke';
     if (/\brain\b/.test(title)) return 'rain';
+    
+    // Extra check for hurricane that's not part of a place name
+    if (/\bhurricane\b/.test(title) && !isLikelyPlaceName('hurricane')) {
+        return 'hurricane';
+    }
     
     // Default to the first word of the title as a fallback
     const firstWord = title.split(' ')[0];
