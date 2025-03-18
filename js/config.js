@@ -2,7 +2,7 @@
  * Configuration constants for the weather application
  */
 
-// Default API key for Pirate Weather (fallback for non-US locations)
+// Default API key for Pirate Weather (fallback for minute-by-minute forecasts)
 let PIRATE_WEATHER_API_KEY = '*insert-your-api-key-here*';
 
 // User Agent for NWS API
@@ -31,10 +31,18 @@ export const DEFAULT_COORDINATES = {
 
 // API endpoints
 export const API_ENDPOINTS = {
+    // NWS (National Weather Service) endpoints
     NWS_POINTS: 'https://api.weather.gov/points',
     NWS_GRIDPOINTS: 'https://api.weather.gov/gridpoints',
     NWS_ALERTS: 'https://api.weather.gov/alerts/active',
+    
+    // Pirate Weather endpoint
     PIRATE_WEATHER: 'https://api.pirateweather.net/forecast',
+    
+    // Open-Meteo endpoints
+    OPEN_METEO_FORECAST: 'https://api.open-meteo.com/v1/forecast',
+    
+    // Geocoding endpoint
     GEOCODING: 'https://nominatim.openstreetmap.org/search'
 };
 

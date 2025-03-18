@@ -18,30 +18,6 @@ export function updateURLParameters(lat, lon, locationName) {
 }
 
 /**
- * Check if location is in the US
- */
-export function isUSLocation(countryCode) {
-    return countryCode === 'us';
-}
-
-/**
- * Determine country code from Nominatim results
- */
-export function getCountryCode(displayName) {
-    // Try to extract country code from display name
-    const parts = displayName.split(',');
-    const lastPart = parts[parts.length - 1].trim().toLowerCase();
-
-    // Check if it's US
-    if (lastPart === 'usa' || lastPart === 'united states' || lastPart === 'united states of america' || lastPart === 'us') {
-        return 'us';
-    }
-
-    // For demonstration purposes, assume non-US for all other locations
-    return 'non-us';
-}
-
-/**
  * Format location name for display
  */
 export function formatLocationName(locationName) {

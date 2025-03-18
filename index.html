@@ -233,7 +233,8 @@
                         <input type="text" id="location-input" placeholder="Enter location (city, state, country)">
                         <button id="search-button" aria-label="Search"><i class="bi bi-search"></i></i></button>
                     </div>
-                    <button id="geo-button" aria-label="Get My Location" title="Use my current location"><i class="bi bi-geo-alt-fill"></i></button>
+                    <button id="geo-button" aria-label="Get My Location" title="Use my current location"><i
+                            class="bi bi-geo-alt-fill"></i></button>
                 </div>
                 <!-- API attribution section -->
                 <div class="attribution-footer">
@@ -253,15 +254,17 @@
                 <button id="close-settings-modal">&times;</button>
             </div>
             <div class="settings-modal-body">
-                <p><strong>Pirate Weather API Key Required for:</strong></p>
-                <ul class="api-key-info">
-                    <li>Weather data outside the United States</li>
-                    <li>Fallback when National Weather Service is unavailable</li>
-                </ul>
+                <p><strong>Pirate Weather API Key</strong></p>
+                <div class="api-status-note">
+                    <i class="bi bi-info-circle-fill"></i>
+                    <span>Pirate Weather is currently unused, but is planned for specialized forecast features in the future. Open-Meteo is now used
+                        for international weather data.</span>
+                </div>
+                <p>Add your Pirate Weather API key for future features (minute-by-minute precipitation forecasts).</p>
                 <p>You can get a free key from <a href="https://pirateweather.net/getting-started" target="_blank"
                         class="settings-link">pirateweather.net</a>.</p>
                 <div class="settings-form-group">
-                    <label for="pirate-api-key">Pirate Weather API Key:<span class="required-marker">*</span></label>
+                    <label for="pirate-api-key">Pirate Weather API Key:</label>
                     <input type="text" id="pirate-api-key" placeholder="Enter your API key">
                 </div>
                 <div class="api-key-status" id="api-key-status"></div>

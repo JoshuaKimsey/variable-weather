@@ -37,6 +37,7 @@
     --detail-card-bg: rgba(255, 255, 255, 0.75);
     --forecast-card-bg: rgba(255, 255, 255, 0.75);
     --search-bg: rgba(255, 255, 255, 0.75);
+    --attribution-bg : rgba(100, 100, 100, 0.5);
     
     /* Utility colors */
     --shadow-color: rgba(0, 0, 0, 0.1);
@@ -126,7 +127,9 @@ body {
     align-items: center;
     margin-top: 10px;
     padding-top: 10px;
+    border-radius: 10px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: var(--attribution-bg);
 }
 
 /* API indicator centered in its own card */
@@ -1197,6 +1200,30 @@ body {
 
 .status-error {
     color: var(--error-color);
+}
+
+/* API status note in settings modal */
+.api-status-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background-color: rgba(0, 122, 255, 0.1);
+    border-left: 3px solid rgba(0, 122, 255, 0.8);
+    padding: 10px 12px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.api-status-note i {
+    color: rgba(0, 122, 255, 0.9);
+    font-size: 16px;
+    margin-top: 2px;
+}
+
+.api-status-note span {
+    flex: 1;
+    line-height: 1.4;
 }
 
 /*-----------------------------------------------

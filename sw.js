@@ -1,9 +1,22 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.7.3';
+const SW_VERSION = '1.8.0';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
+/*
+* Add new API url's here
+*/
+const API_URLs = [
+  'api.weather.gov',
+  'api.pirateweather.net',
+  'api.open-meteo.com',
+  'nominatim.openstreetmap.org'
+]
+
+/* 
+* Add assets that should be cached here, including new API JS files
+*/
 const ASSETS = [
   './',
   './index.html',
@@ -20,6 +33,12 @@ const ASSETS = [
   './js/pwaUpdates.js',
   './js/radarView.js',
   './js/astronomicalView.js',
+  // New standardized format and interfaces
+  './js/standardWeatherFormat.js',
+  // API modules (updated paths to reflect new directory structure)
+  './js/api/nwsApi.js',
+  './js/api/openMeteoApi.js',
+  './js/api/pirateWeatherApi.js',
   // Add fonts, images, and other assets as needed
   './resources/bootstrap/css/bootstrap.min.css',
   './resources/bootstrap/icons/bootstrap-icons.css',
@@ -122,11 +141,9 @@ self.addEventListener('message', event => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', event => {
-  // API requests - network first, then cache, with timeout
-  if (event.request.url.includes('api.weather.gov') ||
-    event.request.url.includes('api.pirateweather.net') ||
-    event.request.url.includes('nominatim.openstreetmap.org')) {
-    // For API requests, use a network-first strategy with timeout
+  for (let i = 0; i <= API_URLs.length; i++) {
+    if (event.request.url.includes(API_URLs[i])) {
+      // For API requests, use a network-first strategy with timeout
     const timeoutPromise = new Promise((resolve) => {
       setTimeout(() => {
         resolve(caches.match('/offline.html'));
@@ -142,20 +159,18 @@ self.addEventListener('fetch', event => {
         });
         return response;
       })
-      .catch(() => {
+      .catch(async () => {
         // If network fails, try from cache
-        return caches.match(event.request)
-          .then(cachedResponse => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            // If nothing in cache, show offline page
-            return caches.match('/offline.html');
-          });
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return caches.match('/offline.html');
       });
 
     event.respondWith(Promise.race([networkPromise, timeoutPromise]));
     return;
+    }
   }
 
   // For static assets (app shell), use cache-first strategy

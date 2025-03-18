@@ -12,6 +12,7 @@
 // 1. IMPORTS AND DOM ELEMENTS
 //==============================================================================
 
+import { setApiAttribution } from './api.js';
 import { setWeatherIcon, setForecastIcon } from './weatherIcons.js';
 import { setWeatherBackground } from './weatherBackgrounds.js';
 import { formatDate, formatLocationName, updatePageTitle, getLocalTimeForLocation } from './utils.js';
@@ -90,6 +91,10 @@ export function setupEventListeners(searchCallback) {
 
 /**
  * Display weather data with all necessary error handling
+ * Refactored to work with the standardized weather data format
+ * 
+ * @param {Object} data - Standardized weather data object
+ * @param {string} locationName - Optional location name
  */
 export function displayWeatherData(data, locationName) {
     try {
@@ -106,13 +111,8 @@ export function displayWeatherData(data, locationName) {
         // Show weather data section
         weatherData.style.display = 'block';
 
-        // Set API indicator (simplified to just show the data source)
-        if (data.source === 'nws') {
-            apiIndicator.innerHTML = 'Data provided by <a href="https://www.weather.gov/" target="_blank" class="attribution-link">National Weather Service</a>';
-        } else {
-            apiIndicator.innerHTML = 'Data provided by <a href="https://pirateweather.net/" target="_blank" class="attribution-link">Pirate Weather</a>';
-        }
-        apiIndicator.className = 'api-indicator';
+        // Use the centralized attribution function
+        setApiAttribution(data.source);
 
         // Current conditions
         const current = data.currently;
@@ -135,6 +135,7 @@ export function displayWeatherData(data, locationName) {
 
         // Format values properly with unit conversions
         windSpeedElement.textContent = formatWindSpeed(current.windSpeed || 0);
+        
         // Set wind direction arrow
         if (current.windDirection !== undefined) {
             setWindDirection(current.windDirection);
@@ -143,25 +144,27 @@ export function displayWeatherData(data, locationName) {
             const container = document.querySelector('.wind-direction-container');
             if (container) container.classList.add('no-data');
         }
+        
         humidityElement.textContent = current.humidity !== undefined ? `${Math.round(current.humidity * 100)}%` : 'N/A';
         pressureElement.textContent = formatPressure(current.pressure || 1015);
         visibilityElement.textContent = formatVisibility(current.visibility || 10);
 
-        // Set weather icon
+        // Set weather icon with isDaytime from standardized format
         setWeatherIcon(current.icon || 'cloudy', weatherIconElement, current.isDaytime);
 
-        // Set background based on weather
+        // Set background based on weather and time of day
         setWeatherBackground(current.icon || 'cloudy', current.isDaytime);
 
-        // Apply scrollbar theme based on current weather (add this line)
+        // Apply scrollbar theme based on current weather
         applyScrollbarTheme(current.icon || 'cloudy');
 
-        // Update station info display if element exists
+        // Update station info display using the standardized stationInfo object
         updateStationInfo(data);
 
-        // Process forecast data safely
+        // Process forecast data using standardized format
         handleForecastDisplay(data);
 
+        // Process hourly forecast data using standardized format
         handleHourlyForecastDisplay(data);
 
         // Display alerts if available
@@ -174,51 +177,62 @@ export function displayWeatherData(data, locationName) {
         hideError();
 
         // Update local time display with location's time
-        // First, extract lat/lon from URL parameters or data object
-        let locationLat, locationLon;
-
-        // Try to get coordinates from URL first
-        const urlParams = new URLSearchParams(window.location.search);
-        locationLat = urlParams.get('lat');
-        locationLon = urlParams.get('lon');
-
-        // If we don't have coordinates in URL but we have data object, try to extract them
-        if ((!locationLat || !locationLon) && data) {
-            // Some APIs include lat/lon in the data object
-            if (data.latitude !== undefined && data.longitude !== undefined) {
-                locationLat = data.latitude;
-                locationLon = data.longitude;
-            } else if (data.lat !== undefined && data.lon !== undefined) {
-                locationLat = data.lat;
-                locationLon = data.lon;
-            }
-        }
-
-        // Update the time if we have coordinates
-        if (locationLon) {
-            const localTimeElement = document.getElementById('local-time');
-            if (localTimeElement) {
-                // FIXED: Pass both longitude AND latitude
-                const localTime = getLocalTimeForLocation(locationLon, locationLat);
-                localTimeElement.textContent = localTime;
-
-                // Clear any existing interval
-                if (window.localTimeInterval) {
-                    clearInterval(window.localTimeInterval);
-                }
-
-                // Update local time every 30 seconds
-                window.localTimeInterval = setInterval(() => {
-                    // FIXED: Pass both longitude AND latitude
-                    const updatedTime = getLocalTimeForLocation(locationLon, locationLat);
-                    localTimeElement.textContent = updatedTime;
-                }, 30000);
-            }
-        }
+        // Don't pass undefined parameters - the function will get coordinates itself
+        updateLocalTimeDisplay(data);
 
     } catch (error) {
         console.error('Error displaying weather data:', error);
         showError('Error displaying weather data: ' + error.message);
+    }
+}
+
+/**
+ * Update local time display based on data
+ * @param {Object} data - Weather data
+ */
+function updateLocalTimeDisplay(data) {
+    // Extract lat/lon from URL parameters or data object
+    let locationLat, locationLon;
+    
+    // Try to get coordinates from URL first
+    if (window.location) {
+        const urlParams = new URLSearchParams(window.location.search);
+        locationLat = urlParams.get('lat');
+        locationLon = urlParams.get('lon');
+    }
+    
+    // If we still don't have coordinates, try to extract them from data
+    if ((!locationLat || !locationLon) && data) {
+        // Some APIs include lat/lon in the data object
+        if (data.latitude !== undefined && data.longitude !== undefined) {
+            locationLat = data.latitude;
+            locationLon = data.longitude;
+        } else if (data.lat !== undefined && data.lon !== undefined) {
+            locationLat = data.lat;
+            locationLon = data.lon;
+        }
+    }
+
+    // Update the time if we have coordinates
+    if (locationLon && locationLat) {
+        const localTimeElement = document.getElementById('local-time');
+        if (localTimeElement) {
+            // Pass both longitude AND latitude
+            const localTime = getLocalTimeForLocation(locationLon, locationLat);
+            localTimeElement.textContent = localTime;
+
+            // Clear any existing interval
+            if (window.localTimeInterval) {
+                clearInterval(window.localTimeInterval);
+            }
+
+            // Update local time every 30 seconds
+            window.localTimeInterval = setInterval(() => {
+                // Pass both longitude AND latitude
+                const updatedTime = getLocalTimeForLocation(locationLon, locationLat);
+                localTimeElement.textContent = updatedTime;
+            }, 30000);
+        }
     }
 }
 
@@ -386,49 +400,56 @@ function applyScrollbarTheme(weatherIcon) {
 //==============================================================================
 
 /**
- * Update the station info display with clearer messaging
+ * Update function for station information display
+ * This has been refactored to use the standardized stationInfo format
+ * 
+ * @param {Object} data - Weather data object with standardized format
  */
 function updateStationInfo(data) {
     if (!stationInfoElement) return;
 
     try {
-        if (data.source === 'nws') {
-            if (data.observation && data.observation.fromStation) {
-                let stationInfo = '';
-
-                // Add indication about weather description source - improved messaging
-                if (data.observation.usingForecastDescription) {
-                    stationInfo += '<span class="description-source forecast-description">Using forecast description</span> • ';
-                } else if (data.observation.descriptionAdjusted) {
-                    stationInfo += '<span class="description-source">Observed conditions</span> • ';
-                }
-
-                if (data.observation.stationName) {
-                    stationInfo += `<span class="station-name">${data.observation.stationName}</span>`;
-                } else {
-                    stationInfo += '<span class="station-name">NWS Station</span>';
-                }
-
-                if (data.observation.stationDistance !== null) {
-                    const distanceInMiles = (data.observation.stationDistance * 0.621371).toFixed(1);
-                    stationInfo += ` (${distanceInMiles} mi away)`;
-                }
-
-                if (data.observation.observationTime) {
-                    const observationTime = new Date(data.observation.observationTime);
-                    stationInfo += ` <span class="observation-time">observed ${formatObservationTime(observationTime)}</span>`;
-                }
-
-                stationInfoElement.innerHTML = stationInfo;
-                stationInfoElement.style.display = 'inline-block';
-                stationInfoElement.classList.remove('forecast-data');
-            } else {
+        if (data.stationInfo && data.stationInfo.display) {
+            // Special handling for forecast data
+            if (data.stationInfo.isForecastData) {
+                // For forecast data, show a clear message
                 stationInfoElement.innerHTML = 'Using forecast data (no station observations available)';
                 stationInfoElement.style.display = 'inline-block';
                 stationInfoElement.classList.add('forecast-data');
+                return;
             }
+
+            // Normal station info processing for observation data
+            let stationInfo = '';
+            
+            // Add indication about weather description source
+            if (data.stationInfo.usingForecastDescription) {
+                stationInfo += '<span class="description-source forecast-description">Using forecast description</span> • ';
+            } else if (data.stationInfo.descriptionAdjusted) {
+                stationInfo += '<span class="description-source">Observed conditions</span> • ';
+            }
+
+            if (data.stationInfo.stationName) {
+                stationInfo += `<span class="station-name">${data.stationInfo.stationName}</span>`;
+            } else {
+                stationInfo += '<span class="station-name">Weather Station</span>';
+            }
+
+            if (data.stationInfo.stationDistance !== null) {
+                const distanceInMiles = (data.stationInfo.stationDistance * 0.621371).toFixed(1);
+                stationInfo += ` (${distanceInMiles} mi away)`;
+            }
+
+            if (data.stationInfo.observationTime) {
+                const observationTime = new Date(data.stationInfo.observationTime);
+                stationInfo += ` <span class="observation-time">observed ${formatObservationTime(observationTime)}</span>`;
+            }
+
+            stationInfoElement.innerHTML = stationInfo;
+            stationInfoElement.style.display = 'inline-block';
+            stationInfoElement.classList.remove('forecast-data'); // Make sure we remove the class if it's not forecast data
         } else {
-            // Hide for Pirate Weather data
+            // Hide if no station info
             stationInfoElement.style.display = 'none';
         }
     } catch (error) {
@@ -438,7 +459,10 @@ function updateStationInfo(data) {
 }
 
 /**
- * Safely handle the forecast display with error checking
+ * Process and display daily forecast data
+ * This has been refactored to use the standardized daily data format
+ * 
+ * @param {Object} data - Weather data object with standardized format
  */
 function handleForecastDisplay(data) {
     try {
@@ -451,17 +475,10 @@ function handleForecastDisplay(data) {
         // Clear previous forecast
         forecastContainer.innerHTML = '';
 
-        // Get forecast data with proper fallbacks
-        let forecastData = [];
-        if (data.daily && Array.isArray(data.daily.data)) {
-            forecastData = data.daily.data;
-        } else if (data.daily && !Array.isArray(data.daily)) {
-            forecastData = [data.daily]; // Convert single object to array
-        } else if (Array.isArray(data.daily)) {
-            forecastData = data.daily;
-        }
+        // Get forecast data
+        const forecastData = data.daily.data;
 
-        if (forecastData.length === 0) {
+        if (!forecastData || forecastData.length === 0) {
             forecastContainer.innerHTML = '<div class="no-forecast">No forecast data available</div>';
             return;
         }
@@ -473,21 +490,19 @@ function handleForecastDisplay(data) {
             const day = forecastData[i];
             if (!day) continue;
 
-            const date = new Date((day.time || Date.now() / 1000 + i * 86400) * 1000);
+            const date = new Date(day.time * 1000);
 
             const forecastCard = document.createElement('div');
             forecastCard.className = 'forecast-card';
 
             // Day name (e.g., "Mon", "Tue")
             const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-            // Get temperatures with fallbacks
-            const highTemp = day.temperatureHigh !== undefined ? day.temperatureHigh :
-                (day.temperature !== undefined ? day.temperature + 5 : 70);
+            
+            // Get temperatures
+            const highTemp = day.temperatureHigh;
+            const lowTemp = day.temperatureLow;
 
-            const lowTemp = day.temperatureLow !== undefined ? day.temperatureLow :
-                (day.temperature !== undefined ? day.temperature - 5 : 50);
-
-            // Format temperatures according to current units - ALWAYS HIGH/LOW FORMAT
+            // Format temperatures according to current units
             let tempDisplay;
             if (getDisplayUnits() === 'metric') {
                 const highTempC = (highTemp - 32) * (5 / 9);
@@ -497,7 +512,7 @@ function handleForecastDisplay(data) {
                 tempDisplay = `${Math.round(highTemp)}° / ${Math.round(lowTemp)}°`;
             }
 
-            // Get precipitation chance with fallbacks
+            // Get precipitation chance
             const precipChance = day.precipChance !== undefined ? day.precipChance : 0;
 
             forecastCard.innerHTML = `
@@ -516,24 +531,7 @@ function handleForecastDisplay(data) {
             // Set forecast icon - ALWAYS use daytime icons for daily forecast
             const forecastIconElement = document.getElementById(`forecast-icon-${i}`);
             if (forecastIconElement) {
-                // For daily forecast, convert any night icons to their day equivalents
-                let iconCode = day.icon || 'cloudy';
-
-                // Convert night-specific icons to day versions
-                if (iconCode === 'clear-night') {
-                    iconCode = 'clear-day';
-                } else if (iconCode === 'partly-cloudy-night') {
-                    iconCode = 'partly-cloudy-day';
-                } else if (iconCode.startsWith('n') && weatherIcons[iconCode.substring(1)]) {
-                    // Remove 'n' prefix for NWS night icons
-                    iconCode = iconCode.substring(1);
-                } else if (iconCode.includes('night')) {
-                    // Replace 'night' with 'day' in icon names
-                    iconCode = iconCode.replace('night', 'day');
-                }
-
-                // Always use daytime mode
-                setForecastIcon(iconCode, forecastIconElement, true);
+                setForecastIcon(day.icon || 'cloudy', forecastIconElement, true);
             }
         }
     } catch (error) {
@@ -543,8 +541,10 @@ function handleForecastDisplay(data) {
 }
 
 /**
- * Handle the hourly forecast display
- * @param {Object} data - Weather data object
+ * Process and display hourly forecast data
+ * This has been refactored to use the standardized hourly data format
+ * 
+ * @param {Object} data - Weather data object with standardized format
  */
 function handleHourlyForecastDisplay(data) {
     try {
@@ -558,20 +558,10 @@ function handleHourlyForecastDisplay(data) {
         // Clear previous forecast
         hourlyForecastContainer.innerHTML = '';
 
-        // Get hourly forecast data with proper fallbacks
-        let hourlyForecastData = [];
-        if (data.hourly && Array.isArray(data.hourly.data)) {
-            hourlyForecastData = data.hourly.data;
-        } else if (data.hourly && !Array.isArray(data.hourly)) {
-            hourlyForecastData = [data.hourly]; // Convert single object to array
-        } else if (Array.isArray(data.hourly)) {
-            hourlyForecastData = data.hourly;
-        } else if (data.source === 'nws' && data.hourlyForecast && Array.isArray(data.hourlyForecast)) {
-            // NWS specific format (processed in api.js)
-            hourlyForecastData = data.hourlyForecast;
-        }
+        // Get hourly forecast data
+        const hourlyForecastData = data.hourly.data;
 
-        if (hourlyForecastData.length === 0) {
+        if (!hourlyForecastData || hourlyForecastData.length === 0) {
             hourlyForecastContainer.innerHTML = '<div class="no-forecast">No hourly forecast data available</div>';
             return;
         }
@@ -583,17 +573,14 @@ function handleHourlyForecastDisplay(data) {
             const hour = hourlyForecastData[i];
             if (!hour) continue;
 
-            const date = new Date((hour.time || Date.now() / 1000 + i * 3600) * 1000);
+            // Use pre-formatted time from the standardized format
+            const timeString = hour.formattedTime || formatSimpleTime(hour.time);
 
             const hourlyForecastCard = document.createElement('div');
             hourlyForecastCard.className = 'hourly-forecast-card';
 
-            // Hour format (e.g., "3 PM", "12 AM")
-            const timeString = date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
-
-            // Get temperature with fallbacks
-            const temp = hour.temperature !== undefined ? hour.temperature :
-                (hour.temp !== undefined ? hour.temp : 70);
+            // Get temperature
+            const temp = hour.temperature;
 
             // Format temperature according to current units
             let tempDisplay;
@@ -604,7 +591,7 @@ function handleHourlyForecastDisplay(data) {
                 tempDisplay = `${Math.round(temp)}°`;
             }
 
-            // Get precipitation chance with fallbacks
+            // Get precipitation chance
             const precipChance = hour.precipChance !== undefined ? hour.precipChance : 0;
 
             hourlyForecastCard.innerHTML = `
@@ -620,23 +607,10 @@ function handleHourlyForecastDisplay(data) {
 
             hourlyForecastContainer.appendChild(hourlyForecastCard);
 
-            // Set forecast icon
+            // Set forecast icon using the isDaytime flag from hourly data
             const forecastIconElement = document.getElementById(`hourly-forecast-icon-${i}`);
             if (forecastIconElement) {
-                // Determine if it's daytime for this hour
-                let isDaytime = true; // Default to day
-
-                // First, check if the API explicitly provides isDaytime property (NWS does this)
-                if (hour.isDaytime !== undefined) {
-                    isDaytime = hour.isDaytime;
-                } else {
-                    // Otherwise, calculate based on the time
-                    // Simple approximation: 6 AM to 6 PM is daytime
-                    const hour24 = date.getHours();
-                    isDaytime = (hour24 >= 6 && hour24 < 18);
-                }
-
-                setForecastIcon(hour.icon || 'cloudy', forecastIconElement, isDaytime);
+                setForecastIcon(hour.icon || 'cloudy', forecastIconElement, hour.isDaytime);
             }
         }
     } catch (error) {
@@ -646,6 +620,15 @@ function handleHourlyForecastDisplay(data) {
             hourlyForecastContainer.innerHTML = '<div class="forecast-error">Error displaying hourly forecast</div>';
         }
     }
+}
+
+// Simple fallback time formatter - should rarely be needed
+function formatSimpleTime(timestamp) {
+    const date = new Date(timestamp * 1000);
+    const hours = date.getHours();
+    const hour12 = hours % 12 || 12;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    return `${hour12} ${ampm}`;
 }
 
 //==============================================================================
@@ -754,111 +737,67 @@ function getHazardIcon(hazardType) {
 }
 
 /**
- * Display alerts with error handling and multi-hazard icons in a single row
+ * Display alerts with standardized alert format
+ * @param {Array} alerts - Standardized array of alert objects
  */
 function displayAlerts(alerts) {
     try {
         // Clear previous alerts
         alertsContainer.innerHTML = '';
 
-        // Check if alerts exist and are in an array
+        // Check if alerts exist
         if (!alerts || !Array.isArray(alerts) || alerts.length === 0) {
             alertsContainer.style.display = 'none';
             return;
         }
 
-        // Define severity order for sorting (lower number = higher priority)
-        const severityOrder = {
-            'extreme': 1,
-            'severe': 2,
-            'moderate': 3,
-            'minor': 4
-        };
-
         // Sort alerts by severity (extreme first, then severe, etc.)
         const sortedAlerts = [...alerts].sort((a, b) => {
-            const severityA = getAlertSeverity(a);
-            const severityB = getAlertSeverity(b);
+            const severityOrder = {
+                'extreme': 1,
+                'severe': 2,
+                'moderate': 3,
+                'minor': 4
+            };
 
-            return severityOrder[severityA] - severityOrder[severityB];
+            return severityOrder[a.severity] - severityOrder[b.severity];
         });
 
         // Process and display each alert
         sortedAlerts.forEach((alert, index) => {
-            let alertTitle = '';
-            let alertDescription = '';
-            let fullDescription = '';
-            let urgency = '';
-            let expires = '';
-
-            if (alert.properties) {
-                // NWS alert format
-                alertTitle = alert.properties.event || 'Weather Alert';
-                alertDescription = alert.properties.headline || '';
-                fullDescription = alert.properties.description || '';
-                urgency = alert.properties.urgency || '';
-
-                // Format expiration time if available
-                if (alert.properties.expires) {
-                    const expiresDate = new Date(alert.properties.expires);
-                    expires = expiresDate.toLocaleString();
-                }
-            } else if (alert.title) {
-                // Pirate Weather alert format
-                alertTitle = alert.title;
-                alertDescription = alert.description?.substring(0, 100) + '...' || '';
-                fullDescription = alert.description || '';
-            }
-
-            // Get severity class using our mapping function
-            const severity = getAlertSeverity(alert);
-            const severityClass = `alert-${severity}`;
-
-            // Identify all hazards mentioned in the alert
-            const allHazards = identifyAlertHazards(alertTitle, alertDescription, fullDescription);
-
-            // Determine the primary hazard based on the alert title
-            const primaryHazard = getPrimaryHazardType(alertTitle);
-
-            // Get secondary hazards (filtering out the primary)
-            const secondaryHazards = allHazards.filter(hazard => hazard !== primaryHazard);
-
-            // Get primary icon path
-            const primaryIconPath = getHazardIcon(primaryHazard);
-
             // Create alert element
             const alertElement = document.createElement('div');
-            alertElement.className = `alert-item ${severityClass}`;
+            alertElement.className = `alert-item alert-${alert.severity}`;
             alertElement.id = `alert-${index}`;
 
             // Create the collapsed view (shown by default)
             alertElement.innerHTML = `
-    <div class="alert-header">
-        <div class="alert-title-row">
-            <div class="alert-title-severity">
-                <span class="alert-severity ${severityClass}">${capitalizeFirst(severity)}</span>
-                <h3 class="alert-title">${alertTitle}</h3>
-            </div>
-            <div class="alert-icon-container">
-                <img src="${primaryIconPath}" alt="${alertTitle} icon" class="alert-meteocon" />
-                ${secondaryHazards.map(hazard => 
-                    `<img src="${getHazardIcon(hazard)}" alt="${hazard} hazard" class="alert-meteocon" />`
-                ).join('')}
-            </div>
-            <button class="alert-expand-btn" aria-label="Expand alert details">
-                <i class="bi bi-chevron-down"></i>
-            </button>
-        </div>
-        <div class="alert-subtitle">${alertDescription}</div>
-    </div>
-    <div class="alert-content" style="display: none;">
-        <div class="alert-metadata">
-            ${urgency ? `<div class="alert-urgency">Urgency: ${urgency}</div>` : ''}
-            ${expires ? `<div class="alert-expires">Expires: ${expires}</div>` : ''}
-        </div>
-        <div class="alert-full-description">${formatAlertText(fullDescription)}</div>
-    </div>
-`;
+                <div class="alert-header">
+                    <div class="alert-title-row">
+                        <div class="alert-title-severity">
+                            <span class="alert-severity alert-${alert.severity}">${capitalizeFirst(alert.severity)}</span>
+                            <h3 class="alert-title">${alert.title}</h3>
+                        </div>
+                        <div class="alert-icon-container">
+                            <img src="${getHazardIcon(alert.primaryHazard)}" alt="${alert.title} icon" class="alert-meteocon" />
+                            ${alert.hazardTypes.filter(hazard => hazard !== alert.primaryHazard).map(hazard => 
+                                `<img src="${getHazardIcon(hazard)}" alt="${hazard} hazard" class="alert-meteocon" />`
+                            ).join('')}
+                        </div>
+                        <button class="alert-expand-btn" aria-label="Expand alert details">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                    </div>
+                    <div class="alert-subtitle">${alert.description}</div>
+                </div>
+                <div class="alert-content" style="display: none;">
+                    <div class="alert-metadata">
+                        ${alert.urgency ? `<div class="alert-urgency">Urgency: ${alert.urgency}</div>` : ''}
+                        ${alert.expires ? `<div class="alert-expires">Expires: ${formatDate(new Date(alert.expires))}</div>` : ''}
+                    </div>
+                    <div class="alert-full-description">${formatAlertText(alert.fullText)}</div>
+                </div>
+            `;
 
             alertsContainer.appendChild(alertElement);
 
