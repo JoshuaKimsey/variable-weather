@@ -2,7 +2,7 @@
  * Auto-update functionality for the weather app
  */
 
-import { refreshAstroDisplay } from './astronomicalView.js'
+import { refreshAstroDisplay } from '../ui/components/astronomical.js'
 
 // Constants
 const UPDATE_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds

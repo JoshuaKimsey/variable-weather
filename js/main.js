@@ -11,7 +11,7 @@
 
 import { DEFAULT_COORDINATES } from './config.js';
 import { fetchWeather } from './api.js';
-import { initAutoUpdate, startLastUpdatedTimer, resetLastUpdateTime } from './autoUpdate.js';
+import { initAutoUpdate, startLastUpdatedTimer, resetLastUpdateTime } from './utils/autoUpdate.js';
 import {
     initUI,
     setupEventListeners,
@@ -19,19 +19,20 @@ import {
     showError,
     hideLoading,
     hideError
-} from './ui.js';
-import { 
+} from './ui/core.js';
+import {
     updateURLParameters,
     getCachedLocation,
     saveLocationToCache,
     hasLocationChangedSignificantly
-} from './utils.js';
-import { initBackgrounds } from './weatherBackgrounds.js';
-import { initApiSettings } from './apiSettings.js';
-import { initUnits } from './units.js';
-import { initIconSettings } from './iconPerformance.js';
-import { initModalController } from './modalRadarController.js';
-import { initAstro, updateAstroInfo, refreshAstroDisplay } from './astronomicalView.js';
+} from './utils/geo.js';
+import { initBackgrounds } from './ui/visuals/dynamicBackgrounds.js';
+import { initApiSettings } from './ui/controls/settings.js';
+import { initUnits } from './utils/units.js';
+import { initIconSettings } from './ui/visuals/iconPerformance.js';
+import { initModalController } from './ui/components/radar.js';
+import { initAstro, updateAstroInfo, refreshAstroDisplay } from './ui/components/astronomical.js';
+import { searchLocation } from './ui/controls/searchBar.js';
 
 //==============================================================================
 // 2. APPLICATION INITIALIZATION
@@ -57,10 +58,7 @@ function initApp() {
     // Initialize icon settings and performance detection
     initIconSettings();
 
-    // DO NOT initialize radar view on page load
-    // We'll handle this from the modal now
-    
-    // Initialize astronomical display - with a longer delay to ensure it happens after other components
+    // Initialize astronomical display with a longer delay
     setTimeout(() => {
         initAstro('astro-view');
 
@@ -90,8 +88,6 @@ function initApp() {
 
         if (lat && lon) {
             fetchWeather(lat, lon, locationName);
-
-            // We'll no longer refresh radar data here since it's now modal-based
         } else {
             fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
         }
@@ -107,11 +103,13 @@ function initApp() {
     initModalController();
 }
 
-// Modify the determineInitialLocation function in main.js to remove the custom prompt
+//==============================================================================
+// 3. LOCATION SERVICES
+//==============================================================================
 
 /**
- * Determine the initial location to display weather for
- * Checks URL parameters first, then cached location, then directly uses geolocation
+ * Modified determineInitialLocation function that ensures location metadata is always retrieved
+ * Replace the existing function in main.js
  */
 function determineInitialLocation() {
     // Check for location in URL parameters
@@ -122,25 +120,35 @@ function determineInitialLocation() {
 
     if (lat && lon) {
         console.log('Using location from URL parameters');
+
+        // Even if we have URL params, we need to fetch location metadata for API selection
+        // We'll do this in the background so the UI remains responsive
+        fetchLocationMetadata(lat, lon).then(() => {
+            console.log('Location metadata updated in background');
+        }).catch(error => {
+            console.warn('Failed to update location metadata:', error);
+        });
+
         fetchWeather(lat, lon, locationName);
         return;
     }
-    
+
+    // Rest of the function remains unchanged
     // Check for cached location
     const cachedLocation = getCachedLocation();
-    
+
     if (cachedLocation) {
         console.log('Using cached location from localStorage');
         // Use cached location data immediately
         fetchWeather(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
-        
+
         // Update URL with cached location
         updateURLParameters(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
-        
+
         // Check if we should get current location in the background
         const cacheAge = Date.now() - cachedLocation.timestamp;
         const cacheAgeHours = cacheAge / (1000 * 60 * 60);
-        
+
         // If cache is older than 2 hours, check for location changes
         if (cacheAgeHours > 2) {
             // Get current location in the background
@@ -150,7 +158,7 @@ function determineInitialLocation() {
         console.log('No cached location found');
         // Check if user has explicitly disabled geolocation
         const geoEnabled = localStorage.getItem('geolocation_enabled');
-        
+
         if (geoEnabled === 'false') {
             // User has explicitly opted out of geolocation
             console.log('Geolocation disabled, using default location');
@@ -163,9 +171,53 @@ function determineInitialLocation() {
     }
 }
 
-//==============================================================================
-// 3. LOCATION SERVICES
-//==============================================================================
+/**
+ * Fetch location metadata from coordinates without updating the UI
+ * This function will be added to main.js
+ */
+function fetchLocationMetadata(lat, lon) {
+    return new Promise((resolve, reject) => {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to get location metadata');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.address) {
+                    // Store the location data for provider selection
+                    try {
+                        // Save countryCode and other relevant data to localStorage
+                        const locationMetadata = {
+                            countryCode: data.address?.country_code || null,
+                            country: data.address?.country || null,
+                            state: data.address?.state || null,
+                            timestamp: Date.now()
+                        };
+
+                        // Save the location data
+                        localStorage.setItem('weather_location_metadata', JSON.stringify(locationMetadata));
+                        // console.log('Stored location metadata:', locationMetadata);
+                        resolve(locationMetadata);
+                    } catch (e) {
+                        console.warn('Error storing location metadata:', e);
+                        reject(e);
+                    }
+                } else {
+                    const error = new Error('No valid location data found');
+                    console.warn(error);
+                    reject(error);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching location metadata:', error);
+                reject(error);
+            });
+    });
+}
 
 /**
  * Get the user's current location
@@ -221,6 +273,12 @@ function getUserLocation() {
                 })
                 .catch(error => {
                     console.error('Error getting location name:', error);
+
+                    // Still try to get location metadata even if display name fails
+                    fetchLocationMetadata(lat, lon).catch(e => {
+                        console.warn('Also failed to get location metadata:', e);
+                    });
+
                     // Even without a location name, we can still get weather
                     updateURLParameters(lat, lon);
                     fetchWeather(lat, lon);
@@ -265,14 +323,12 @@ function getUserLocation() {
 }
 
 /**
- * Reverse geocode coordinates to get a location name
- * @param {number} lat - Latitude
- * @param {number} lon - Longitude
- * @returns {Promise<string>} - Promise that resolves to location name
+ * Modify the existing reverseGeocode function to store structured data
+ * This should be placed in main.js to replace the existing reverseGeocode function
  */
 function reverseGeocode(lat, lon) {
     return new Promise((resolve, reject) => {
-        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
 
         fetch(url)
             .then(response => {
@@ -283,6 +339,23 @@ function reverseGeocode(lat, lon) {
             })
             .then(data => {
                 if (data && data.display_name) {
+                    // Store the location data for provider selection
+                    try {
+                        // Save countryCode and other relevant data to localStorage
+                        const locationMetadata = {
+                            countryCode: data.address?.country_code || null,
+                            country: data.address?.country || null,
+                            state: data.address?.state || null,
+                            timestamp: Date.now()
+                        };
+
+                        // Save with the location data
+                        localStorage.setItem('weather_location_metadata', JSON.stringify(locationMetadata));
+                        console.log('Stored location metadata:', locationMetadata);
+                    } catch (e) {
+                        console.warn('Error storing location metadata:', e);
+                    }
+
                     resolve(data.display_name);
                 } else {
                     throw new Error('No location name found');
@@ -303,7 +376,7 @@ function checkLocationChange() {
     // Get cached location
     const cachedLocation = getCachedLocation();
     if (!cachedLocation) return;
-    
+
     // Check current location in the background without showing UI indicators
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -311,21 +384,21 @@ function checkLocationChange() {
             (position) => {
                 const currentLat = position.coords.latitude;
                 const currentLon = position.coords.longitude;
-                
+
                 // Check if location has changed significantly
                 if (hasLocationChangedSignificantly(
-                    currentLat, currentLon, 
+                    currentLat, currentLon,
                     cachedLocation.lat, cachedLocation.lon
                 )) {
                     console.log('Location has changed significantly, updating weather');
-                    
+
                     // Get location name using reverse geocoding
                     reverseGeocode(currentLat, currentLon)
                         .then(locationName => {
                             // Update URL and fetch new weather
                             updateURLParameters(currentLat, currentLon, locationName);
                             fetchWeather(currentLat, currentLon, locationName);
-                            
+
                             // Update the cache
                             saveLocationToCache(currentLat, currentLon, locationName);
                         })
@@ -334,7 +407,7 @@ function checkLocationChange() {
                             // Even without a location name, we can still update
                             updateURLParameters(currentLat, currentLon);
                             fetchWeather(currentLat, currentLon);
-                            
+
                             // Update the cache
                             saveLocationToCache(currentLat, currentLon);
                         });
@@ -357,56 +430,14 @@ function checkLocationChange() {
 }
 
 //==============================================================================
-// 4. USER INTERFACE INTERACTIONS
-//==============================================================================
-
-/**
- * Search for location function
- * Handles the location search input and geocodes it to coordinates
- */
-function searchLocation() {
-    const locationInput = document.getElementById('location-input');
-    const location = locationInput.value.trim();
-
-    if (location === '') {
-        showError('Please enter a location');
-        return;
-    }
-
-    // Show loading
-    showLoading();
-
-    // Use OpenStreetMap Nominatim API for geocoding
-    const geocodingUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}`;
-
-    fetch(geocodingUrl)
-        .then(response => response.json())
-        .then(data => {
-            if (data.length === 0) {
-                showError('Location not found. Please try a different search term.');
-                return;
-            }
-
-            const { lat, lon, display_name } = data[0];
-
-            // Update URL with new coordinates and location name
-            updateURLParameters(lat, lon, display_name);
-
-            // Fetch weather for the location
-            fetchWeather(lat, lon, display_name);
-        })
-        .catch(error => {
-            console.error('Error searching location:', error);
-            showError('Error searching for location. Please try again later.');
-        });
-}
-
-//==============================================================================
 // 5. GLOBAL EXPORTS AND INITIALIZATION
 //==============================================================================
 
 // Make getUserLocation available globally so it can be called from the UI
 window.getUserLocation = getUserLocation;
+
+// Make fetchWeather available globally for other modules
+window.fetchWeather = fetchWeather;
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);

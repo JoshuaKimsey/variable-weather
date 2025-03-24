@@ -2,7 +2,7 @@
  * Utility functions for the weather application
  */
 
-import { calculateSunTimes } from './astronomicalView.js';
+import { calculateSunTimes } from './ui/components/astronomical.js';
 
 /**
  * Update URL parameters with location information

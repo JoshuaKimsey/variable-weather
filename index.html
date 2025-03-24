@@ -197,6 +197,52 @@
             </div>
         </div>
 
+        <div id="nowcast-container" class="weather-card nowcast-card">
+            <div class="nowcast-section">
+                <h3>
+                    <i class="bi bi-umbrella"></i> Precipitation Forecast
+                </h3>
+                <div class="nowcast-description" id="nowcast-description">
+                    No precipitation expected in the next few hours
+                </div>
+                <div class="nowcast-chart-container">
+                    <div class="nowcast-chart" id="nowcast-chart"></div>
+                    <div class="nowcast-timeline" id="nowcast-timeline"></div>
+                </div>
+                <div class="nowcast-info-panel" id="nowcast-info-panel">
+                    <div class="nowcast-info-content">
+                        <div class="nowcast-selected-time">Select a time period to see details</div>
+                        <div class="nowcast-details">
+                            <span class="nowcast-probability"></span>
+                            <span class="nowcast-intensity"></span>
+                            <span class="nowcast-type"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="nowcast-legend">
+                    <div class="nowcast-legend-item">
+                        <div class="nowcast-legend-color" style="background-color: #C5E8FF;"></div>
+                        <span>Very Light</span>
+                    </div>
+                    <div class="nowcast-legend-item">
+                        <div class="nowcast-legend-color" style="background-color: #81D4FA;"></div>
+                        <span>Light</span>
+                    </div>
+                    <div class="nowcast-legend-item">
+                        <div class="nowcast-legend-color" style="background-color: #29B6F6;"></div>
+                        <span>Moderate</span>
+                    </div>
+                    <div class="nowcast-legend-item">
+                        <div class="nowcast-legend-color" style="background-color: #0288D1;"></div>
+                        <span>Heavy</span>
+                    </div>
+                    <div id="nowcast-attribution" class="nowcast-attribution">
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Hourly Forecast Card -->
         <div id="hourly-forecast-container" class="weather-card">
             <div class="hourly-forecast-section">
@@ -245,65 +291,86 @@
         </div>
     </div>
 
-    <!-- API Key Settings Modal -->
+    <!-- Settings Modal -->
     <div class="modal-backdrop" id="api-settings-backdrop" style="display:none;"></div>
     <div class="settings-modal" id="api-settings-modal" style="display:none;">
+        <div class="settings-modal-header">
+            <h3>Settings</h3>
+        </div>
+
+        <!-- New Tabs Navigation -->
+        <div class="settings-tabs">
+            <button class="settings-tab-btn active" data-tab="display">Display</button>
+            <button class="settings-tab-btn" data-tab="data-sources">Data Sources</button>
+        </div>
+
         <div class="settings-modal-content">
-            <div class="settings-modal-header">
-                <h3>Settings</h3>
-                <button id="close-settings-modal">&times;</button>
-            </div>
-            <div class="settings-modal-body">
-                <p><strong>Pirate Weather API Key</strong></p>
-                <div class="api-status-note">
-                    <i class="bi bi-info-circle-fill"></i>
-                    <span>Pirate Weather is currently unused, but is planned for specialized forecast features in the future. Open-Meteo is now used
-                        for international weather data.</span>
+            <!-- Display Settings Tab -->
+            <div class="settings-tab-content active" id="tab-display">
+                <div class="settings-section">
+                    <h4>Display Units</h4>
+                    <div class="unit-toggle-container">
+                        <input type="radio" id="imperial-units" name="unit" value="imperial" class="unit-toggle-input"
+                            checked>
+                        <input type="radio" id="metric-units" name="unit" value="metric" class="unit-toggle-input">
+                        <label for="imperial-units" class="unit-toggle-label">°F</label>
+                        <label for="metric-units" class="unit-toggle-label">°C</label>
+                        <div class="unit-toggle-slider"></div>
+                    </div>
                 </div>
-                <p>Add your Pirate Weather API key for future features (minute-by-minute precipitation forecasts).</p>
-                <p>You can get a free key from <a href="https://pirateweather.net/getting-started" target="_blank"
-                        class="settings-link">pirateweather.net</a>.</p>
-                <div class="settings-form-group">
-                    <label for="pirate-api-key">Pirate Weather API Key:</label>
-                    <input type="text" id="pirate-api-key" placeholder="Enter your API key">
+
+                <div class="settings-divider"></div>
+
+                <div class="settings-section">
+                    <h4>Weather Icons</h4>
+                    <div class="icon-toggle-container">
+                        <input type="radio" id="dynamic-icons" name="icon-type" value="dynamic"
+                            class="unit-toggle-input" checked>
+                        <input type="radio" id="lightweight-icons" name="icon-type" value="lightweight"
+                            class="unit-toggle-input">
+                        <label for="dynamic-icons" class="unit-toggle-label">Dynamic</label>
+                        <label for="lightweight-icons" class="unit-toggle-label">Light</label>
+                        <div class="unit-toggle-slider"></div>
+                    </div>
+                    <div class="icon-type-description">Lightweight icons improve performance on older devices</div>
                 </div>
-                <div class="api-key-status" id="api-key-status"></div>
             </div>
-            <div class="settings-modal-footer">
-                <button id="save-api-key" class="settings-btn settings-btn-primary">Save Key</button>
-                <button id="remove-api-key" class="settings-btn settings-btn-danger" style="display:none;">Remove
-                    Key</button>
+
+            <!-- Data Sources Tab Content -->
+            <div class="settings-tab-content" id="tab-data-sources">
+                <div class="settings-section">
+                    <h4>Sources</h4>
+
+                    <!-- This container will be populated dynamically with region-specific dropdowns -->
+                    <div id="data-sources-container">
+                        <!-- Dynamic dropdowns will be inserted here by settings.js -->
+                    </div>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <!-- Dynamic API Key Section -->
+                <div id="api-keys-section" class="settings-section" style="display: none;">
+                    <h4>API Keys</h4>
+                    <div class="api-keys-container">
+                        <!-- This container will be populated dynamically -->
+                        <div id="no-api-keys-needed" class="settings-info-message">
+                            <i class="bi bi-info-circle"></i>
+                            No API keys needed with your current settings.
+                        </div>
+                        <!-- Dynamic API key inputs will be added here -->
+                    </div>
+
+                    <div class="api-key-actions">
+                        <button id="save-api-key" class="settings-btn settings-btn-primary">Save Keys</button>
+                        <button id="remove-api-key" class="settings-btn settings-btn-danger"
+                            style="display:none;">Remove Keys</button>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="settings-divider"></div>
-
-        <div class="settings-form-group">
-            <label>Display Units:</label>
-            <div class="unit-toggle-container">
-                <input type="radio" id="imperial-units" name="unit" value="imperial" class="unit-toggle-input" checked>
-                <input type="radio" id="metric-units" name="unit" value="metric" class="unit-toggle-input">
-                <label for="imperial-units" class="unit-toggle-label">°F</label>
-                <label for="metric-units" class="unit-toggle-label">°C</label>
-                <div class="unit-toggle-slider"></div>
-            </div>
-        </div>
-
-        <div class="settings-divider"></div>
-
-        <div class="settings-form-group">
-            <label>Weather Icons:</label>
-            <div class="icon-toggle-container">
-                <input type="radio" id="dynamic-icons" name="icon-type" value="dynamic" class="unit-toggle-input"
-                    checked>
-                <input type="radio" id="lightweight-icons" name="icon-type" value="lightweight"
-                    class="unit-toggle-input">
-                <label for="dynamic-icons" class="unit-toggle-label">Dynamic</label>
-                <label for="lightweight-icons" class="unit-toggle-label">Light</label>
-                <div class="unit-toggle-slider"></div>
-            </div>
-            <div class="icon-type-description">Lightweight icons improve performance on older devices</div>
-        </div>
+        <div class="api-key-status" id="api-key-status"></div>
     </div>
 
     <!-- Settings button in footer -->
@@ -327,7 +394,9 @@
         </button>
     </div>
 
+    <!-- Resource JS imports -->
     <script src="./resources/tz-lookup/tz.js"></script>
+    <script src="./resources/suncalc3/suncalc.js"></script>
 
     <!-- Import the PWA registration script -->
     <script type="module" src="./js/pwa.js"></script>

@@ -10,15 +10,34 @@
 //==============================================================================
 
 import { API_ENDPOINTS, createNWSRequestOptions } from '../config.js';
-import { displayWeatherWithAlerts, showLoading, hideLoading, hideError, showError } from '../ui.js';
-import { calculateDistance, formatLocationName, isDaytime } from '../utils.js';
+import { displayWeatherWithAlerts, showLoading, hideLoading, hideError, showError } from '../ui/core.js';
+import { calculateDistance, isDaytime } from '../utils/geo.js';
+import { formatLocationName } from '../utils/formatting.js'; // Fixed import location
 import { fetchOpenMeteoWeather } from './openMeteoApi.js';
 import { setApiAttribution } from '../api.js';
-import { createEmptyWeatherData, ALERT_SEVERITY, WEATHER_ICONS } from '../standardWeatherFormat.js';
+import { createEmptyWeatherData, ALERT_SEVERITY, WEATHER_ICONS, PRECIP_INTENSITY } from '../standardWeatherFormat.js';
 
 //==============================================================================
 // 2. PUBLIC API FUNCTIONS
 //==============================================================================
+
+/**
+ * Metadata for the NWS API provider
+ * This information is used by the API registry system
+ */
+export const API_METADATA = {
+    id: 'nws',
+    name: 'National Weather Service',
+    regions: ['us'],
+    regionNames: ['United States of America'],
+    requiresApiKey: false,
+    description: 'Official US weather data',
+    attribution: {
+        name: 'National Weather Service',
+        url: 'https://www.weather.gov/'
+    },
+    supportsNowcast: false
+};
 
 /**
  * Fetch weather from National Weather Service API with sequential station checking
@@ -26,114 +45,176 @@ import { createEmptyWeatherData, ALERT_SEVERITY, WEATHER_ICONS } from '../standa
  * @param {number} lat - Latitude
  * @param {number} lon - Longitude
  * @param {string} locationName - Optional location name
+ * @param {boolean} returnData - If true, return the data instead of updating UI
+ * @returns {Promise} - Promise that resolves to weather data or rejects with an error
  */
-export function fetchNWSWeather(lat, lon, locationName = null) {
-    // Format lat and lon properly
-    const formattedLat = parseFloat(lat).toFixed(3);
-    const formattedLon = parseFloat(lon).toFixed(3);
+export function fetchNWSWeather(lat, lon, locationName = null, returnData = false) {
+    // Always return a Promise to ensure consistent behavior
+    return new Promise((resolve, reject) => {
+        try {
+            // Format lat and lon properly
+            const formattedLat = parseFloat(lat).toFixed(3);
+            const formattedLon = parseFloat(lon).toFixed(3);
 
-    const pointsUrl = `${API_ENDPOINTS.NWS_POINTS}/${formattedLat},${formattedLon}`;
-    const requestOptions = createNWSRequestOptions();
+            const pointsUrl = `${API_ENDPOINTS.NWS_POINTS}/${formattedLat},${formattedLon}`;
+            const requestOptions = createNWSRequestOptions();
 
-    fetch(pointsUrl, requestOptions)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Unable to get weather data from NWS. Falling back to Open-Meteo.');
-            }
-            return response.json();
-        })
-        .then(pointData => {
-            // Extract grid information
-            const { gridId, gridX, gridY, relativeLocation } = pointData.properties;
-
-            // Get observation stations URL from the response
-            const observationStationsUrl = pointData.properties.observationStations;
-
-            // Get city and state from relative location
-            let cityState = '';
-            if (relativeLocation && relativeLocation.properties) {
-                const { city, state } = relativeLocation.properties;
-                cityState = `${city}, ${state}`;
-            }
-
-            // First, get nearby observation stations
-            fetch(observationStationsUrl, requestOptions)
+            fetch(pointsUrl, requestOptions)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Unable to get observation stations from NWS.');
+                        throw new Error('Unable to get weather data from NWS. Falling back to Open-Meteo.');
                     }
                     return response.json();
                 })
-                .then(stationsData => {
-                    // Now fetch observations sequentially using our new function
-                    fetchStationObservationsSequentially(stationsData.features, lat, lon, requestOptions)
-                        .then(validObservation => {
-                            // Now get forecast, hourly forecast, and alerts in parallel
-                            Promise.all([
-                                // Get forecast
-                                fetch(`${API_ENDPOINTS.NWS_GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast`, requestOptions),
-                                // Get hourly forecast
-                                fetch(`${API_ENDPOINTS.NWS_GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast/hourly`, requestOptions),
-                                // Get alerts
-                                fetch(`${API_ENDPOINTS.NWS_ALERTS}?point=${formattedLat},${formattedLon}`, requestOptions)
-                            ])
-                                .then(responses => {
-                                    // Check if all responses are ok
-                                    if (!responses.every(response => response.ok)) {
-                                        throw new Error('Unable to get complete weather data from NWS. Falling back to Open Meteo.');
-                                    }
+                .then(pointData => {
+                    // Extract grid information
+                    const { gridId, gridX, gridY, relativeLocation } = pointData.properties;
 
-                                    // Parse all responses as JSON
-                                    return Promise.all(responses.map(response => response.json()));
-                                })
-                                .then(([forecastData, hourlyData, alertsData]) => {
-                                    // Process the NWS data
-                                    const weatherData = processNWSData(
-                                        forecastData,
-                                        hourlyData,
-                                        alertsData,
-                                        validObservation, // Use the valid observation data we found
-                                        cityState,
-                                        locationName,
-                                        formattedLat,
-                                        formattedLon
-                                    );
+                    // Get observation stations URL from the response
+                    const observationStationsUrl = pointData.properties.observationStations;
 
-                                    setApiAttribution('nws');
-                                    // Display the weather data
-                                    displayWeatherWithAlerts(weatherData, cityState || locationName);
+                    // Get city and state from relative location
+                    let cityState = '';
+                    if (relativeLocation && relativeLocation.properties) {
+                        const { city, state } = relativeLocation.properties;
+                        cityState = `${city}, ${state}`;
+                    }
 
-                                    // Hide loading indicator and error message
-                                    hideLoading();
-                                    hideError();
+                    // First, get nearby observation stations
+                    return fetch(observationStationsUrl, requestOptions)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Unable to get observation stations from NWS.');
+                            }
+                            return response.json();
+                        })
+                        .then(stationsData => {
+                            // Now fetch observations sequentially using our new function
+                            return fetchStationObservationsSequentially(stationsData.features, lat, lon, requestOptions)
+                                .then(validObservation => {
+                                    // Now get forecast, hourly forecast, and alerts in parallel
+                                    return Promise.all([
+                                        // Get forecast
+                                        fetch(`${API_ENDPOINTS.NWS_GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast`, requestOptions),
+                                        // Get hourly forecast
+                                        fetch(`${API_ENDPOINTS.NWS_GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast/hourly`, requestOptions),
+                                        // Get alerts
+                                        fetch(`${API_ENDPOINTS.NWS_ALERTS}?point=${formattedLat},${formattedLon}`, requestOptions)
+                                    ])
+                                        .then(responses => {
+                                            // Check if all responses are ok
+                                            if (!responses.every(response => response.ok)) {
+                                                throw new Error('Unable to get complete weather data from NWS. Falling back to Open Meteo.');
+                                            }
+
+                                            // Parse all responses as JSON
+                                            return Promise.all(responses.map(response => response.json()));
+                                        })
+                                        .then(([forecastData, hourlyData, alertsData]) => {
+                                            // Process the NWS data
+                                            const weatherData = processNWSData(
+                                                forecastData,
+                                                hourlyData,
+                                                alertsData,
+                                                validObservation, // Use the valid observation data we found
+                                                cityState,
+                                                locationName,
+                                                formattedLat,
+                                                formattedLon
+                                            );
+
+                                            if (returnData) {
+                                                // Return processed data
+                                                setApiAttribution('nws');
+                                                resolve(weatherData);
+                                            } else {
+                                                // Display the weather data
+                                                setApiAttribution('nws');
+                                                displayWeatherWithAlerts(weatherData, cityState || locationName);
+                                                hideLoading();
+                                                hideError();
+                                                resolve(); // Resolve with no data when not returning data
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error('Error fetching NWS weather data:', error);
+                                            if (returnData) {
+                                                // Fall back to Open Meteo API with returnData = true
+                                                console.log('Falling back to Open-Meteo API');
+                                                fetchOpenMeteoWeather(lat, lon, locationName, true)
+                                                    .then(data => resolve(data))
+                                                    .catch(fallbackError => reject(fallbackError));
+                                            } else {
+                                                // Fall back to Open Meteo API
+                                                console.log('Falling back to Open-Meteo API');
+                                                fetchOpenMeteoWeather(lat, lon, locationName);
+                                                resolve(); // Resolve with no data
+                                            }
+                                        });
                                 })
                                 .catch(error => {
-                                    console.error('Error fetching NWS weather data:', error);
-                                    // Fall back to Open Meteo API
-                                    console.log('Falling back to Open-Meteo API');
-                                    fetchOpenMeteoWeather(lat, lon, locationName);
+                                    console.error('Error fetching station observations:', error);
+                                    if (returnData) {
+                                        // Fall back to Open Meteo API with returnData = true
+                                        console.log('Falling back to Open-Meteo API due to station observation error');
+                                        fetchOpenMeteoWeather(lat, lon, locationName, true)
+                                            .then(data => resolve(data))
+                                            .catch(fallbackError => reject(fallbackError));
+                                    } else {
+                                        // Fall back to Open Meteo API
+                                        console.log('Falling back to Open-Meteo API due to station observation error');
+                                        fetchOpenMeteoWeather(lat, lon, locationName);
+                                        resolve(); // Resolve with no data
+                                    }
                                 });
                         })
                         .catch(error => {
-                            console.error('Error fetching station observations:', error);
-                            // Fall back to Open Meteo API
-                            console.log('Falling back to Open-Meteo API due to station observation error');
-                            fetchOpenMeteoWeather(lat, lon, locationName);
+                            console.error('Error fetching NWS observation stations:', error);
+                            if (returnData) {
+                                // Fall back to Open Meteo API with returnData = true
+                                console.log('Falling back to Open-Meteo API');
+                                fetchOpenMeteoWeather(lat, lon, locationName, true)
+                                    .then(data => resolve(data))
+                                    .catch(fallbackError => reject(fallbackError));
+                            } else {
+                                // Fall back to Open Meteo API
+                                console.log('Falling back to Open-Meteo API');
+                                fetchOpenMeteoWeather(lat, lon, locationName);
+                                resolve(); // Resolve with no data
+                            }
                         });
                 })
                 .catch(error => {
-                    console.error('Error fetching NWS observation stations:', error);
-                    // Fall back to Open Meteo API
-                    console.log('Falling back to Open-Meteo API');
-                    fetchOpenMeteoWeather(lat, lon, locationName);
+                    console.error('Error fetching NWS points data:', error);
+                    if (returnData) {
+                        // Fall back to Open Meteo API with returnData = true
+                        console.log('Falling back to Open-Meteo API');
+                        fetchOpenMeteoWeather(lat, lon, locationName, true)
+                            .then(data => resolve(data))
+                            .catch(fallbackError => reject(fallbackError));
+                    } else {
+                        // Fall back to Open Meteo API
+                        console.log('Falling back to Open-Meteo API');
+                        fetchOpenMeteoWeather(lat, lon, locationName);
+                        resolve(); // Resolve with no data
+                    }
                 });
-        })
-        .catch(error => {
-            console.error('Error fetching NWS points data:', error);
-            // Fall back to Open Meteo API
-            console.log('Falling back to Open-Meteo API');
-            fetchOpenMeteoWeather(lat, lon, locationName);
-        });
+        } catch (error) {
+            console.error('Unexpected error in fetchNWSWeather:', error);
+            if (returnData) {
+                // Fall back to Open Meteo API with returnData = true
+                console.log('Falling back to Open-Meteo API due to unexpected error');
+                fetchOpenMeteoWeather(lat, lon, locationName, true)
+                    .then(data => resolve(data))
+                    .catch(fallbackError => reject(fallbackError));
+            } else {
+                // Fall back to Open Meteo API
+                console.log('Falling back to Open-Meteo API due to unexpected error');
+                fetchOpenMeteoWeather(lat, lon, locationName);
+                resolve(); // Resolve with no data
+            }
+        }
+    });
 }
 
 //==============================================================================
@@ -334,20 +415,20 @@ async function fetchStationObservationsSequentially(stations, lat, lon) {
     // Sort stations by distance if coordinates are available
     const stationsWithDistance = stations.map(station => {
         let distance = null;
-        
+
         // Calculate distance if station has coordinates
         if (station.geometry && station.geometry.coordinates) {
             const stationLon = station.geometry.coordinates[0];
             const stationLat = station.geometry.coordinates[1];
             distance = calculateDistance(lat, lon, stationLat, stationLon);
         }
-        
+
         return {
             ...station,
             distance
         };
     });
-    
+
     // Sort by distance (null distances will be at the end)
     const sortedStations = stationsWithDistance.sort((a, b) => {
         // If both have distance, compare them
@@ -365,71 +446,71 @@ async function fetchStationObservationsSequentially(stations, lat, lon) {
         // If neither has distance, keep original order
         return 0;
     });
-    
+
     // Limit to first 5 stations for performance
     const stationsToTry = sortedStations.slice(0, 5);
-    
+
     console.log(`Attempting to fetch data from ${stationsToTry.length} weather stations`);
-    
+
     // Track best observation in case all have some issues
     let bestObservation = null;
     let bestObservationAge = Infinity;
     let bestObservationHasDescription = false;
-    
+
     // Try stations one by one
     for (const station of stationsToTry) {
         try {
             console.log(`Trying station: ${station.properties?.name || station.id}`);
-            
+
             // Create metadata for the station
             const stationMetadata = {
                 id: station.id,
                 name: station.properties?.name || 'Weather Station',
                 distance: station.distance
             };
-            
+
             // Fetch observation data
             const response = await fetch(`${station.id}/observations/latest`);
-            
+
             // Check if response is OK
             if (!response.ok) {
                 console.warn(`Station ${stationMetadata.name} returned error: ${response.status}`);
                 continue; // Try next station
             }
-            
+
             // Parse the response
             const data = await response.json();
-            
+
             // Attach station metadata to data
             data.stationMetadata = stationMetadata;
-            
+
             // Check if observation has valid temperature data
-            if (data.properties && 
-                data.properties.temperature && 
+            if (data.properties &&
+                data.properties.temperature &&
                 data.properties.temperature.value !== null) {
-                
+
                 // Check if observation is not too old (less than 2 hours old)
                 const observationTime = new Date(data.properties.timestamp);
                 const now = new Date();
                 const timeDiffMs = now - observationTime;
                 const hoursDiff = timeDiffMs / (1000 * 60 * 60);
-                
+
                 // Check if this observation has a textDescription
-                const hasDescription = data.properties.textDescription !== undefined && 
-                                      data.properties.textDescription !== null &&
-                                      data.properties.textDescription !== '';
-                                      
+                const hasDescription = data.properties.textDescription !== undefined &&
+                    data.properties.textDescription !== null &&
+                    data.properties.textDescription !== '';
+
                 console.log(`Station ${stationMetadata.name}: age=${hoursDiff.toFixed(1)}h, hasDescription=${hasDescription}`);
-                
+
                 if (hoursDiff < 2) {
                     // This is a valid observation based on age
-                    
+
                     // If it has a description, return it immediately as it's complete
                     if (hasDescription) {
                         console.log(`Using complete observation from ${stationMetadata.name}`);
                         return data;
                     }
-                    
+
                     // No description but still a valid observation - keep track of it 
                     // as our best option so far, especially if it's newer
                     if (hoursDiff < bestObservationAge) {
@@ -448,13 +529,13 @@ async function fetchStationObservationsSequentially(stations, lat, lon) {
             console.warn(`Error fetching from station:`, error);
         }
     }
-    
+
     // After trying all stations, return the best one we found (even if it's missing description)
     if (bestObservation) {
         console.log(`Using best observation (age: ${bestObservationAge.toFixed(1)}h, hasDescription: ${bestObservationHasDescription})`);
         return bestObservation;
     }
-    
+
     // If we get here, no valid observations were found
     console.warn('No valid observations found from any station');
     return null;
@@ -473,12 +554,12 @@ function processNWSAlerts(alertsData) {
     if (!alertsData || !alertsData.features || !Array.isArray(alertsData.features)) {
         return [];
     }
-    
+
     return alertsData.features.map(alert => {
         if (!alert.properties) return null;
-        
+
         const props = alert.properties;
-        
+
         return {
             id: props.id || `nws-alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             title: props.event || 'Weather Alert',
@@ -607,31 +688,31 @@ function determineAlertSeverity(props) {
 function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
     // Create a set to store unique hazard types
     const hazards = new Set();
-    
+
     // Combine all text for analysis
     const combinedText = (alertTitle + " " + alertDescription + " " + fullDescription).toLowerCase();
-    
+
     // Place name indicators - used to exclude matches that are likely place names
     const placeNamePatterns = [
         /\b(road|rd\.?|street|st\.?|ave\.?|avenue|ln\.?|lane|blvd\.?|boulevard|dr\.?|drive|way|place|pl\.?|parkway|pkwy\.?|highway|hwy\.?)\b/i,
         /\b(city|town|county|village|district|neighborhood|park|plaza|center|square|region|area|zone)\b/i,
         /\b(creek|river|lake|pond|bay|mountain|hill|valley|canyon|ridge|peak|summit|basin)\b/i
     ];
-    
+
     // Helper function to check if a match is likely part of a place name
     const isLikelyPlaceName = (matchText, context = 50) => {
         // Extract surrounding context from the combined text
         const matchIndex = combinedText.indexOf(matchText.toLowerCase());
         if (matchIndex === -1) return false;
-        
+
         const start = Math.max(0, matchIndex - context);
         const end = Math.min(combinedText.length, matchIndex + matchText.length + context);
         const surroundingContext = combinedText.substring(start, end);
-        
+
         // Check if any place name patterns appear in the surrounding context
         return placeNamePatterns.some(pattern => pattern.test(surroundingContext));
     };
-    
+
     // Define hazard keywords and their corresponding types
     // Using \b for word boundaries to match whole words only
     const hazardPatterns = [
@@ -639,36 +720,36 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
         { pattern: /\bhail\b/g, type: 'hail' },
         { pattern: /\bflash flood\b|\bflooding\b|\bflood\b/g, type: 'flood' },
         { pattern: /\bthunder\b|\blightning\b|\bthunderstorm\b|\bsevere thunderstorm\b/g, type: 'thunderstorm' },
-        
+
         // Improved snow pattern - requires weather context or excludes place name indicators
-        { 
+        {
             pattern: /\b(?:winter storm|winter weather|heavy snow|snowfall|snow accumulation|snow and ice|snow advisory|snow warning|snow emergency|snowstorm|snow covered|snow level)\b/gi,
-            type: 'snow' 
+            type: 'snow'
         },
-        
+
         { pattern: /\bfreez(e|ing)\b|\bice\b|\bsleet\b/g, type: 'ice' },
-        { pattern: /\bwind\b|\bgust\b/g, type: 'wind' },
+        { pattern: /\bwind\b|\bgust\b|\bstrong winds\b/g, type: 'wind' },
         { pattern: /\bdust\b/g, type: 'dust' },
         { pattern: /\bsmoke\b/g, type: 'smoke' },
         { pattern: /\bfog\b/g, type: 'fog' },
         { pattern: /\bheat\b/g, type: 'heat' },
         { pattern: /\bcold\b|\bchill\b/g, type: 'cold' },
         { pattern: /\brain\b|\bshower\b/g, type: 'rain' },
-        
+
         // Improved hurricane pattern that avoids matching place names
-        { 
-            pattern: /\b(?:hurricane warning|hurricane watch|hurricane advisory|hurricane threat|approaching hurricane|major hurricane|potential hurricane|category \d hurricane|hurricane force|tropical storm|tropical cyclone|tropical depression)\b/g, 
-            type: 'hurricane' 
+        {
+            pattern: /\b(?:hurricane warning|hurricane watch|hurricane advisory|hurricane threat|approaching hurricane|major hurricane|potential hurricane|category \d hurricane|hurricane force|tropical storm|tropical cyclone|tropical depression)\b/g,
+            type: 'hurricane'
         }
     ];
-    
+
     // Check each pattern against the combined text
     hazardPatterns.forEach(({ pattern, type }) => {
         if (pattern.test(combinedText)) {
             hazards.add(type);
         }
     });
-    
+
     // Special handling for generic "snow" mentions - requires more context checks
     if (!hazards.has('snow')) {
         const snowMatches = combinedText.match(/\bsnow\b/gi);
@@ -679,7 +760,7 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
             } else {
                 // Check if there are weather-related terms near "snow"
                 const hasWeatherContext = /snow.{0,30}(weather|forecast|warning|advisory|inches|feet|heavy|condition|expect|potential|accumulation|amount|total|depth|fall|coverage)/gi.test(combinedText);
-                
+
                 // Add snow hazard only if it has weather context and doesn't appear to be a place name
                 for (const match of snowMatches) {
                     if (hasWeatherContext && !isLikelyPlaceName(match)) {
@@ -695,29 +776,29 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
         if (blizzardMatch && !isLikelyPlaceName("blizzard")) {
             hazards.add('snow');
         }
-        
+
         const winterMatch = /\bwinter\b/gi.test(combinedText);
         if (winterMatch && /winter.{0,20}(weather|storm|advisory|warning)/gi.test(combinedText) && !isLikelyPlaceName("winter")) {
             hazards.add('snow');
         }
     }
-    
+
     // Additional check specifically for hurricane but excluding place names
     if (!hazards.has('hurricane')) {
         // If we have "hurricane" by itself, verify it's not a place name by checking context
         const hurricaneMatch = /\bhurricane\b/gi.test(combinedText);
-        
+
         if (hurricaneMatch) {
             // Look for contextual clues that suggest it's a weather event, not a place
             const weatherContextMatch = /hurricane.{0,30}(warning|watch|advisory|category|mph|wind|storm|evacuat|weather|intensity|eye|cyclone|damage|impact|approach|strength)/gi.test(combinedText);
-            
+
             // If it has weather context and doesn't appear to be a place name, add it
             if (weatherContextMatch && !isLikelyPlaceName("hurricane")) {
                 hazards.add('hurricane');
             }
         }
     }
-    
+
     return Array.from(hazards);
 }
 
@@ -730,36 +811,36 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
  */
 function getPrimaryHazardType(alertTitle) {
     const title = alertTitle.toLowerCase();
-    
+
     // Helper function to check if a term appears to be part of a place name
     const isLikelyPlaceName = (term) => {
         const placePatterns = [
             /(city|town|county|village|district|road|rd\.?|street|st\.?|avenue|ave\.?|lane|ln\.?|drive|dr\.?|way|blvd\.?|plaza|park)/i,
             /(creek|river|lake|pond|bay|mountain|hill|valley|canyon|ridge)/i
         ];
-        
+
         // Check if any place name pattern appears near the term
-        return placePatterns.some(pattern => 
-            new RegExp(term + '\\s+' + pattern.source, 'i').test(title) || 
+        return placePatterns.some(pattern =>
+            new RegExp(term + '\\s+' + pattern.source, 'i').test(title) ||
             new RegExp(pattern.source + '\\s+' + term, 'i').test(title)
         );
     };
-    
+
     // Check title for primary hazard type with word boundaries
     if (/\btornado\b/.test(title)) return 'tornado';
-    
+
     // Improved hurricane detection - look for specific weather phrases, not just "hurricane"
     if (/\bhurricane warning\b|\bhurricane watch\b|\btropical storm\b|\bcategory \d hurricane\b/.test(title)) return 'hurricane';
-    
+
     if (/\bflash flood\b/.test(title)) return 'flood';
     if (/\bthunderstorm\b/.test(title)) return 'thunderstorm';
     if (/\bflood\b/.test(title)) return 'flood';
-    
+
     // Improved snow detection with context and exclusions
     if (/\b(winter storm|winter weather|heavy snow|snowfall|snowstorm)\b/.test(title)) return 'snow';
     if (/\bsnow\b/.test(title) && !/\bsnow creek\b/.test(title) && !isLikelyPlaceName('snow')) return 'snow';
     if (/\bblizzard\b/.test(title) && !isLikelyPlaceName('blizzard')) return 'snow';
-    
+
     if (/\bice\b|\bfreezing\b/.test(title)) return 'ice';
     if (/\bwind\b/.test(title)) return 'wind';
     if (/\bheat\b/.test(title)) return 'heat';
@@ -768,15 +849,16 @@ function getPrimaryHazardType(alertTitle) {
     if (/\bdust\b/.test(title)) return 'dust';
     if (/\bsmoke\b/.test(title)) return 'smoke';
     if (/\brain\b/.test(title)) return 'rain';
-    
+    if (/\bweather statement\b/.test(title)) return 'special-weather';
+
     // Extra check for hurricane that's not part of a place name
     if (/\bhurricane\b/.test(title) && !isLikelyPlaceName('hurricane')) {
         return 'hurricane';
     }
-    
+
     // Default to the first word of the title as a fallback
     const firstWord = title.split(' ')[0];
-    return firstWord === 'watch' || firstWord === 'warning' || firstWord === 'advisory' 
+    return firstWord === 'watch' || firstWord === 'warning' || firstWord === 'advisory'
         ? title.split(' ')[1] || 'unknown'  // If first word is watch/warning, use second word
         : firstWord;  // Otherwise use first word
 }
@@ -798,14 +880,14 @@ function processStationInfo(observationData, usingForecastDescription = false, d
         descriptionAdjusted: descriptionAdjusted,
         isForecastData: false
     };
-    
+
     if (observationData && observationData.stationMetadata) {
         stationInfo.display = true;
         stationInfo.stationName = observationData.stationMetadata.name || 'NWS Station';
         stationInfo.stationDistance = observationData.stationMetadata.distance;
         stationInfo.observationTime = observationData.properties?.timestamp || null;
     }
-    
+
     return stationInfo;
 }
 
@@ -825,11 +907,11 @@ function processStationInfo(observationData, usingForecastDescription = false, d
 function processNWSData(forecastData, hourlyData, alertsData, observationData, cityState, locationName, lat, lon) {
     // Create a standardized empty weather data object
     const weatherData = createEmptyWeatherData();
-    
+
     // Set source and timezone
     weatherData.source = 'nws';
     weatherData.timezone = cityState || (locationName ? formatLocationName(locationName) : 'US Location');
-    
+
     // Get current forecast from the hourly forecast (for supplementary data only)
     const currentForecast = hourlyData.properties.periods[0];
 
@@ -969,7 +1051,7 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
         } else {
             weatherData.currently.windDirection = currentForecast.windDirection;
         }
-        
+
         // Set station info
         weatherData.stationInfo = processStationInfo(observationData, usingForecastDescription, descriptionAdjusted);
     } else {
@@ -1007,7 +1089,14 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
             weatherData.currently.humidity = forecastData.properties.periods[0].relativeHumidity.value / 100;
         }
     }
-    
+
+    // Initialize nowcast structure with default values
+    // We'll replace this with data from Open-Meteo or Pirate Weather in api.js
+    weatherData.nowcast.available = true;
+    weatherData.nowcast.source = 'pending';
+    weatherData.nowcast.description = 'Loading precipitation forecast...';
+    weatherData.nowcast.data = [];
+
     // Set daylight flag
     weatherData.currently.isDaytime = isDaytime(lat, lon);
 
@@ -1020,7 +1109,127 @@ function processNWSData(forecastData, hourlyData, alertsData, observationData, c
     // Process alerts
     weatherData.alerts = processNWSAlerts(alertsData);
 
+    weatherData.source = 'nws';
+    weatherData.timezone = cityState || (locationName ? formatLocationName(locationName) : 'US Location');
+
+    // Set attribution
+    weatherData.attribution = {
+        name: 'National Weather Service',
+        url: 'https://www.weather.gov/'
+    };
+
     return weatherData;
+}
+
+/**
+ * Create a basic nowcast from NWS hourly forecast data
+ * @param {Object} weatherData - Weather data object to update 
+ * @param {Array} hourlyPeriods - NWS hourly forecast periods
+ */
+function processPrecipitationForNowcast(weatherData, hourlyPeriods) {
+    // Check if we have hourly data
+    if (!hourlyPeriods || hourlyPeriods.length === 0) {
+        return;
+    }
+
+    // Process the first few hours to create a nowcast
+    const periodsToUse = Math.min(6, hourlyPeriods.length);
+    const nowcastData = [];
+    const timeFormat = { hour: 'numeric', minute: '2-digit' };
+
+    // Check if any of the upcoming hours have precipitation
+    let hasPrecipitation = false;
+    let firstPrecipPeriod = null;
+
+    for (let i = 0; i < periodsToUse; i++) {
+        const period = hourlyPeriods[i];
+
+        // Extract forecast information - check if this period mentions precipitation
+        const forecastLower = period.shortForecast.toLowerCase();
+        const hasPrecipKeywords =
+            forecastLower.includes('rain') ||
+            forecastLower.includes('shower') ||
+            forecastLower.includes('snow') ||
+            forecastLower.includes('sleet') ||
+            forecastLower.includes('precipitation') ||
+            forecastLower.includes('drizzle');
+
+        // Get precipitation chance
+        let precipChance = 0;
+        if (period.probabilityOfPrecipitation && period.probabilityOfPrecipitation.value !== null) {
+            precipChance = period.probabilityOfPrecipitation.value / 100;
+        }
+
+        // Determine an estimated precipitation intensity from the forecast text
+        let precipIntensity = 0;
+        let intensityLabel = PRECIP_INTENSITY.NONE;
+
+        if (hasPrecipKeywords) {
+            // Estimate intensity based on keywords
+            if (forecastLower.includes('heavy') || forecastLower.includes('thunderstorm')) {
+                precipIntensity = 5.0; // Roughly moderate rain in mm/h
+                intensityLabel = PRECIP_INTENSITY.MODERATE;
+            } else if (forecastLower.includes('light') || forecastLower.includes('slight')) {
+                precipIntensity = 1.0; // Light rain in mm/h
+                intensityLabel = PRECIP_INTENSITY.LIGHT;
+            } else {
+                precipIntensity = 2.0; // Default to light-moderate in mm/h
+                intensityLabel = PRECIP_INTENSITY.LIGHT;
+            }
+
+            // Only count as precipitation if chance is reasonable
+            if (precipChance >= 0.2) { // 20% or higher
+                hasPrecipitation = true;
+
+                // Track the first period with precipitation
+                if (!firstPrecipPeriod) {
+                    firstPrecipPeriod = period;
+                }
+            }
+        }
+
+        // Format time
+        const timestamp = new Date(period.startTime);
+        const formattedTime = timestamp.toLocaleTimeString(undefined, timeFormat);
+
+        // Create data point
+        nowcastData.push({
+            time: timestamp.getTime() / 1000,
+            formattedTime: formattedTime,
+            precipIntensity: precipIntensity,
+            precipProbability: precipChance,
+            intensityLabel: intensityLabel
+        });
+    }
+
+    // Set the nowcast data
+    weatherData.nowcast.data = nowcastData;
+
+    // Update description if precipitation is expected
+    if (hasPrecipitation && firstPrecipPeriod) {
+        // Generate a human-readable description
+        const periodStartTime = new Date(firstPrecipPeriod.startTime);
+        const now = new Date();
+        const timeDiffMinutes = Math.round((periodStartTime - now) / 60000);
+
+        // Find the data point with precipitation
+        const precipPoint = nowcastData.find(point => point.precipIntensity > 0 && point.precipProbability > 0.2);
+
+        if (precipPoint) {
+            if (timeDiffMinutes <= 0) {
+                weatherData.nowcast.description = `Precipitation occurring now (${precipPoint.intensityLabel})`;
+            } else if (timeDiffMinutes < 60) {
+                weatherData.nowcast.description = `Precipitation expected within the hour (${precipPoint.intensityLabel})`;
+            } else {
+                const hours = Math.floor(timeDiffMinutes / 60);
+                weatherData.nowcast.description = `Precipitation expected in about ${hours} hour${hours > 1 ? 's' : ''} (${precipPoint.intensityLabel})`;
+            }
+        } else {
+            weatherData.nowcast.description = 'Precipitation possible in the next few hours';
+        }
+    } else {
+        weatherData.nowcast.description = 'No precipitation expected in the next few hours';
+    }
 }
 
 /**
@@ -1052,19 +1261,19 @@ function processDailyForecast(weatherData, forecastPeriods) {
     dayNames.forEach(dayName => {
         const dayPeriod = dayPeriods[dayName];
         const nightPeriod = nightPeriods[dayName]; // Corresponding night period
-        
+
         // Get precipitation chances with null checking
-        const dayPrecipChance = dayPeriod && dayPeriod.probabilityOfPrecipitation && 
-                              dayPeriod.probabilityOfPrecipitation.value !== null ? 
-                              dayPeriod.probabilityOfPrecipitation.value : 0;
-                              
-        const nightPrecipChance = nightPeriod && nightPeriod.probabilityOfPrecipitation && 
-                                nightPeriod.probabilityOfPrecipitation.value !== null ? 
-                                nightPeriod.probabilityOfPrecipitation.value : 0;
-        
+        const dayPrecipChance = dayPeriod && dayPeriod.probabilityOfPrecipitation &&
+            dayPeriod.probabilityOfPrecipitation.value !== null ?
+            dayPeriod.probabilityOfPrecipitation.value : 0;
+
+        const nightPrecipChance = nightPeriod && nightPeriod.probabilityOfPrecipitation &&
+            nightPeriod.probabilityOfPrecipitation.value !== null ?
+            nightPeriod.probabilityOfPrecipitation.value : 0;
+
         // Use the higher of the day and night precipitation chances
         const precipChance = Math.max(dayPrecipChance, nightPrecipChance);
-        
+
         // Create the forecast entry for this day
         weatherData.daily.data.push({
             time: dayPeriod ? new Date(dayPeriod.startTime).getTime() / 1000 : Date.now() / 1000,
@@ -1096,12 +1305,12 @@ function processHourlyForecast(weatherData, hourlyPeriods) {
 
     for (let i = 1; i < periodsToUse; i++) {
         const period = hourlyPeriods[i];
-        
+
         // Get precipitation chance with robust null checking
-        const precipChance = period.probabilityOfPrecipitation && 
-                            period.probabilityOfPrecipitation.value !== null ? 
-                            period.probabilityOfPrecipitation.value : 0;
-        
+        const precipChance = period.probabilityOfPrecipitation &&
+            period.probabilityOfPrecipitation.value !== null ?
+            period.probabilityOfPrecipitation.value : 0;
+
         // Extract and format time directly from the original timestamp string
         // Format: "2025-03-17T13:00:00-10:00"
         let formattedTime = "N/A";

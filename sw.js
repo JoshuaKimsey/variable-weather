@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.8.1';
+const SW_VERSION = '1.9.0';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
@@ -21,30 +21,63 @@ const ASSETS = [
   './',
   './index.html',
   './styles.css',
+  // Core files
   './js/main.js',
   './js/api.js',
-  './js/apiSettings.js',
-  './js/ui.js',
-  './js/utils.js',
-  './js/units.js',
   './js/config.js',
-  './js/weatherIcons.js',
-  './js/weatherBackgrounds.js',
+  './js/pwa.js',
   './js/pwaUpdates.js',
-  './js/radarView.js',
-  './js/astronomicalView.js',
-  // New standardized format and interfaces
   './js/standardWeatherFormat.js',
-  // API modules (updated paths to reflect new directory structure)
+  
+  // UI core and components
+  './js/ui/core.js',
+  './js/ui/components/alertsDisplay.js',
+  './js/ui/components/currentWeather.js',
+  './js/ui/components/forecasts.js',
+  './js/ui/components/nowcast.js',
+  './js/ui/components/radar.js',
+  './js/ui/components/astronomical.js',
+  
+  // UI controls
+  './js/ui/controls/searchBar.js',
+  './js/ui/controls/settings.js',
+  
+  // UI states
+  './js/ui/states/errors.js',
+  './js/ui/states/loading.js',
+  
+  // UI visuals
+  './js/ui/visuals/dynamicIcons.js',
+  './js/ui/visuals/dynamicBackgrounds.js',
+  './js/ui/visuals/iconPerformance.js',
+  
+  // Utils
+  './js/utils/astroCalc.js',
+  './js/utils/autoUpdate.js',
+  './js/utils/formatting.js',
+  './js/utils/geo.js',
+  './js/utils/time.js',
+  './js/utils/units.js',
+  
+  // API modules
   './js/api/nwsApi.js',
   './js/api/openMeteoApi.js',
   './js/api/pirateWeatherApi.js',
+
+  // Alert API modules
+  './js/api/alerts/alertApi.js',
+  './js/api/alerts/nwsAlertApi.js',
+
+  
   // Add fonts, images, and other assets as needed
+  './icons/icon-192x192.png',
+  './icons/icon-512x512.png',
+  './icons/favicon-32x32.png',
+  './icons/social-thumbnail.png',
   './resources/bootstrap/css/bootstrap.min.css',
   './resources/bootstrap/icons/bootstrap-icons.css',
   './resources/bootstrap/icons/fonts/bootstrap-icons.woff',
   './resources/bootstrap/icons/fonts/bootstrap-icons.woff2',
-  './resources/tz-lookup/tz.js',
   './resources/leafet/leaflet.css',
   './resources/leafet/leaflet.js',
   './resources/leaflet/images/layers-2x.png',
@@ -52,11 +85,10 @@ const ASSETS = [
   './resources/leaflet/images/marker-shadow.png',
   './resources/leaflet/images/layers.png',
   './resources/leaflet/images/marker-icon.png',
-  './icons/icon-192x192.png',
-  './icons/icon-512x512.png',
-  './icons/favicon-32x32.png',
-  './icons/social-thumbnail.png',
-  // Meteocons SVG icons
+  './resources/suncalc3/suncalc.js',
+  './resources/tz-lookup/tz.js',
+
+  // Meteocons SVG icons currently in use
   './resources/meteocons/all/clear-day.svg',
   './resources/meteocons/all/partly-cloudy-day.svg',
   './resources/meteocons/all/overcast-day.svg',
@@ -80,6 +112,7 @@ const ASSETS = [
   './resources/meteocons/all/raindrops.svg',
   './resources/meteocons/all/hail.svg',
   './resources/meteocons/all/thunderstorms.svg',
+  './resources/meteocons/all/code-yellow.svg',
   './resources/meteocons/all/not-available.svg',
 ];
 
@@ -147,7 +180,7 @@ self.addEventListener('fetch', event => {
     const timeoutPromise = new Promise((resolve) => {
       setTimeout(() => {
         resolve(caches.match('/offline.html'));
-      }, 3000); // 3-second timeout
+      }, 5000); // 5-second timeout
     });
 
     const networkPromise = fetch(event.request)

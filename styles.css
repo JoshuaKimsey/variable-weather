@@ -495,7 +495,7 @@ body {
 /*-----------------------------------------------
  * 4. WEATHER DETAILS CARDS
  *-----------------------------------------------*/
-.weather-details {
+ .weather-details {
     display: flex;
     flex-wrap: wrap;
     gap: 20px;
@@ -573,6 +573,33 @@ body {
 /* Hide when no data is available */
 .wind-direction.no-data {
     display: none;
+}
+
+/* Responsive adjustments for different screen sizes */
+@media (max-width: 1200px) {
+    .detail-card {
+        min-width: 110px;
+    }
+}
+
+/* This is the key change - for medium screens, make cards take up ~45% of the space */
+@media (max-width: 768px) {
+    .weather-details {
+        gap: 15px;
+    }
+    
+    .detail-card {
+        flex: 0 0 calc(50% - 10px); /* Take up roughly half the container minus gap */
+        min-width: auto; /* Remove the min-width constraint */
+        margin-bottom: 5px; /* Add a bit of spacing between rows */
+    }
+}
+
+/* For very small screens, you might want to revert to one card per row */
+@media (max-width: 350px) {
+    .detail-card {
+        flex: 1 0 100%;
+    }
 }
 
 /*-----------------------------------------------
@@ -779,6 +806,484 @@ body {
 .weather-storm {
     scrollbar-color: #7986cb transparent;
 }
+
+/*-----------------------------------------------
+ * NOWCASTING STYLES
+ *-----------------------------------------------*/
+ .nowcast-card {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.nowcast-section {
+    margin-bottom: 20px;
+}
+
+.nowcast-section h3 {
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+}
+
+.nowcast-section h3 .bi {
+    margin-right: 8px;
+}
+
+.nowcast-description {
+    color: #ffffff;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    padding: 5px 0;
+}
+
+.nowcast-source {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-style: italic;
+    margin-bottom: 5px;
+}
+
+.nowcast-chart-container {
+    height: 150px;
+    position: relative;
+    margin-bottom: 30px; /* Increased for better timeline spacing */
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Chart elements */
+.nowcast-chart {
+    position: relative;
+    height: 120px;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    padding: 10px 5px;
+}
+
+.nowcast-chart-bars {
+    display: flex;
+    align-items: flex-end;
+    height: 100%;
+    width: 100%;
+    position: relative;
+}
+
+.nowcast-bar {
+    flex: 1;
+    background-color: #29B6F6;
+    border-radius: 2px 2px 0 0;
+    margin: 0 1px;
+    min-height: 1px;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
+}
+
+.nowcast-bar:hover {
+    transform: scaleY(1.05);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Special styling for snow precipitation type */
+.nowcast-bar.precip-type-snow {
+    /* Add subtle snow effect with repeating linear gradient */
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent 4px,
+        rgba(255, 255, 255, 0.3) 4px,
+        rgba(255, 255, 255, 0.3) 6px
+    );
+    /* Make the snow bar have a slightly different shape */
+    border-radius: 3px 3px 1px 1px;
+    /* Add a subtle shadow for depth */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Mixed precipitation styling */
+.nowcast-bar.precip-type-mix, 
+.nowcast-bar.precip-type-sleet {
+    /* Add a diagonal pattern for mixed precipitation */
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 3px,
+        rgba(255, 255, 255, 0.2) 3px,
+        rgba(255, 255, 255, 0.2) 6px
+    );
+    /* Slightly different border radius */
+    border-radius: 2px 2px 0 0;
+}
+
+/* Timeline elements */
+.nowcast-timeline {
+    height: 30px;
+    width: 100%;
+    padding: 0 5px;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.nowcast-time-markers {
+    width: 100%;
+    position: relative;
+    height: 20px;
+}
+
+.nowcast-time-marker {
+    position: absolute;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.9);
+    transform: translateX(-50%);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.nowcast-time-marker.active {
+    color: #ffffff;
+    font-weight: bold;
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Special handling for edge markers to prevent overflow */
+.nowcast-time-marker:first-child {
+    transform: translateX(0);
+    text-align: left;
+}
+
+.nowcast-time-marker:last-child {
+    transform: translateX(-100%);
+    text-align: right;
+}
+
+/* Legend for precipitation intensity */
+.nowcast-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding: 6px 10px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+}
+
+.nowcast-legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 3px 5px;
+    white-space: nowrap;
+}
+
+.nowcast-legend-color {
+    width: 12px;
+    height: 12px;
+    margin-right: 4px;
+    border-radius: 2px;
+    /* Add a subtle border */
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Snow-specific legend items */
+.nowcast-legend-item[data-type="snow"] .nowcast-legend-color {
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent 2px,
+        rgba(255, 255, 255, 0.3) 2px,
+        rgba(255, 255, 255, 0.3) 3px
+    );
+}
+
+/* Mix-specific legend items */
+.nowcast-legend-item[data-type="mix"] .nowcast-legend-color {
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        rgba(255, 255, 255, 0.2) 2px,
+        rgba(255, 255, 255, 0.2) 4px
+    );
+}
+
+/* Settings toggle in nowcast section */
+.nowcast-settings-toggle {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.nowcast-settings-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.nowcast-settings-toggle .bi {
+    margin-right: 4px;
+}
+
+/* No data message */
+.nowcast-no-data {
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+}
+
+/* No precipitation message */
+.nowcast-no-precip {
+    color: rgba(255, 255, 255, 0.8);
+    text-align: center;
+    padding: 30px 20px;
+    font-style: italic;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.nowcast-no-precip::before {
+    content: "☀️";
+    margin-right: 8px;
+    font-style: normal;
+    font-size: 1.2em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .nowcast-chart-container {
+        height: 120px;
+    }
+    
+    .nowcast-chart {
+        height: 90px;
+    }
+    
+    .nowcast-description {
+        font-size: 1rem;
+    }
+    
+    .nowcast-legend {
+        padding: 4px 6px;
+    }
+    
+    .nowcast-legend-item {
+        font-size: 0.7rem;
+        margin: 2px 3px;
+    }
+    
+    .nowcast-legend-color {
+        width: 10px;
+        height: 10px;
+        margin-right: 3px;
+    }
+    
+    .nowcast-time-marker {
+        font-size: 0.75rem;
+        padding: 1px 3px;
+    }
+}
+
+@media (max-width: 480px) {
+    .nowcast-chart-container {
+        height: 100px;
+    }
+    
+    .nowcast-chart {
+        height: 70px;
+        margin-top: 10px;
+    }
+    
+    .nowcast-time-marker {
+        font-size: 0.7rem;
+        padding: 0 2px;
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+    
+    .nowcast-legend {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+    
+    .nowcast-legend-item {
+        flex: 0 0 auto;
+        margin-right: 8px;
+        font-size: 0.65rem;
+    }
+}
+
+.nowcast-attribution {
+    text-align: center;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-style: italic;
+}
+
+.nowcast-attribution a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+    transition: all 0.2s ease;
+}
+
+.nowcast-attribution a:hover {
+    color: #fff;
+    text-decoration-style: solid;
+}
+
+/* Responsive adjustment */
+@media (max-width: 480px) {
+    .nowcast-attribution {
+        font-size: 0.7rem;
+        margin-top: 8px;
+        padding-top: 6px;
+    }
+}
+
+/* Nowcast info panel */
+.nowcast-info-panel {
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin: 10px 0 15px;
+    color: white;
+    min-height: 50px;
+    transition: all 0.3s ease;
+}
+
+.nowcast-info-content {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.nowcast-selected-time {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.nowcast-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 0.95rem;
+}
+
+.nowcast-probability {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nowcast-intensity {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nowcast-type {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nowcast-bar {
+    cursor: pointer;
+}
+
+.nowcast-bar.selected {
+    outline: 2px solid rgba(255, 255, 255, 0.8);
+    outline-offset: 1px;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    z-index: 2;
+}
+
+/* Mobile specific adjustments */
+@media (max-width: 767px) {
+    .nowcast-info-panel {
+        padding: 8px 12px;
+        min-height: 40px;
+    }
+    
+    .nowcast-selected-time {
+        font-size: 1rem;
+    }
+    
+    .nowcast-details {
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .nowcast-info-panel {
+        margin: 8px 0 12px;
+    }
+}
+
+
+.tap-hint {
+    font-size: 0.85em;
+    opacity: 0.9;
+    font-style: italic;
+    margin-left: 6px;
+    font-weight: normal;
+}
+
+@media (max-width: 480px) {
+    .tap-hint {
+        font-size: 0.75em;
+        display: block;
+        margin-top: 2px;
+        margin-left: 0;
+    }
+}
+
+/* Create a consistent container structure for the nowcast section */
+.nowcast-section {
+    position: relative;
+    padding-bottom: 30px; /* Make room for attribution at bottom */
+}
+
+/* Position the attribution consistently at the bottom */
+.nowcast-attribution {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    background-color: var(--attribution-bg);
+    border-radius: 8px;
+    font-style: italic;
+    padding: 2px;
+    margin-top: 10px;
+}
+
+.nowcast-legend {
+    margin-bottom: 5px; /* Give space before the attribution */
+}
+
 
 /*-----------------------------------------------
  * 6. ALERT SYSTEM STYLES
@@ -1084,97 +1589,124 @@ body {
 }
 
 /* Settings modal */
-.modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-}
-
 .settings-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: white;
-    border-radius: 8px;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 1001;
+    
+    /* Set proper dimensions */
     width: 90%;
     max-width: 500px;
-    z-index: 1001;
+    max-height: 90vh;
+    
+    /* Ensure proper display */
+    display: block;
+    overflow-y: auto;
+    
+    /* Fix appearance */
+    background-color: white;
+    border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
+.modal-backdrop {
+    z-index: 999;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
 .settings-modal-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+/* Tab Navigation */
+.settings-tabs {
     display: flex;
-    flex-direction: column;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ddd;
 }
 
-.settings-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 20px;
-    border-bottom: 1px solid #eee;
-}
-
-.settings-modal-header h3 {
-    margin: 0;
-    color: #333;
-}
-
-.settings-modal-header button {
+.settings-tab-btn {
+    flex: 1;
+    padding: 12px 16px;
     background: none;
     border: none;
-    font-size: 24px;
+    border-bottom: 3px solid transparent;
     cursor: pointer;
-    color: #888;
+    font-size: 16px;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.2s ease;
 }
 
-.settings-modal-body {
-    padding: 20px;
+.settings-tab-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
     color: #333;
 }
 
-.settings-form-group {
-    margin-bottom: 15px;
+.settings-tab-btn.active {
+    border-bottom-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: rgba(30, 136, 229, 0.05);
 }
 
-.settings-form-group label {
+/* Tab Content */
+.settings-tab-content {
+    display: none;
+    padding: 20px;
+}
+
+.settings-tab-content.active {
     display: block;
-    margin-bottom: 5px;
+}
+
+/* Section Styling */
+.settings-section {
+    margin-bottom: 24px;
+}
+
+.settings-section h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 18px;
     font-weight: 500;
+    color: #333;
 }
 
-.settings-form-group input {
+/* Form Controls */
+.settings-select {
     width: 100%;
-    padding: 10px;
+    padding: 12px;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 16px;
+    background-color: white;
+    color: #333;
+    margin-bottom: 8px;
 }
 
-.api-key-status {
-    margin-top: 10px;
-    font-size: 14px;
+.unit-toggle-container {
+    margin: 15px 0;
 }
 
-.settings-modal-footer {
-    padding: 15px 20px;
-    border-top: 1px solid #eee;
+/* API Key Section */
+.api-key-actions {
     display: flex;
-    justify-content: flex-end;
     gap: 10px;
+    margin-top: 15px;
 }
 
 .settings-btn {
-    padding: 8px 15px;
+    padding: 10px 16px;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 .settings-btn-primary {
@@ -1182,18 +1714,55 @@ body {
     color: white;
 }
 
+.settings-btn-primary:hover {
+    background-color: #1565c0;
+}
+
 .settings-btn-danger {
     background-color: var(--error-color);
     color: white;
 }
 
-.settings-divider {
-    height: 1px;
-    background-color: #eee;
-    margin: 20px 0;
+.settings-btn-danger:hover {
+    background-color: #d32f2f;
 }
 
-/* Status message styles */
+/* Helper Text */
+.settings-help-text {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 8px;
+    line-height: 1.4;
+}
+
+.settings-note {
+    font-style: italic;
+    color: #888;
+}
+
+.api-status-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background-color: rgba(0, 122, 255, 0.1);
+    border-left: 3px solid rgba(0, 122, 255, 0.8);
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.api-key-status {
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    padding: 10px 20px;
+    text-align: center;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-top: 1px solid #eee;
+}
+
+/* Status Colors */
 .status-success {
     color: var(--success-color);
 }
@@ -1202,28 +1771,195 @@ body {
     color: var(--error-color);
 }
 
-/* API status note in settings modal */
-.api-status-note {
+.status-info {
+    color: var(--primary-color);
+}
+
+/* Links */
+.settings-link {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.settings-link:hover {
+    text-decoration: underline;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .settings-modal {
+        width: 95%;
+        max-width: none;
+    }
+    
+    .settings-tab-btn {
+        padding: 10px;
+        font-size: 15px;
+    }
+    
+    .settings-tab-content {
+        padding: 15px;
+    }
+    
+    .settings-section h4 {
+        font-size: 16px;
+    }
+    
+    .api-key-actions {
+        flex-direction: column;
+    }
+    
+    .api-key-actions button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-modal {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        border-radius: 0;
+        top: 0;
+        left: 0;
+        transform: none;
+    }
+    
+    .settings-tab-btn {
+        padding: 8px;
+        font-size: 14px;
+    }
+    
+    .settings-section {
+        margin-bottom: 20px;
+    }
+}
+
+.settings-modal-header {
     display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    background-color: rgba(0, 122, 255, 0.1);
-    border-left: 3px solid rgba(0, 122, 255, 0.8);
-    padding: 10px 12px;
-    border-radius: 4px;
-    margin-bottom: 15px;
-    font-size: 14px;
+    justify-content: center; /* Change from space-between to center */
+    align-items: center;
+    padding: 15px 20px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.api-status-note i {
-    color: rgba(0, 122, 255, 0.9);
-    font-size: 16px;
-    margin-top: 2px;
+/* Make sure the title is properly styled */
+.settings-modal-header h3 {
+    margin: 0;
+    color: white;
+    font-weight: 500;
 }
 
-.api-status-note span {
-    flex: 1;
+/* Settings label styling */
+.settings-label {
+    display: block;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #444;
+    margin-bottom: 6px;
+}
+
+/* Adjust spacing after dropdowns */
+.settings-select {
+    margin-bottom: 8px;
+}
+
+/* Enhance the divider */
+.settings-divider {
+    margin: 16px 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.1), transparent);
+}
+
+/* Make help text a bit more subtle */
+.settings-help-text {
+    font-size: 0.85rem;
+    color: #666;
+    margin: 4px 0 16px 0;
     line-height: 1.4;
+}
+
+/* API Key Section Styling */
+.api-keys-container {
+    margin-bottom: 15px;
+}
+
+.api-key-container {
+    margin-bottom: 15px;
+    padding: 12px;
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.api-key-container:last-child {
+    margin-bottom: 0;
+}
+
+.settings-form-group {
+    position: relative;
+}
+
+.settings-form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 15px;
+    background-color: white;
+}
+
+.settings-form-group input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.2);
+}
+
+.api-key-info {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: #666;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.settings-info-message {
+    padding: 12px;
+    background-color: rgba(33, 150, 243, 0.08);
+    border-radius: 6px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    color: #1976d2;
+    font-size: 0.9rem;
+}
+
+.settings-info-message i {
+    margin-right: 8px;
+    font-size: 1.1rem;
+}
+
+/* Mobile optimizations */
+@media (max-width: 480px) {
+    .api-key-container {
+        padding: 10px;
+    }
+    
+    .settings-form-group input {
+        padding: 8px 10px;
+        font-size: 14px;
+    }
+    
+    .api-key-info {
+        font-size: 0.8rem;
+    }
+    
+    .settings-info-message {
+        padding: 10px;
+        font-size: 0.85rem;
+    }
 }
 
 /*-----------------------------------------------

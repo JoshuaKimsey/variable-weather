@@ -13,10 +13,11 @@
 //==============================================================================
 
 import { setApiAttribution } from './api.js';
-import { setWeatherIcon, setForecastIcon } from './weatherIcons.js';
-import { setWeatherBackground } from './weatherBackgrounds.js';
+import { setWeatherIcon, setForecastIcon } from './ui/visuals/dynamicIcons.js';
+import { setWeatherBackground } from './ui/visuals/dynamicBackgrounds.js';
 import { formatDate, formatLocationName, updatePageTitle, getLocalTimeForLocation } from './utils.js';
 import { getDisplayUnits, formatTemperature, formatWindSpeed, formatPressure, formatVisibility } from './units.js';
+import { initNowcast, displayNowcast } from './ui/components/nowcast.js';
 
 // DOM elements
 let locationInput, searchButton, weatherData, loadingIndicator, errorMessage,
@@ -52,6 +53,11 @@ export function initUI() {
     visibilityElement = document.getElementById('visibility');
     forecastContainer = document.getElementById('forecast-container');
     stationInfoElement = document.getElementById('station-info');
+    
+    // Initialize nowcast component if available
+    if (typeof initNowcast === 'function') {
+        initNowcast();
+    }
 }
 
 /**
@@ -108,11 +114,10 @@ export function displayWeatherData(data, locationName) {
         // Cache the data for unit changes
         window.currentWeatherData = data;
 
+        updateAttributionDisplay(data);
+
         // Show weather data section
         weatherData.style.display = 'block';
-
-        // Use the centralized attribution function
-        setApiAttribution(data.source);
 
         // Current conditions
         const current = data.currently;
@@ -166,6 +171,14 @@ export function displayWeatherData(data, locationName) {
 
         // Process hourly forecast data using standardized format
         handleHourlyForecastDisplay(data);
+
+        // Display nowcast data if available - explicitly call displayNowcast
+        if (data.nowcast) {
+            console.log("Displaying nowcast data:", data.nowcast);
+            displayNowcast(data.nowcast);
+        } else {
+            console.warn("No nowcast data available");
+        }
 
         // Display alerts if available
         displayAlerts(data.alerts || []);
@@ -631,83 +644,32 @@ function formatSimpleTime(timestamp) {
     return `${hour12} ${ampm}`;
 }
 
+/**
+ * Update API attribution display based on weather data
+ * @param {Object} data - Weather data with attribution information
+ */
+function updateAttributionDisplay(data) {
+    const apiIndicator = document.getElementById('api-indicator');
+    if (!apiIndicator) return;
+    
+    if (data && data.attribution && data.attribution.name) {
+        let attributionText = `Data provided by <a href="${data.attribution.url}" target="_blank" class="attribution-link">${data.attribution.name}</a>`;
+        
+        // Add license info if available
+        if (data.attribution.license) {
+            attributionText += ` (${data.attribution.license})`;
+        }
+        
+        apiIndicator.innerHTML = attributionText;
+    } else {
+        // Fallback if attribution is missing
+        apiIndicator.innerHTML = 'Weather data provided by multiple services';
+    }
+}
+
 //==============================================================================
 // 5. ALERT SYSTEM
 //==============================================================================
-
-/**
- * Identifies all hazards mentioned in an alert with improved word boundary matching
- * @param {string} alertTitle - Alert title
- * @param {string} alertDescription - Short description
- * @param {string} fullDescription - Full alert text
- * @returns {Array} - Array of identified hazard types
- */
-function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
-    // Create a set to store unique hazard types
-    const hazards = new Set();
-    
-    // Combine all text for analysis
-    const combinedText = (alertTitle + " " + alertDescription + " " + fullDescription).toLowerCase();
-    
-    // Define hazard keywords and their corresponding types
-    // Using \b for word boundaries to match whole words only
-    const hazardPatterns = [
-        { pattern: /\btornado\b/g, type: 'tornado' },
-        { pattern: /\bhail\b/g, type: 'hail' },
-        { pattern: /\bflash flood\b|\bflooding\b|\bflood\b/g, type: 'flood' },
-        { pattern: /\bthunder\b|\blightning\b|\bthunderstorm\b|\bsevere thunderstorm\b/g, type: 'thunderstorm' },
-        { pattern: /\bsnow\b|\bblizzard\b|\bwinter\b/g, type: 'snow' },
-        { pattern: /\bfreez(e|ing)\b|\bice\b|\bsleet\b/g, type: 'ice' },
-        { pattern: /\bwind\b|\bgust\b/g, type: 'wind' },
-        { pattern: /\bdust\b/g, type: 'dust' },
-        { pattern: /\bsmoke\b/g, type: 'smoke' },
-        { pattern: /\bfog\b/g, type: 'fog' },
-        { pattern: /\bheat\b/g, type: 'heat' },
-        { pattern: /\bcold\b|\bchill\b/g, type: 'cold' },
-        { pattern: /\brain\b|\bshower\b/g, type: 'rain' },
-        { pattern: /\bhurricane\b|\btropical\b/g, type: 'hurricane' }
-    ];
-    
-    // Check each pattern against the combined text
-    hazardPatterns.forEach(({ pattern, type }) => {
-        if (pattern.test(combinedText)) {
-            hazards.add(type);
-        }
-    });
-    
-    return Array.from(hazards);
-}
-
-/**
- * Get the primary hazard type from an alert title with word boundary matching
- * @param {string} alertTitle - The alert title
- * @returns {string} - Primary hazard type
- */
-function getPrimaryHazardType(alertTitle) {
-    const title = alertTitle.toLowerCase();
-    
-    // Check title for primary hazard type with word boundaries
-    if (/\btornado\b/.test(title)) return 'tornado';
-    if (/\bhurricane\b|\btropical storm\b/.test(title)) return 'hurricane';
-    if (/\bflash flood\b/.test(title)) return 'flood';
-    if (/\bthunderstorm\b/.test(title)) return 'thunderstorm';
-    if (/\bflood\b/.test(title)) return 'flood';
-    if (/\bsnow\b|\bblizzard\b/.test(title)) return 'snow';
-    if (/\bice\b|\bfreezing\b/.test(title)) return 'ice';
-    if (/\bwind\b/.test(title)) return 'wind';
-    if (/\bheat\b/.test(title)) return 'heat';
-    if (/\bcold\b/.test(title)) return 'cold';
-    if (/\bfog\b/.test(title)) return 'fog';
-    if (/\bdust\b/.test(title)) return 'dust';
-    if (/\bsmoke\b/.test(title)) return 'smoke';
-    if (/\brain\b/.test(title)) return 'rain';
-    
-    // Default to the first word of the title as a fallback
-    const firstWord = title.split(' ')[0];
-    return firstWord === 'watch' || firstWord === 'warning' || firstWord === 'advisory' 
-        ? title.split(' ')[1] || 'unknown'  // If first word is watch/warning, use second word
-        : firstWord;  // Otherwise use first word
-}
 
 /**
  * Get icon path for a specific hazard type
@@ -731,6 +693,7 @@ function getHazardIcon(hazardType) {
         case 'heat': return `${baseIconPath}thermometer-warmer.svg`;
         case 'cold': return `${baseIconPath}thermometer-colder.svg`;
         case 'rain': return `${baseIconPath}rain.svg`;
+        case 'special-weather': return `${baseIconPath}code-yellow.svg`;
         case 'hurricane': return `${baseIconPath}hurricane.svg`;
         default: return `${baseIconPath}not-available.svg`; // Fallback icon
     }
@@ -836,122 +799,122 @@ function displayAlerts(alerts) {
     }
 }
 
-/**
- * Get appropriate severity level based on alert information
- * @param {Object} alert - The alert object from NWS or Pirate Weather
- * @returns {string} - The severity level: 'extreme', 'severe', 'moderate', or 'minor'
- */
-function getAlertSeverity(alert) {
-    try {
-        // First check if the API provides a severity level directly
-        if (alert.properties && alert.properties.severity) {
-            const apiSeverity = alert.properties.severity.toLowerCase();
+// /**
+//  * Get appropriate severity level based on alert information
+//  * @param {Object} alert - The alert object from NWS or Pirate Weather
+//  * @returns {string} - The severity level: 'extreme', 'severe', 'moderate', or 'minor'
+//  */
+// function getAlertSeverity(alert) {
+//     try {
+//         // First check if the API provides a severity level directly
+//         if (alert.properties && alert.properties.severity) {
+//             const apiSeverity = alert.properties.severity.toLowerCase();
 
-            // If the API says it's extreme or severe, trust it
-            if (apiSeverity === 'extreme' || apiSeverity === 'severe') {
-                return apiSeverity;
-            }
+//             // If the API says it's extreme or severe, trust it
+//             if (apiSeverity === 'extreme' || apiSeverity === 'severe') {
+//                 return apiSeverity;
+//             }
 
-            // For other API-provided severities, we'll still check against our event mapping
-            // because sometimes the API severity doesn't match the practical impact
-        }
+//             // For other API-provided severities, we'll still check against our event mapping
+//             // because sometimes the API severity doesn't match the practical impact
+//         }
 
-        // Extract the alert title/event for mapping
-        let alertTitle = '';
-        if (alert.properties && alert.properties.event) {
-            alertTitle = alert.properties.event;
-        } else if (alert.title) {
-            alertTitle = alert.title;
-        }
+//         // Extract the alert title/event for mapping
+//         let alertTitle = '';
+//         if (alert.properties && alert.properties.event) {
+//             alertTitle = alert.properties.event;
+//         } else if (alert.title) {
+//             alertTitle = alert.title;
+//         }
 
-        // Convert to lowercase for case-insensitive matching
-        const lowerTitle = alertTitle.toLowerCase();
+//         // Convert to lowercase for case-insensitive matching
+//         const lowerTitle = alertTitle.toLowerCase();
 
-        // Event-based severity mapping - more comprehensive list
-        // Extreme threats - immediate danger to life and property
-        if (
-            lowerTitle.includes('tornado warning') ||
-            lowerTitle.includes('flash flood emergency') ||
-            lowerTitle.includes('hurricane warning') && lowerTitle.includes('category 4') ||
-            lowerTitle.includes('hurricane warning') && lowerTitle.includes('category 5') ||
-            lowerTitle.includes('tsunami warning') ||
-            lowerTitle.includes('extreme wind warning') ||
-            lowerTitle.includes('particularly dangerous situation')
-        ) {
-            return 'extreme';
-        }
+//         // Event-based severity mapping - more comprehensive list
+//         // Extreme threats - immediate danger to life and property
+//         if (
+//             lowerTitle.includes('tornado warning') ||
+//             lowerTitle.includes('flash flood emergency') ||
+//             lowerTitle.includes('hurricane warning') && lowerTitle.includes('category 4') ||
+//             lowerTitle.includes('hurricane warning') && lowerTitle.includes('category 5') ||
+//             lowerTitle.includes('tsunami warning') ||
+//             lowerTitle.includes('extreme wind warning') ||
+//             lowerTitle.includes('particularly dangerous situation')
+//         ) {
+//             return 'extreme';
+//         }
 
-        // Severe threats - significant threat to life or property
-        if (
-            lowerTitle.includes('severe thunderstorm warning') ||
-            lowerTitle.includes('tornado watch') ||
-            lowerTitle.includes('flash flood warning') ||
-            lowerTitle.includes('hurricane warning') ||
-            lowerTitle.includes('blizzard warning') ||
-            lowerTitle.includes('ice storm warning') ||
-            lowerTitle.includes('winter storm warning') ||
-            lowerTitle.includes('storm surge warning') ||
-            lowerTitle.includes('hurricane watch') ||
-            lowerTitle.includes('avalanche warning') ||
-            lowerTitle.includes('fire warning') ||
-            lowerTitle.includes('red flag warning') ||
-            lowerTitle.includes('excessive heat warning')
-        ) {
-            return 'severe';
-        }
+//         // Severe threats - significant threat to life or property
+//         if (
+//             lowerTitle.includes('severe thunderstorm warning') ||
+//             lowerTitle.includes('tornado watch') ||
+//             lowerTitle.includes('flash flood warning') ||
+//             lowerTitle.includes('hurricane warning') ||
+//             lowerTitle.includes('blizzard warning') ||
+//             lowerTitle.includes('ice storm warning') ||
+//             lowerTitle.includes('winter storm warning') ||
+//             lowerTitle.includes('storm surge warning') ||
+//             lowerTitle.includes('hurricane watch') ||
+//             lowerTitle.includes('avalanche warning') ||
+//             lowerTitle.includes('fire warning') ||
+//             lowerTitle.includes('red flag warning') ||
+//             lowerTitle.includes('excessive heat warning')
+//         ) {
+//             return 'severe';
+//         }
 
-        // Moderate threats - possible threat to life or property
-        if (
-            lowerTitle.includes('flood warning') ||
-            lowerTitle.includes('thunderstorm watch') ||
-            lowerTitle.includes('winter weather advisory') ||
-            lowerTitle.includes('wind advisory') ||
-            lowerTitle.includes('heat advisory') ||
-            lowerTitle.includes('freeze warning') ||
-            lowerTitle.includes('dense fog advisory') ||
-            lowerTitle.includes('flood advisory') ||
-            lowerTitle.includes('rip current statement') ||
-            lowerTitle.includes('frost advisory') ||
-            lowerTitle.includes('small craft advisory')
-        ) {
-            return 'moderate';
-        }
+//         // Moderate threats - possible threat to life or property
+//         if (
+//             lowerTitle.includes('flood warning') ||
+//             lowerTitle.includes('thunderstorm watch') ||
+//             lowerTitle.includes('winter weather advisory') ||
+//             lowerTitle.includes('wind advisory') ||
+//             lowerTitle.includes('heat advisory') ||
+//             lowerTitle.includes('freeze warning') ||
+//             lowerTitle.includes('dense fog advisory') ||
+//             lowerTitle.includes('flood advisory') ||
+//             lowerTitle.includes('rip current statement') ||
+//             lowerTitle.includes('frost advisory') ||
+//             lowerTitle.includes('small craft advisory')
+//         ) {
+//             return 'moderate';
+//         }
 
-        // Minor threats - minimal threat to life or property
-        if (
-            lowerTitle.includes('special weather statement') ||
-            lowerTitle.includes('hazardous weather outlook') ||
-            lowerTitle.includes('air quality alert') ||
-            lowerTitle.includes('hydrologic outlook') ||
-            lowerTitle.includes('beach hazards statement') ||
-            lowerTitle.includes('urban and small stream') ||
-            lowerTitle.includes('lake wind advisory') ||
-            lowerTitle.includes('short term forecast')
-        ) {
-            return 'minor';
-        }
+//         // Minor threats - minimal threat to life or property
+//         if (
+//             lowerTitle.includes('special weather statement') ||
+//             lowerTitle.includes('hazardous weather outlook') ||
+//             lowerTitle.includes('air quality alert') ||
+//             lowerTitle.includes('hydrologic outlook') ||
+//             lowerTitle.includes('beach hazards statement') ||
+//             lowerTitle.includes('urban and small stream') ||
+//             lowerTitle.includes('lake wind advisory') ||
+//             lowerTitle.includes('short term forecast')
+//         ) {
+//             return 'minor';
+//         }
 
-        // If we get to this point, it's not matched any of our specific patterns
-        // Check for some general indicators
-        if (lowerTitle.includes('warning')) {
-            return 'severe';  // Any unspecified warning is treated as severe
-        }
+//         // If we get to this point, it's not matched any of our specific patterns
+//         // Check for some general indicators
+//         if (lowerTitle.includes('warning')) {
+//             return 'severe';  // Any unspecified warning is treated as severe
+//         }
 
-        if (lowerTitle.includes('watch')) {
-            return 'moderate';  // Any unspecified watch is treated as moderate
-        }
+//         if (lowerTitle.includes('watch')) {
+//             return 'moderate';  // Any unspecified watch is treated as moderate
+//         }
 
-        if (lowerTitle.includes('advisory') || lowerTitle.includes('statement')) {
-            return 'minor';  // Any unspecified advisory is treated as minor
-        }
+//         if (lowerTitle.includes('advisory') || lowerTitle.includes('statement')) {
+//             return 'minor';  // Any unspecified advisory is treated as minor
+//         }
 
-        // Default fallback
-        return 'moderate';
-    } catch (error) {
-        console.error('Error determining alert severity:', error);
-        return 'moderate'; // Default fallback
-    }
-}
+//         // Default fallback
+//         return 'moderate';
+//     } catch (error) {
+//         console.error('Error determining alert severity:', error);
+//         return 'moderate'; // Default fallback
+//     }
+// }
 
 /**
  * Format alert text for better readability

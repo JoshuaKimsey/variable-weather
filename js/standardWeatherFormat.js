@@ -167,23 +167,50 @@ export function createEmptyWeatherData() {
             visibility: 10,
             isDaytime: true
         },
-        
+
         // Daily forecast
         daily: {
             data: []
             // Each item should have: time, icon, temperatureHigh, temperatureLow, summary, precipChance
         },
-        
+
         // Hourly forecast
         hourly: {
             data: []
             // Each item should have: time, formattedTime, temperature, icon, summary, precipChance
         },
-        
+
         // Weather alerts
         alerts: [],
         // Each alert should have: id, title, description, fullText, severity, urgency, expires, hazardTypes, primaryHazard
-        
+
+        // Nowcast data for short-term precipitation forecasts
+        nowcast: {
+            available: false,           // Whether nowcast data is available
+            source: '',                 // 'open-meteo' or 'pirate' or another with nowcasting abilities
+            interval: 15,               // Interval in minutes between data points
+            timezone: 'auto',           // Add this new field to store location timezone
+            startTime: null,            // Start timestamp of nowcast period
+            endTime: null,              // End timestamp of nowcast period
+            description: '',            // Human-readable summary of nowcast period
+            data: []
+            // Each item should have: 
+            // time: Unix timestamp for this data point
+            // formattedTime: Human-readable time (e.g., "2:30 PM")
+            // precipIntensity: Precipitation intensity in mm/h
+            // precipProbability: Probability as decimal (0-1)
+            // precipType: Type of precipitation ('rain', 'snow', 'mix', 'sleet', or 'none')
+            // intensityLabel: Human-readable intensity ('none', 'very-light', 'light', 'moderate', 'heavy', 'violent')
+            // snowfall: Optional - amount of snowfall in mm/h (when available)
+        },
+
+        // Attribution information for the data source
+        attribution: {
+            name: '',      // Display name of the API provider (e.g., 'National Weather Service')
+            url: '',       // URL to the provider's website for linking
+            license: ''    // Optional license information (e.g., 'CC BY 4.0')
+        },
+
         // Station information (for observation data)
         stationInfo: {
             display: false,
@@ -194,11 +221,11 @@ export function createEmptyWeatherData() {
             descriptionAdjusted: false,
             isForecastData: false
         },
-        
+
         // Metadata
         source: '',  // API source identifier (e.g., 'nws', 'open-meteo')
         timezone: 'auto',
-        
+
         // Last update timestamp
         lastUpdated: Date.now()
     };
@@ -216,13 +243,14 @@ export function validateWeatherData(data) {
     if (!data.daily || !Array.isArray(data.daily.data)) return false;
     if (!data.hourly || !Array.isArray(data.hourly.data)) return false;
     if (!Array.isArray(data.alerts)) return false;
-    
+    if (!data.nowcast || typeof data.nowcast !== 'object') return false;
+
     // Check required fields in current conditions
     const requiredCurrentFields = ['temperature', 'icon', 'summary', 'windSpeed', 'humidity'];
     for (const field of requiredCurrentFields) {
         if (data.currently[field] === undefined) return false;
     }
-    
+
     // Success - data appears to be in the correct format
     return true;
 }
@@ -235,6 +263,18 @@ export const ALERT_SEVERITY = {
     SEVERE: 'severe',
     MODERATE: 'moderate',
     MINOR: 'minor'
+};
+
+/**
+ * Standard precipitation intensity levels
+ */
+export const PRECIP_INTENSITY = {
+    NONE: 'none',         // 0 mm/h
+    VERY_LIGHT: 'very-light', // 0-0.5 mm/h
+    LIGHT: 'light',       // 0.5-2.5 mm/h
+    MODERATE: 'moderate', // 2.5-10 mm/h
+    HEAVY: 'heavy',       // 10-50 mm/h
+    VIOLENT: 'violent'    // 50+ mm/h
 };
 
 /**

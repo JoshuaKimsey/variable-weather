@@ -28,11 +28,13 @@
 - **Detailed Information** - Presenting the weather information that you need:
   - Current conditions,
   - 7 day forecast
+  - Precipitation nowcasting
   - Hourly forecasts
   - Weather alerts
-  - Weather radar, with integrated severe weather alert polygons (now in it's own larger popout modal)
+  - Weather radar, with integrated severe weather alert polygons in it's own larger popout modal
   - Astronomical data, including sunrise/sunset times, day length, and moon phases (more to come!)
-- **Modular API System** - Uses National Weather Service data for US locations and the Open-Meteo API globally
+- **Modular API System** - Uses the Open-Meteo API globally for weather by default
+  - Other API options include Pirate Weather (Global, requires a free API key) or the National Weather Service (US)
   - The modular API system allows new sources to be added easily as well (Documentation for this will be completed soon!)
 - **Smart Location Detection** - Automatic geolocation with manual search options
 - **Progressive Web App (PWA)** - Install on any device with automatic updates
@@ -78,7 +80,8 @@ cd variable-weather
 
 - **Current Conditions**: The main display shows current temperature, conditions, and weather icon
 - **Details**: View wind speed, humidity, pressure, and visibility information
-- **Forecast**: Scroll horizontally to view the 7-day forecast
+- **Forecast**: Scroll horizontally to view the 7-day and hourly forecast
+  - **Nowcast**: Click on individual bars to see the precipitation type, probability, and intensity for that time period
 - **Alerts**: Any active weather alerts will appear at the top (US location for now) - click to expand for details
 - **Weather Radar**: See precipitation in your area or around the world, click the radar icon in the bottom-right to view it
   - **Integrated Severe Alert Polygons**: See Severe Weather Alerts on the map (US only currently)
@@ -87,9 +90,10 @@ cd variable-weather
 ### Customization Options
 
 - **Unit Toggle**: Switch between Fahrenheit and Celsius using the settings menu
-- **API Settings**: Add your Pirate Weather API key for non-US locations
 - **Icon Switching**: Switch between the dynamically generated icons or meteocons
   - Note: On mobile devices, Meteocons will be enabled as the default choice upon first start. However, once this is changed, the user's choice will become the default instead.
+- **API Settings**: Choose which API sources to use for global, regional, and nowcasting weather
+  - For sources requiring an API key, selecting such a source will reveal the box for inputting your key
 
 ### PWA Updates
 
@@ -98,17 +102,17 @@ When a new version is available, and it has not already automatically updated, y
 ## Technology
 
 - **Frontend**: HTML5, CSS3, & Plain JavaScript (ES6+), with Bootstrap for styling and font-icons
-- **Weather Data**: National Weather Service API, Open_Meteo [(CC BY 4.0)](https://creativecommons.org/licenses/by/4.0), Pirate Weather API (Deprecated for now), Rain Viewer
+- **Weather Data**: Open_Meteo [(CC BY 4.0)](https://creativecommons.org/licenses/by/4.0), Pirate Weather API, The National Weather Service (US), Rain Viewer
 - **Geocoding**: OpenStreetMap Nominatim API, Leaflet
 - **Timezone Lookup**: TZ-Lookup
+- **Astronomical Data**: SunCalc3
 - **Weather Icons**: Dynamically generated icons, Meteocons
 - **Animation**: CSS Animations, SVG Graphics
 
 ## API Keys
 
-Variable Weather uses free weather data providers when possible:
+Variable Weather uses free weather data providers when possible, however, options with API keys also exist:
 
-- **US Locations**: National Weather Service API (no key required)
 - **Non-US Locations**: [Pirate Weather API](https://pirateweather.net/) (requires free API key)
 
 To add your Pirate Weather API key:
@@ -133,10 +137,11 @@ This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICE
 ## Acknowledgments
 
 - Inspired by [Breezy Weather](https://github.com/breezy-weather/breezy-weather)
-- Weather data provided by [National Weather Service](https://www.weather.gov/), [Open-Meteo](https://open-meteo.com/), and [Pirate Weather](https://pirateweather.net/)
+- Weather data provided by [Open-Meteo](https://open-meteo.com/), [Pirate Weather](https://pirateweather.net/), and the [National Weather Service](https://www.weather.gov/)
 - Radar data provided by [Rain Viewer](https://www.rainviewer.com/)
 - Mapping data provided by [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors via [Leaflet](https://leafletjs.com/)
 - Timezone lookup functionality provided by PhotoStructure's [tz-lookup](https://github.com/photostructure/tz-lookup)
+- Astronomical data functionality provided by [SunCalc3](https://github.com/Hypnos3/suncalc3)
 - Dynamic icons and animations created with CSS and SVG
 - Meteocons created and provided by [Bas Milius](https://github.com/basmilius/weather-icons)
 - Special thanks to Anthropic's <a href="https://claude.ai">Claude 3.7 Sonnet</a> for helping in the building and creation of this app

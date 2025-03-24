@@ -2,9 +2,9 @@
  * Unit conversion and display utilities for the weather app
  */
 
-import { setWeatherIcon } from './weatherIcons.js';
-import { setWeatherBackground } from './weatherBackgrounds.js';
-import { isDaytime } from './utils.js';
+import { setWeatherIcon } from '../ui/visuals/dynamicIcons.js';
+import { setWeatherBackground } from '../ui/visuals/dynamicBackgrounds.js';
+import { isDaytime } from './geo.js';
 
 // Default to imperial units (°F)
 let currentDisplayUnits = 'imperial';
