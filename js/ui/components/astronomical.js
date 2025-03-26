@@ -9,6 +9,8 @@ import {
     isDaytime
 } from '../../utils/astroCalc.js';
 
+import { loadComponentCSS } from '../../utils/cssLoader.js';
+
 // Global resize handler reference to allow for cleanup
 let resizeHandler = null;
 
@@ -27,6 +29,9 @@ let containerId = 'astro-view'; // Default container ID
  * @param {string} containerElementId - ID of the container element
  */
 export function initAstro(containerElementId) {
+
+    loadComponentCSS('./styles/astronomical.css').catch(error => console.warn('Failed to load astronomical styles:', error));
+
     // Store the container ID for future reference
     containerId = containerElementId;
 

@@ -1,0 +1,374 @@
+/*-----------------------------------------------
+ * WEATHER ALERTS SYSTEM STYLES
+ * 
+ * Contents:
+ * 1. Alerts Container 
+ * 2. Alert Items
+ * 3. Alert Headers & Controls
+ * 4. Alert Content
+ * 5. Severity Indicators
+ * 6. Alert Animations
+ * 7. Responsive Adjustments
+ *-----------------------------------------------*/
+
+/*-----------------------------------------------
+ * 1. ALERTS CONTAINER
+ *-----------------------------------------------*/
+ .alerts-container {
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+/*-----------------------------------------------
+ * 2. ALERT ITEMS
+ *-----------------------------------------------*/
+/* Alert item base styles */
+.alert-item {
+    padding: 12px 15px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    background-color: var(--detail-card-bg);
+    border-left: 5px solid var(--warning-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.alert-expanded {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+/*-----------------------------------------------
+ * 3. ALERT HEADERS & CONTROLS
+ *-----------------------------------------------*/
+/* Alert header elements */
+.alert-header {
+    position: relative;
+}
+
+.alert-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    position: relative; /* For absolute positioning context */
+    width: 100%; /* Ensure full width */
+}
+
+/* Title and severity container */
+.alert-title-severity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Keep the title compact */
+.alert-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    white-space: nowrap; /* Prevent title from wrapping */
+}
+
+.alert-subtitle {
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 4px;
+}
+
+/* Icon container - positioned to the right of title in desktop */
+.alert-icon-container {
+    display: flex;
+    align-items: center;
+    background-color: var(--card-bg-color);
+    border-radius: 10px;
+    gap: 5px;
+    margin-left: 8px; /* Space between title and icons */
+    flex-wrap: nowrap; /* Prevent wrapping to multiple lines */
+}
+
+/* Make all icons the same size */
+.alert-meteocon {
+    width: 3.5em;
+    height: 3.5em;
+    object-fit: contain;
+}
+
+/* Position the expand button at the far right for desktop */
+.alert-expand-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 2; /* Ensure it's above other elements */
+}
+
+.alert-expand-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #333;
+}
+
+/*-----------------------------------------------
+ * 4. ALERT CONTENT
+ *-----------------------------------------------*/
+/* Alert content panel */
+.alert-content {
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    animation: fadeIn 0.3s ease;
+}
+
+.alert-metadata {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.alert-full-description {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #333;
+}
+
+.alert-full-description p {
+    margin-bottom: 10px;
+}
+
+/*-----------------------------------------------
+ * 5. SEVERITY INDICATORS
+ *-----------------------------------------------*/
+/* Alert severity indicators */
+.alert-severity {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Severity-specific styles */
+.alert-extreme {
+    border-left-color: var(--extreme-color);
+    animation: flash-alert 2s infinite;
+}
+
+.alert-severe {
+    border-left-color: var(--severe-color);
+}
+
+.alert-severe .alert-severity {
+    background-color: var(--severe-color);
+    color: white;
+}
+
+.alert-moderate {
+    border-left-color: var(--moderate-color);
+}
+
+.alert-moderate .alert-severity {
+    background-color: var(--moderate-color);
+    color: white;
+}
+
+.alert-minor {
+    border-left-color: var(--minor-color);
+}
+
+.alert-minor .alert-severity {
+    background-color: var(--minor-color);
+    color: white;
+}
+
+/*-----------------------------------------------
+ * 6. ALERT ANIMATIONS
+ *-----------------------------------------------*/
+@keyframes flash-alert {
+    0%, 100% {
+        background-color: rgba(255, 200, 200, 0.95);
+        box-shadow: 0 0 15px rgba(211, 47, 47, 0.4);
+    }
+    50% {
+        background-color: rgba(255, 255, 255, 0.85);
+        box-shadow: 0 0 5px rgba(211, 47, 47, 0.2);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Animation for extreme alerts on the map */
+@keyframes alertPulse {
+    0%, 100% {
+        opacity: 0.2;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.extreme-alert-polygon {
+    animation: alertPulse 2s infinite;
+}
+
+/*-----------------------------------------------
+ * 7. RESPONSIVE ADJUSTMENTS
+ *-----------------------------------------------*/
+/* Mobile adjustments */
+@media (max-width: 650px) {
+    /* Structure for mobile view */
+    .alert-title-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    /* Keep severity, title, and expand button on same row */
+    .alert-title-severity {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        position: relative; /* For absolute positioning of expand button */
+    }
+    
+    /* Reposition expand button for mobile */
+    .alert-expand-btn {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    /* Icons container below title, but left-aligned */
+    .alert-icon-container {
+        margin-left: 0;
+        margin-top: 8px;
+        margin-bottom: 4px;
+        padding: 5px;
+        justify-content: flex-start; /* Left-align icons */
+        align-self: flex-start; /* Align container to the left */
+        width: auto; /* Auto width instead of full width */
+        overflow-x: auto; /* Allow scrolling if too many icons */
+    }
+    
+    .alert-meteocon {
+        width: 2.5em;
+        height: 2.5em;
+    }
+    
+    .alert-icon-container {
+        gap: 3px;
+    }
+}
+
+@media (max-width: 480px) {
+    .alert-item {
+        padding: 10px 12px;
+    }
+    
+    .alert-title {
+        font-size: 1rem;
+    }
+    
+    .alert-subtitle {
+        font-size: 0.8rem;
+    }
+    
+    .alert-content {
+        padding-top: 8px;
+        margin-top: 8px;
+    }
+    
+    .alert-metadata {
+        flex-direction: column;
+        gap: 5px;
+        font-size: 0.8rem;
+    }
+    
+    .alert-full-description {
+        font-size: 0.85rem;
+    }
+    
+    .alert-meteocon {
+        width: 2em;
+        height: 2em;
+    }
+    
+    .alert-severity {
+        padding: 1px 4px;
+        font-size: 0.7rem;
+    }
+}
+
+/* Alert popup styling */
+.alert-popup {
+    padding: 10px;
+    max-width: 250px;
+}
+
+.alert-popup h3 {
+    margin-top: 0;
+    color: #f44336;
+}
+
+.view-alert-details {
+    background-color: #1e88e5;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 5px;
+}
+
+.view-alert-details:hover {
+    background-color: #1565c0;
+}
+
+/* Help popup alerts stand out on mobile */
+@media (max-width: 480px) {
+    .alert-popup-content {
+        font-size: 14px !important;
+    }
+    
+    .alert-popup-content h3 {
+        font-size: 16px !important;
+        margin-top: 0 !important;
+        margin-bottom: 8px !important;
+    }
+    
+    .leaflet-popup-content {
+        width: 100% !important;
+        max-width: 280px !important;
+    }
+    
+    .leaflet-popup-content-wrapper {
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    .alert-severity {
+        padding: 3px 8px !important;
+        font-size: 0.8rem !important;
+        font-weight: bold !important;
+    }
+}

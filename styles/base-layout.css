@@ -1,0 +1,340 @@
+/*-----------------------------------------------
+ * BASE LAYOUT STYLES
+ * 
+ * Contents:
+ * 1. Variables & Root Styles
+ * 2. Base Elements
+ * 3. Layout & Containers
+ * 4. Shared Card Styles
+ * 5. Search Container
+ * 6. Responsive Adjustments
+ *-----------------------------------------------*/
+
+/*-----------------------------------------------
+ * 1. VARIABLES & ROOT STYLES
+ *-----------------------------------------------*/
+ :root {
+    /* Primary palette */
+    --primary-color: #1e88e5;
+    --secondary-color: #ffffff;
+    --text-color: #333333;
+    --text-light: #ffffff;
+    --text-muted: #cccccc;
+    
+    /* UI surface colors */
+    --body-bg-color: var(--primary-color);
+    --card-bg-color: rgba(100, 100, 100, 0.25);
+    --card-backdrop-blur: 2px;
+    --card-border-radius: 20px;
+    --card-box-shadow: 0 10px 30px var(--shadow-color);
+    
+    /* Component colors */
+    --detail-card-bg: rgba(255, 255, 255, 0.75);
+    --forecast-card-bg: rgba(255, 255, 255, 0.75);
+    --search-bg: rgba(255, 255, 255, 0.75);
+    --attribution-bg: rgba(100, 100, 100, 0.5);
+    
+    /* Utility colors */
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --divider-color: rgba(255, 255, 255, 0.1);
+    
+    /* State colors */
+    --error-color: #f44336;
+    --success-color: #4CAF50;
+    --warning-color: #ff9800;
+
+    /* Alert severity colors */
+    --extreme-color: #d32f2f;
+    --severe-color: #f44336;
+    --moderate-color: #ff9800;
+    --minor-color: #ffb74d;
+}
+
+/*-----------------------------------------------
+ * 2. BASE ELEMENTS
+ *-----------------------------------------------*/
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--body-bg-color);
+    transition: background 1000ms ease;
+    min-height: 100vh;
+    color: var(--text-color);
+    overflow-x: hidden;
+}
+
+/* Disable body scrolling when modal is open */
+body.modal-open {
+    overflow: hidden;
+}
+
+body.radar-modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+}
+
+/*-----------------------------------------------
+ * 3. LAYOUT & CONTAINERS
+ *-----------------------------------------------*/
+.container {
+    max-width: 1200px;
+    padding: 20px;
+}
+
+/* Add padding to the bottom of the container on mobile */
+@media (max-width: 480px) {
+    .container {
+        padding: 12px;
+        padding-bottom: 80px; /* Space for floating buttons */
+    }
+}
+
+/* Weather background container */
+.weather-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    transition: background 1000ms ease;
+}
+
+/*-----------------------------------------------
+ * 4. SHARED CARD STYLES
+ *-----------------------------------------------*/
+.weather-card {
+    position: relative;
+    border-radius: var(--card-border-radius);
+    overflow: hidden;
+    padding: 30px;
+    margin-bottom: 20px;
+    background-color: var(--card-bg-color);
+    backdrop-filter: blur(var(--card-backdrop-blur));
+    box-shadow: var(--card-box-shadow);
+}
+
+/* First card (main weather) gets top margin */
+#weather-container {
+    margin-top: 20px;
+}
+
+/* Attribution footer to hold API indicator and version */
+.attribution-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-radius: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: var(--attribution-bg);
+}
+
+/* API indicator centered in its own card */
+.api-indicator {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #cccccc;
+    font-style: italic;
+    margin-bottom: 5px;
+}
+
+/* App version styling */
+.app-version {
+    font-size: 0.8rem;
+    color: #cccccc;
+    text-align: center;
+    margin-top: 5px;
+}
+
+.version-link {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+    transition: all 0.2s ease;
+}
+
+.version-link:hover {
+    color: #fff;
+    text-decoration-style: solid;
+}
+
+/*-----------------------------------------------
+ * 5. SEARCH CONTAINER
+ *-----------------------------------------------*/
+/* Search and attribution card */
+#search-container {
+    padding: 20px 30px;
+}
+
+.search-attribution-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Search container to hold both the search box and geo button */
+.search-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0px;
+    width: 100%;
+    max-width: 100%;
+    padding: 0 15px;
+}
+
+/* Main search box with input and search button */
+.search-box {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 12px 15px;
+    border: none;
+    border-radius: 50px 0 0 50px;
+    background-color: rgba(255, 255, 255, 0.75);
+    box-shadow: 0 5px 15px var(--shadow-color);
+    font-size: 16px;
+    outline: none;
+    min-width: 0;
+    text-overflow: ellipsis;
+}
+
+/* Standalone style for geolocation button */
+#geo-button {
+    width: 45px;
+    height: 45px;
+    min-width: 45px;
+    border: none;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+#geo-button:hover {
+    background-color: #1565c0;
+    transform: scale(1.05);
+}
+
+#geo-button:active {
+    transform: scale(0.95);
+}
+
+/* Style for search button */
+.search-box button#search-button {
+    border: none;
+    border-radius: 0 50px 50px 0;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.search-box button#search-button:hover {
+    background-color: #1565c0;
+}
+
+/*-----------------------------------------------
+ * 6. RESPONSIVE ADJUSTMENTS
+ *-----------------------------------------------*/
+@media (max-width: 768px) {
+    .weather-card {
+        padding: 20px;
+    }
+
+    #search-container {
+        padding: 15px 20px;
+    }
+
+    .attribution-footer {
+        margin-top: 5px;
+        padding-top: 5px;
+    }
+
+    .app-version {
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 12px;
+    }
+
+    .weather-card {
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 15px;
+    }
+
+    .search-container {
+        padding: 0 5px;
+    }
+}
+
+/*-----------------------------------------------
+ * 7. ERROR & LOADING STATES
+ *-----------------------------------------------*/
+/* Loading indicator */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+.loading span {
+    width: 10px;
+    height: 10px;
+    margin: 0 5px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    display: inline-block;
+    animation: bounce 1.5s infinite ease-in-out both;
+}
+
+.loading span:nth-child(1) {
+    animation-delay: -0.3s;
+}
+
+.loading span:nth-child(2) {
+    animation-delay: -0.15s;
+}
+
+@keyframes bounce {
+    0%, 80%, 100% {
+        transform: scale(0);
+    }
+    40% {
+        transform: scale(1);
+    }
+}
+
+/* Error message */
+.error-message {
+    background-color: #ffecec;
+    color: var(--error-color);
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    display: none;
+}

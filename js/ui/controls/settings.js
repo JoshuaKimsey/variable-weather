@@ -969,6 +969,9 @@ function openApiSettings() {
         apiSettingsBackdrop.style.display = 'block';
     }
 
+    // Update back button visibility based on current screen width
+    updateBackButtonVisibility();
+
     // Get current state information
     const currentState = history.state || {};
 
@@ -1020,6 +1023,44 @@ function closeApiSettings() {
     if (history.state && history.state.settingsOpen && !isHandlingPopState) {
         history.back();
     }
+}
+
+/**
+ * Initialize settings back button
+ */
+function initSettingsBackButton() {
+    const backButton = document.getElementById('settings-back-button');
+    if (!backButton) return;
+    
+    // Add click event to call closeApiSettings
+    backButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeApiSettings();
+    });
+    
+    // Update visibility based on screen size (for initial load)
+    updateBackButtonVisibility();
+    
+    // Listen for resize events to update visibility
+    window.addEventListener('resize', updateBackButtonVisibility);
+}
+
+/**
+ * Update back button visibility based on screen width
+ */
+function updateBackButtonVisibility() {
+    const backButton = document.getElementById('settings-back-button');
+    if (backButton) {
+        backButton.style.display = window.innerWidth <= 480 ? 'flex' : 'none';
+    }
+}
+
+// Initialize the back button when DOM is loaded 
+if (document.readyState === 'complete') {
+    initSettingsBackButton();
+} else {
+    document.addEventListener('DOMContentLoaded', initSettingsBackButton);
 }
 
 /**

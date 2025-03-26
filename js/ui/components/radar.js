@@ -1,5 +1,7 @@
 // modalRadarController.js with complete radar functionality
 
+import { loadComponentCSS } from '../../utils/cssLoader.js';
+
 // Global state
 let modalMap = null;
 let radarModalOpen = false;
@@ -14,8 +16,8 @@ let timestampDisplay = null;
 let alertFetchInProgress = false;
 let lastAlertFetchTime = 0;
 let historyStateAdded = false;
-let isProgrammaticMove = false;  
-let ignoreNextMoveEnd = false;     
+let isProgrammaticMove = false;
+let ignoreNextMoveEnd = false;
 let lastClickedAlertId = null;
 
 // Define a unique identifier for our history state
@@ -35,16 +37,28 @@ const ALERT_FETCH_THROTTLE = 3000; // Minimum time between fetches (3 seconds)
  * Initialize the modal controller
  */
 export function initModalController() {
+
+    loadComponentCSS('./styles/radar.css').catch(error => console.warn('Failed to load radar styles:', error));
+
     // Get radar button and modal elements
     const openRadarBtn = document.getElementById('open-radar');
     const closeRadarBtn = document.getElementById('close-radar-modal');
+    const backRadarBtn = document.getElementById('radar-back-button');
     const radarModal = document.getElementById('radar-modal');
     const radarBackdrop = document.getElementById('radar-modal-backdrop');
 
-    if (openRadarBtn && closeRadarBtn && radarModal && radarBackdrop) {
+    if (openRadarBtn && radarModal && radarBackdrop) {
         // Add event listeners for opening and closing the radar modal
         openRadarBtn.addEventListener('click', openRadarModal);
-        closeRadarBtn.addEventListener('click', closeRadarModal);
+
+        if (closeRadarBtn) {
+            closeRadarBtn.addEventListener('click', closeRadarModal);
+        }
+
+        if (backRadarBtn) {
+            backRadarBtn.addEventListener('click', closeRadarModal);
+        }
+
         radarBackdrop.addEventListener('click', closeRadarModal);
 
         // Also close on escape key
@@ -55,13 +69,10 @@ export function initModalController() {
         });
 
         // Set up history event listener for back button/gesture
-        // This should capture any history navigation while the modal is open
         window.addEventListener('popstate', function (event) {
             console.log('History navigation detected', event.state);
             if (radarModalOpen) {
                 // If the modal is open and we navigate back, close it
-                // We don't need to check the state because any back navigation
-                // while the modal is open should close it
                 closeRadarModal(true); // true = coming from popstate event
             }
         });
@@ -77,28 +88,42 @@ function openRadarModal() {
     // Update state
     radarModalOpen = true;
 
+    document.body.classList.add('radar-modal-open');
+
     // Hide all weather icons and animations to improve performance
     hideWeatherElements(true);
 
     // Show the modal and backdrop
     const radarModal = document.getElementById('radar-modal');
     const radarBackdrop = document.getElementById('radar-modal-backdrop');
+    const backButton = document.getElementById('radar-back-button');
 
     if (!radarModal || !radarBackdrop) {
         console.error('Modal elements not found');
         return;
     }
 
+    // Update back button visibility
+    if (backButton) {
+        backButton.style.display = window.innerWidth <= 480 ? 'flex' : 'none';
+    }
+
+    // CRITICAL FIX: Reset visibility and positioning properties
+    radarModal.style.visibility = 'visible';
+    radarModal.style.pointerEvents = 'auto';
+    radarModal.style.zIndex = '2000';
+
+    radarBackdrop.style.visibility = 'visible';
+    radarBackdrop.style.pointerEvents = 'auto';
+    radarBackdrop.style.zIndex = '1999';
+
     // Add a history entry for back button support
-    // This simpler approach just pushes a new state when opening the modal
-    // The popstate event will then handle closing it when navigating back
     try {
         // Get current URL to preserve it
         const currentUrl = window.location.href;
         // Push state with our modal identifier
         history.pushState({ modalId: MODAL_STATE_ID }, document.title, currentUrl);
         historyStateAdded = true;
-        // console.log('Added history state for radar modal');
     } catch (e) {
         console.error('Failed to add history state:', e);
     }
@@ -106,6 +131,11 @@ function openRadarModal() {
     // Display modal
     radarModal.style.display = 'block';
     radarBackdrop.style.display = 'block';
+
+    // Add mobile-specific class if needed
+    if (window.innerWidth <= 480) {
+        document.body.classList.add('radar-modal-open');
+    }
 
     // Add class for animation
     setTimeout(() => {
@@ -126,23 +156,19 @@ function openRadarModal() {
  */
 function closeRadarModal(fromPopState = false) {
     // Only manipulate history when closing directly (not from back button)
-    // This prevents infinite loops where back -> close -> back -> close...
     if (historyStateAdded && !fromPopState) {
-        // If we're closing the modal by clicking the X or outside, 
-        // we should go back in history to remove our state
         console.log('Manually going back in history');
         history.back();
-        // Don't set historyStateAdded to false here, because the popstate will fire
-        // and we'll handle the actual closing there
         return; // Exit early - the popstate will call this function again
     }
 
-    // If we get here, we're either closing from popstate or historyStateAdded is false
     // Reset the flag
     historyStateAdded = false;
 
     // Update state
     radarModalOpen = false;
+
+    document.body.classList.remove('radar-modal-open');
 
     // Pause animation if running
     if (animationTimer) {
@@ -159,11 +185,21 @@ function closeRadarModal(fromPopState = false) {
     radarModal.classList.remove('open');
     radarBackdrop.classList.remove('open');
     document.body.classList.remove('modal-open');
+    document.body.classList.remove('radar-modal-open');
 
     // After animation completes
     setTimeout(() => {
+        // CRITICAL FIX: Use visibility:hidden instead of display:none
+        // This ensures it doesn't block clicks but keeps the map state
         radarModal.style.display = 'none';
+        radarModal.style.visibility = 'hidden';
+        radarModal.style.pointerEvents = 'none'; // Ensure it doesn't capture clicks
+        radarModal.style.zIndex = '-1'; // Move it below other elements
+
         radarBackdrop.style.display = 'none';
+        radarBackdrop.style.visibility = 'hidden';
+        radarBackdrop.style.pointerEvents = 'none';
+        radarBackdrop.style.zIndex = '-1';
 
         // Show weather elements again
         hideWeatherElements(false);
@@ -230,13 +266,25 @@ function initModalMap() {
     container.style.right = '0';
     container.style.bottom = '0';
     container.style.overflow = 'hidden';
+    container.style.width = '100%';
+    container.style.height = '100%';
 
     // If map already exists, just refresh data
     if (modalMap) {
-        // console.log('Map already exists, refreshing data');
+        console.log('Map exists, refreshing');
 
-        // Ensure the map size is correct
+        // CRITICAL FIX: Force multiple map size updates with increasing delays
         modalMap.invalidateSize(true);
+
+        // Add additional delayed invalidations
+        [100, 300, 800].forEach(delay => {
+            setTimeout(() => {
+                if (modalMap) {
+                    console.log(`Invalidating map size after ${delay}ms`);
+                    modalMap.invalidateSize(true);
+                }
+            }, delay);
+        });
 
         // Fetch new radar data
         fetchRadarData();
@@ -253,14 +301,14 @@ function initModalMap() {
         <div class="radar-loading-spinner"><div></div><div></div><div></div></div>
         <div class="radar-loading-text">Loading radar data...</div>
     </div>
-    <div style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden;">
-        <!-- Map Container (now with bottom margin for controls) -->
-        <div id="modal-map-container" style="flex: 1; position: relative; overflow: hidden; margin-bottom: 60px;"></div>
+    <div style="width: 100%; height: 100%; position: relative; overflow: hidden;">
+        <!-- Map Container -->
+        <div id="modal-map-container" style="width: 100%; height: calc(100% - 60px); position: absolute; top: 0; left: 0;"></div>
         
         <!-- Timestamp Display -->
         <div id="timestamp-display" class="timestamp-display" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 6px 10px; border-radius: 4px; font-size: 14px; z-index: 1000;"></div>
         
-        <!-- Control Bar (now positioned as a separate element below the map) -->
+        <!-- Control Bar -->
         <div id="radar-controls" class="radar-controls" style="position: absolute; bottom: 0; left: 0; right: 0; height: 60px; padding: 10px 15px; background-color: #222222; border-top: 1px solid rgba(255,255,255,0.2); box-shadow: 0 -2px 10px rgba(0,0,0,0.3); z-index: 1001;">
             <div class="radar-timeline-wrapper" style="display: flex; align-items: flex-start; gap: 12px; width: 100%;">
                 <button id="radar-play-pause" class="radar-play-pause" style="width: 36px; height: 36px; min-width: 36px; border-radius: 50%; background-color: #1e88e5; color: white; border: none; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
@@ -282,6 +330,13 @@ function initModalMap() {
         return;
     }
 
+    // CRITICAL: Explicitly set dimensions
+    mapContainer.style.width = '100%';
+    mapContainer.style.height = 'calc(100% - 60px)';
+    mapContainer.style.position = 'absolute';
+    mapContainer.style.top = '0';
+    mapContainer.style.left = '0';
+
     // Get play/pause button and timeline elements
     const playPauseButton = document.getElementById('radar-play-pause');
     const timelineContainer = document.getElementById('radar-timeline');
@@ -294,7 +349,7 @@ function initModalMap() {
         playPauseButton.addEventListener('click', toggleAnimation);
     }
 
-    // Load Leaflet if needed
+    // Ensure Leaflet CSS is loaded
     ensureLeafletCSS();
 
     // Get coordinates from URL
@@ -302,25 +357,29 @@ function initModalMap() {
     const lat = parseFloat(urlParams.get('lat')) || 39.8283;
     const lon = parseFloat(urlParams.get('lon')) || -98.5795;
 
-    // Then load Leaflet script and initialize map
+    // Load Leaflet script and initialize map
     loadLeafletScript()
         .then(() => {
             if (!window.L) {
                 throw new Error('Leaflet not available after loading');
             }
 
-            // console.log('Leaflet loaded, creating map');
-
             try {
                 console.log('Creating Leaflet map instance');
 
-                // Create map instance
+                // IMPORTANT: Make sure the map container has explicit dimensions
+                mapContainer.style.width = '100%';
+                mapContainer.style.height = 'calc(100% - 60px)';
+
+                // Create map instance with explicit dimensions
                 modalMap = L.map(mapContainer, {
                     zoomControl: true,
-                    attributionControl: true
+                    attributionControl: true,
+                    fadeAnimation: false,       // Disable fade animations
+                    preferCanvas: true
                 });
 
-                // CRITICAL: Set view BEFORE adding layers
+                // Set view BEFORE adding layers
                 modalMap.setView([lat, lon], 7);
                 console.log('Map view set');
 
@@ -331,15 +390,25 @@ function initModalMap() {
                     maxZoom: 19,
                     opacity: 0.8
                 }).addTo(modalMap);
-                // console.log('Tile layer added');
+                console.log('Tile layer added');
 
                 // Add a marker at the current location
                 L.marker([lat, lon]).addTo(modalMap);
-                // console.log('Marker added');
+                console.log('Marker added');
 
-                // Force map to recognize container size
+                // CRITICAL: Force multiple map size updates with increasing delays
                 modalMap.invalidateSize(true);
-                // console.log('Map size invalidated');
+                // console.log('Initial invalidateSize called');
+
+                // Multiple delayed invalidations for reliability
+                [100, 300, 600, 1000, 2000].forEach(delay => {
+                    setTimeout(() => {
+                        if (modalMap) {
+                            // console.log(`Invalidating map size after ${delay}ms`);
+                            modalMap.invalidateSize(true);
+                        }
+                    }, delay);
+                });
 
                 // Fetch radar data
                 fetchRadarData();
@@ -351,35 +420,26 @@ function initModalMap() {
 
                 // Add event listener for map movements to update alerts
                 modalMap.on('moveend', debounce(() => {
-                    // Skip alert fetching if this moveend was from clicking an alert
                     if (ignoreNextMoveEnd) {
-                      ignoreNextMoveEnd = false;  // Reset for next time
-                      return;
+                        ignoreNextMoveEnd = false;
+                        return;
                     }
-                    
+
                     if (radarModalOpen) {
-                      fetchMapAreaAlerts();
+                        fetchMapAreaAlerts();
                     }
-                  }, 500));
+                }, 500));
 
                 modalMap.on('moveend', function () {
-                    // If this was a programmatic move (from clicking an alert), don't close popups
                     if (isProgrammaticMove) {
-                        // Reset the flag after handling the event
                         isProgrammaticMove = false;
                         return;
                     }
 
-                    // For user-initiated moves, close any open popups
                     if (lastClickedAlertId != null) {
                         lastClickedAlertId = null;
                     }
                 });
-
-                // Force map refresh again after a delay
-                setTimeout(() => {
-                    modalMap.invalidateSize(true);
-                }, 500);
             } catch (error) {
                 console.error('Error initializing modal map:', error);
                 showModalMapError('Error initializing map: ' + error.message);
@@ -522,156 +582,241 @@ function fetchMapAreaAlerts(forceRefresh = false) {
  */
 function updateAlertPolygons(alerts) {
     if (!modalMap) {
-      console.warn('Cannot update alert polygons - map not initialized');
-      return;
+        console.warn('Cannot update alert polygons - map not initialized');
+        return;
     }
-  
+
     // Store alert that was clicked before clearing layers
     let clickedAlert = null;
     if (lastClickedAlertId && alertLayers.length > 0) {
-      // Find the alert by ID in our current collection
-      clickedAlert = alerts.find(alert => 
-        alert.id === lastClickedAlertId || 
-        (alert.properties && alert.properties.id === lastClickedAlertId)
-      );
+        // Find the alert by ID in our current collection
+        clickedAlert = alerts.find(alert =>
+            alert.id === lastClickedAlertId ||
+            (alert.properties && alert.properties.id === lastClickedAlertId)
+        );
     }
-  
+
     // Clear existing alert layers
     clearAlertLayers();
-  
+
     if (!alerts || alerts.length === 0) return;
-  
+
     // Add CSS animation for severe/extreme alerts
     addAlertAnimationCSS();
-  
+
     // Define severity levels for z-index
     const severityZIndex = {
-      'extreme': 1000,
-      'severe': 800,
-      'moderate': 600,
-      'minor': 400
+        'extreme': 1000,
+        'severe': 800,
+        'moderate': 600,
+        'minor': 400
     };
-  
+
     // Sort alerts by severity (less severe first)
     const sortedAlerts = [...alerts].sort((a, b) => {
-      const severityA = (a.properties && a.properties.severity) ? a.properties.severity.toLowerCase() : 
-                       (a.severity ? a.severity.toLowerCase() : 'minor');
-      const severityB = (b.properties && b.properties.severity) ? b.properties.severity.toLowerCase() : 
-                       (b.severity ? b.severity.toLowerCase() : 'minor');
-  
-      return (severityZIndex[severityA] || 0) - (severityZIndex[severityB] || 0);
+        const severityA = (a.properties && a.properties.severity) ? a.properties.severity.toLowerCase() :
+            (a.severity ? a.severity.toLowerCase() : 'minor');
+        const severityB = (b.properties && b.properties.severity) ? b.properties.severity.toLowerCase() :
+            (b.severity ? b.severity.toLowerCase() : 'minor');
+
+        return (severityZIndex[severityA] || 0) - (severityZIndex[severityB] || 0);
     });
-  
+
     // Process each alert
     sortedAlerts.forEach(alert => {
-      // Get alert ID for tracking
-      const alertId = alert.id || (alert.properties && alert.properties.id);
-      
-      // Get severity
-      let severity = 'moderate';
-      if (alert.properties && alert.properties.severity) {
-        severity = alert.properties.severity.toLowerCase();
-      } else if (alert.severity) {
-        severity = alert.severity.toLowerCase();
-      }
-  
-      // Check severity levels
-      const isExtreme = severity === 'extreme';
-      const isSevere = severity === 'severe';
-  
-      // Get alert color
-      const alertColor = getAlertTypeColor(alert);
-  
-      // Create style for the alert
-      const alertStyle = {
-        color: alertColor.color,
-        weight: isExtreme ? 3 : (isSevere ? 2.5 : 2),
-        opacity: alertColor.borderOpacity || 0.9,
-        fillColor: alertColor.color,
-        fillOpacity: alertColor.fillOpacity || 0.2,
-        className: isExtreme ? 'extreme-alert-polygon' : (isSevere ? 'severe-alert-polygon' : '')
-      };
-  
-      try {
-        // Create the layer
-        const alertLayer = L.geoJSON(alert.geometry, {
-          style: alertStyle,
-          onEachFeature: (feature, layer) => {
-            // Add popup with alert information
-            if (alert.title || (alert.properties && alert.properties.event)) {
-              const title = alert.title || alert.properties.event || 'Weather Alert';
-              const description = alert.description || (alert.properties && alert.properties.headline) || '';
-  
-              // Create popup content
-              let popupContent = `
-                <div style="max-width: 250px;">
+        // Get alert ID for tracking
+        const alertId = alert.id || (alert.properties && alert.properties.id);
+
+        // Get severity
+        let severity = 'moderate';
+        if (alert.properties && alert.properties.severity) {
+            severity = alert.properties.severity.toLowerCase();
+        } else if (alert.severity) {
+            severity = alert.severity.toLowerCase();
+        }
+
+        // Check severity levels
+        const isExtreme = severity === 'extreme';
+        const isSevere = severity === 'severe';
+
+        // Get alert color
+        const alertColor = getAlertTypeColor(alert);
+
+        // Create style for the alert
+        const alertStyle = {
+            color: alertColor.color,
+            weight: isExtreme ? 3 : (isSevere ? 2.5 : 2),
+            opacity: alertColor.borderOpacity || 0.9,
+            fillColor: alertColor.color,
+            fillOpacity: alertColor.fillOpacity || 0.2,
+            className: isExtreme ? 'extreme-alert-polygon' : (isSevere ? 'severe-alert-polygon' : '')
+        };
+
+        try {
+            // Create the layer
+            const alertLayer = L.geoJSON(alert.geometry, {
+                style: alertStyle,
+                onEachFeature: (feature, layer) => {
+                    // Add popup with alert information
+                    if (alert.title || (alert.properties && alert.properties.event)) {
+                        const title = alert.title || alert.properties.event || 'Weather Alert';
+                        const description = alert.description || (alert.properties && alert.properties.headline) || '';
+
+                        // Create popup content with more detailed information
+                        let popupContent = `
+                <div class="alert-popup-content">
                   <h3 style="margin-top: 0; color: ${alertColor.color}; ${isExtreme ? 'animation: pulse-text 1.5s infinite;' : ''}">
                     ${isExtreme ? '⚠️ ' : ''}${title}${isExtreme ? ' ⚠️' : ''}
                   </h3>`;
-  
-              // Add severity indicator
-              if (isExtreme) {
-                popupContent += `<p><strong style="color: #B71C1C;">EXTREME ALERT</strong></p>`;
-              } else if (isSevere) {
-                popupContent += `<p><strong style="color: #C62828;">SEVERE ALERT</strong></p>`;
-              }
-  
-              // Add description
-              popupContent += `<p>${description}</p>`;
-  
-              if (isExtreme) {
-                popupContent += `<p style="font-size: 0.9em; font-style: italic;">This is an EXTREME alert. Take immediate action if in affected area.</p>`;
-              } else if (isSevere) {
-                popupContent += `<p style="font-size: 0.9em; font-style: italic;">This is a SEVERE alert. Prepare to take action if in affected area.</p>`;
-              }
-  
-              popupContent += `</div>`;
-  
-              // Create popup with options to prevent auto-close
-              const popup = layer.bindPopup(popupContent, {
-                maxWidth: 300,
-                autoPan: true,
-                autoPanPadding: [50, 50],
-                closeOnClick: true
-              });
-              
-              // Add click handler for this alert
-              layer.on('click', function(e) {
-                // Set the flag to ignore the next moveend event
-                ignoreNextMoveEnd = true;
-                
-                // Store the ID of the clicked alert
-                lastClickedAlertId = alertId;
-                
-                // Stop event propagation to prevent map click
-                L.DomEvent.stopPropagation(e);
-              });
+
+                        // Add severity and urgency badges
+                        let severityText = '';
+                        if (isExtreme) {
+                            severityText = 'EXTREME';
+                        } else if (isSevere) {
+                            severityText = 'SEVERE';
+                        } else if (severity === 'moderate') {
+                            severityText = 'MODERATE';
+                        } else {
+                            severityText = 'MINOR';
+                        }
+
+                        const urgency = alert.urgency || (alert.properties && alert.properties.urgency) || '';
+                        popupContent += `<div style="display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap;">
+                <span class="alert-severity ${severity}" style="background-color: ${alertColor.color};">
+                  ${severityText}
+                </span>`;
+
+                        if (urgency) {
+                            popupContent += `
+                  <span style="background-color: #424242; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em;">
+                    ${urgency.toUpperCase()}
+                  </span>`;
+                        }
+                        popupContent += `</div>`;
+
+                        // Add description
+                        popupContent += `<p style="margin-bottom: 12px;">${description}</p>`;
+
+                        // Add expiration time if available
+                        const expires = alert.expires || (alert.properties && alert.properties.expires);
+                        if (expires) {
+                            let expiresDate;
+                            if (typeof expires === 'number') {
+                                expiresDate = new Date(expires * 1000); // If it's a Unix timestamp
+                            } else {
+                                expiresDate = new Date(expires); // If it's a date string
+                            }
+
+                            // Format expires date
+                            const expiresFormatted = expiresDate.toLocaleString(undefined, {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit'
+                            });
+
+                            popupContent += `<p style="margin-bottom: 8px; font-size: 0.9em;"><strong>Expires:</strong> ${expiresFormatted}</p>`;
+                        }
+
+                        // Add hazard types if available
+                        const hazardTypes = alert.hazardTypes ||
+                            (alert.properties && alert.properties.hazardTypes) ||
+                            [];
+
+                        if (hazardTypes && hazardTypes.length > 0) {
+                            popupContent += `<div style="margin-bottom: 10px;">
+                  <p style="margin-bottom: 5px; font-size: 0.9em;"><strong>Hazards:</strong></p>
+                  <div class="hazard-tags" style="display: flex; flex-wrap: wrap; gap: 5px;">`;
+
+                            hazardTypes.forEach(hazard => {
+                                const hazardName = hazard.charAt(0).toUpperCase() + hazard.slice(1);
+                                popupContent += `<span class="hazard-tag" style="background-color: #616161; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em;">
+                    ${hazardName}
+                  </span>`;
+                            });
+
+                            popupContent += `</div></div>`;
+                        }
+
+                        // Add action guidance based on severity
+                        if (isExtreme) {
+                            popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(183, 28, 28, 0.1); border-left: 3px solid #B71C1C; font-size: 0.9em; margin: 10px 0;">
+                  <strong>TAKE ACTION NOW:</strong> This is an EXTREME alert. Seek shelter or follow official instructions immediately.
+                </p>`;
+                        } else if (isSevere) {
+                            popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(198, 40, 40, 0.1); border-left: 3px solid #C62828; font-size: 0.9em; margin: 10px 0;">
+                  <strong>BE PREPARED:</strong> This is a SEVERE alert. Prepare to take action if in the affected area.
+                </p>`;
+                        } else if (severity === 'moderate') {
+                            popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(239, 108, 0, 0.1); border-left: 3px solid #EF6C00; font-size: 0.9em; margin: 10px 0;">
+                  <strong>STAY AWARE:</strong> Monitor conditions and follow updates.
+                </p>`;
+                        }
+
+                        // Add full alert text in a collapsible section using HTML5 details/summary
+                        const fullText = alert.fullText || (alert.properties && alert.properties.fullText);
+                        if (fullText) {
+                            // Process the text to handle newlines and make it more readable
+                            const processedText = fullText.replace(/\n/g, '<br>');
+
+                            popupContent += `
+                  <details>
+                    <summary style="cursor: pointer; background-color: #424242; color: white; padding: 6px; border-radius: 4px; font-size: 0.9em; outline: none;">
+                      View Full Alert
+                    </summary>
+                    <div class="full-text" style="margin-top: 8px; max-height: 200px; overflow-y: auto; padding: 8px; background-color: #f5f5f5; border-radius: 4px; font-size: 0.85em; line-height: 1.4;">
+                      ${processedText}
+                    </div>
+                  </details>`;
+                        }
+
+                        popupContent += `</div>`;
+
+                        // Create popup with options to prevent auto-close and set max width
+                        const popup = layer.bindPopup(popupContent, {
+                            maxWidth: 320,
+                            autoPan: true,
+                            autoPanPadding: [20, 20],
+                            closeOnClick: true,
+                        });
+
+                        // Add click handler for this alert
+                        layer.on('click', function (e) {
+                            // Set the flag to ignore the next moveend event
+                            ignoreNextMoveEnd = true;
+
+                            // Store the ID of the clicked alert
+                            lastClickedAlertId = alertId;
+
+                            // Stop event propagation to prevent map click
+                            L.DomEvent.stopPropagation(e);
+                        });
+                    }
+                }
+            });
+
+            // Set z-index based on severity
+            alertLayer.setZIndex(severityZIndex[severity] || 500);
+
+            // Add to map and store reference
+            alertLayer.addTo(modalMap);
+            alertLayers.push(alertLayer);
+
+            // If this was the clicked alert, open its popup
+            if (clickedAlert && alertId === lastClickedAlertId) {
+                // Find the first layer in the GeoJSON
+                for (const key in alertLayer._layers) {
+                    alertLayer._layers[key].openPopup();
+                    break;
+                }
             }
-          }
-        });
-  
-        // Set z-index based on severity
-        alertLayer.setZIndex(severityZIndex[severity] || 500);
-  
-        // Add to map and store reference
-        alertLayer.addTo(modalMap);
-        alertLayers.push(alertLayer);
-        
-        // If this was the clicked alert, open its popup
-        if (clickedAlert && alertId === lastClickedAlertId) {
-          // Find the first layer in the GeoJSON
-          for (const key in alertLayer._layers) {
-            alertLayer._layers[key].openPopup();
-            break;
-          }
+        } catch (error) {
+            console.error('Error adding alert polygon:', error, alert);
         }
-      } catch (error) {
-        console.error('Error adding alert polygon:', error, alert);
-      }
     });
-  
-    // console.log(`Added ${alertLayers.length} alert polygons to the map`);
-  }
+}
 
 
 /**
@@ -867,6 +1012,67 @@ function addAlertAnimationCSS() {
 
     // Add to document
     document.head.appendChild(style);
+}
+
+function formatAlertText(text) {
+    if (!text) return '';
+
+    try {
+        // Replace * with bullet points
+        text = text.replace(/\*/g, '•');
+
+        // Replace double line breaks with paragraph breaks
+        text = text.replace(/\n\n/g, '</p><p>');
+
+        // Replace single line breaks with line breaks
+        text = text.replace(/\n/g, '<br>');
+
+        // Wrap the text in paragraphs
+        text = `<p>${text}</p>`;
+
+        return text;
+    } catch (error) {
+        console.error('Error formatting alert text:', error);
+        return text; // Return original text if formatting fails
+    }
+}
+
+/**
+ * Format an alert time string
+ * @param {string|number} timeValue - Time value (timestamp or date string)
+ * @returns {string} - Formatted time string
+ */
+function formatAlertTime(timeValue) {
+    if (!timeValue) return 'Unknown';
+
+    try {
+        let date;
+
+        if (typeof timeValue === 'number') {
+            // It's a timestamp in seconds
+            date = new Date(timeValue * 1000);
+        } else {
+            // It's a date string
+            date = new Date(timeValue);
+        }
+
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            return 'Unknown';
+        }
+
+        // Format date nicely
+        return date.toLocaleString(undefined, {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        console.error('Error formatting alert time:', error);
+        return 'Unknown';
+    }
 }
 
 /**
@@ -1500,4 +1706,31 @@ function debounce(func, wait) {
  */
 export function isRadarModalOpen() {
     return radarModalOpen;
+}
+
+// Add enhanced back button support
+function initRadarBackButton() {
+    // Get the back button
+    const backButton = document.getElementById('radar-back-button');
+    if (!backButton) return;
+
+    // Clear any existing listeners
+    const newBackButton = backButton.cloneNode(true);
+    backButton.parentNode.replaceChild(newBackButton, backButton);
+
+    // Add click event to call closeRadarModal
+    newBackButton.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeRadarModal();
+    });
+
+    console.log('Radar back button initialized');
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'complete') {
+    initRadarBackButton();
+} else {
+    window.addEventListener('load', initRadarBackButton);
 }

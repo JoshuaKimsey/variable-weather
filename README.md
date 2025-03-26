@@ -113,7 +113,7 @@ When a new version is available, and it has not already automatically updated, y
 
 Variable Weather uses free weather data providers when possible, however, options with API keys also exist:
 
-- **Non-US Locations**: [Pirate Weather API](https://pirateweather.net/) (requires free API key)
+- **Global Locations**: [Pirate Weather API](https://pirateweather.net/) (requires free API key)
 
 To add your Pirate Weather API key:
 1. Get a free key from [Pirate Weather](https://pirateweather.net/getting-started)

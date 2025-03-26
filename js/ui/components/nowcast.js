@@ -7,6 +7,7 @@
 // 1. IMPORTS AND DOM ELEMENTS
 //==============================================================================
 
+import { loadComponentCSS } from '../../utils/cssLoader.js';
 import { getDisplayUnits } from '../../utils/units.js';
 import { PRECIP_INTENSITY } from '../../standardWeatherFormat.js';
 
@@ -18,6 +19,7 @@ import { PRECIP_INTENSITY } from '../../standardWeatherFormat.js';
  * Initialize the nowcast component
  */
 export function initNowcast() {
+
     // No initialization needed at the moment
     // console.log('Nowcast component initialized');
 }
@@ -27,6 +29,8 @@ export function initNowcast() {
  * @param {Object} nowcastData - Nowcast data from the standardized weather data format
  */
 export function displayNowcast(nowcastData) {
+    loadComponentCSS('./styles/nowcast.css').catch(error => console.warn('Failed to load nowcast styles:', error));
+
     const nowcastContainer = document.getElementById('nowcast-container');
 
     if (!nowcastContainer) {
@@ -36,14 +40,14 @@ export function displayNowcast(nowcastData) {
 
     // Always show the container
     nowcastContainer.style.display = 'block';
+    
+    // Remove any previous collapsed state
+    nowcastContainer.classList.remove('nowcast-collapsed');
 
     // Get the nowcast elements
     const nowcastDescription = document.getElementById('nowcast-description');
     const nowcastChart = document.getElementById('nowcast-chart');
     const nowcastTimeline = document.getElementById('nowcast-timeline');
-
-    // For debugging - log what we received
-    // console.log("Displaying nowcast data:", nowcastData);
 
     // Handle case when no data is available
     if (!nowcastData || !nowcastData.data || nowcastData.data.length === 0) {
@@ -66,6 +70,16 @@ export function displayNowcast(nowcastData) {
         return;
     }
 
+    // Check if there is actual precipitation data to render
+    // IMPORTANT: Look for probability > 0, not just intensity > 0
+    const hasPrecipData = nowcastData.data.some(point => point.precipProbability > 0.05);
+
+    if (!hasPrecipData) {
+        // No precipitation expected - use collapsed view
+        renderCollapsedNowcast(nowcastData);
+        return;
+    }
+
     // Update the description
     if (nowcastDescription) {
         nowcastDescription.textContent = nowcastData.description || 'No precipitation expected';
@@ -80,24 +94,8 @@ export function displayNowcast(nowcastData) {
         nowcastTimeline.innerHTML = '';
     }
 
-    // Check if there is actual precipitation data to render
-    // IMPORTANT: Look for probability > 0, not just intensity > 0
-    const hasPrecipData = nowcastData.data.some(point => point.precipProbability > 0.05);
-
-    if (!hasPrecipData) {
-        // No precipitation expected, but still show the timeline
-        if (nowcastChart) {
-            nowcastChart.innerHTML = '<div class="nowcast-no-precip">No precipitation expected</div>';
-        }
-
-        // If we have time data but no precipitation, still show the time markers
-        if (nowcastTimeline && nowcastData.data.length > 0) {
-            renderEmptyTimeline(nowcastData, nowcastTimeline);
-        }
-    } else {
-        // Build the chart and timeline with precipitation data
-        renderNowcastChart(nowcastData, nowcastChart, nowcastTimeline);
-    }
+    // Build the chart and timeline with precipitation data
+    renderNowcastChart(nowcastData, nowcastChart, nowcastTimeline);
 
     // Add data attribution
     updateNowcastAttribution(nowcastData);
@@ -163,6 +161,66 @@ function renderEmptyTimeline(nowcastData, timelineElement) {
     addCurrentTimeIndicator(timelineElement.parentNode, data);
 }
 
+// Add this improved function to nowcast.js
+function renderCollapsedNowcast(nowcastData) {
+    const nowcastContainer = document.getElementById('nowcast-container');
+    const nowcastDescription = document.getElementById('nowcast-description');
+    const nowcastChart = document.getElementById('nowcast-chart');
+    const nowcastTimeline = document.getElementById('nowcast-timeline');
+    
+    // Ensure container is visible and add collapsed class
+    nowcastContainer.style.display = 'block';
+    nowcastContainer.classList.add('nowcast-collapsed');
+    
+    // Clear previous content
+    if (nowcastChart) nowcastChart.innerHTML = '';
+    if (nowcastTimeline) nowcastTimeline.innerHTML = '';
+    
+    // Update the description
+    if (nowcastDescription) {
+        nowcastDescription.innerHTML = `
+            <div class="nowcast-no-precip">
+                <span>No precipitation expected in the near-future</span>
+                <button id="nowcast-toggle-btn" class="nowcast-expand-btn" aria-label="Show details">
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+            </div>`;
+        
+        // Add event listener to toggle button using a better approach
+        const toggleBtn = document.getElementById('nowcast-toggle-btn');
+        if (toggleBtn) {
+            // Remove any existing listeners (important for re-rendering)
+            const newToggleBtn = toggleBtn.cloneNode(true);
+            toggleBtn.parentNode.replaceChild(newToggleBtn, toggleBtn);
+            
+            // Add toggle functionality
+            newToggleBtn.addEventListener('click', function toggleNowcast(e) {
+                e.preventDefault();
+                
+                const isCollapsed = nowcastContainer.classList.contains('nowcast-collapsed');
+                
+                if (isCollapsed) {
+                    // Expand
+                    nowcastContainer.classList.remove('nowcast-collapsed');
+                    // Render empty timeline only when expanding
+                    if (nowcastTimeline.innerHTML === '') {
+                        renderEmptyTimeline(nowcastData, nowcastTimeline);
+                    }
+                    this.innerHTML = '<i class="bi bi-chevron-up"></i>';
+                    this.setAttribute('aria-label', 'Hide details');
+                } else {
+                    // Collapse
+                    nowcastContainer.classList.add('nowcast-collapsed');
+                    this.innerHTML = '<i class="bi bi-chevron-down"></i>';
+                    this.setAttribute('aria-label', 'Show details');
+                }
+            });
+        }
+    }
+    
+    // Update attribution
+    updateNowcastAttribution(nowcastData);
+}
 
 /**
  * Render the nowcast chart with special handling for probability-based bars
@@ -620,7 +678,7 @@ function updateNowcastAttribution(nowcastData) {
     
     // Use the attribution object if available
     if (attribution && attribution.name) {
-        let attributionText = `Precipitation data provided by <a href="${attribution.url}" target="_blank" class="attribution-link">${attribution.name}</a>`;
+        let attributionText = `Precipitation nowcasting provided by <a href="${attribution.url}" target="_blank" class="attribution-link">${attribution.name}</a>`;
         
         if (attribution.license) {
             attributionText += ` (${attribution.license})`;

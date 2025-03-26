@@ -1,0 +1,562 @@
+/*-----------------------------------------------
+ * NOWCASTING STYLES
+ * 
+ * Contents:
+ * 1. Container Structure
+ * 2. Chart Elements
+ * 3. Timeline Components
+ * 4. Info Panel
+ * 5. Legend & Attribution
+ * 6. No Data States
+ * 7. Collapsed State (NEW)
+ * 8. Responsive Adjustments
+ *-----------------------------------------------*/
+
+/*-----------------------------------------------
+ * 1. CONTAINER STRUCTURE
+ *-----------------------------------------------*/
+
+ .nowcast-card {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.nowcast-section {
+    position: relative;
+    padding-bottom: 30px; /* Make room for attribution at bottom */
+    margin-bottom: 20px;
+}
+
+/* Adjustments for nowcast inside weather card */
+.weather-card .nowcast-section {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 20px;
+    padding-bottom: 40px;
+    margin-top: 30px;
+    margin-bottom: 30px;
+    transition: all 0.3s ease;
+}
+
+.nowcast-section h3 {
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+}
+
+.nowcast-section h3 .bi {
+    margin-right: 8px;
+}
+
+.nowcast-description {
+    color: #ffffff;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    padding: 5px 0;
+}
+
+.nowcast-source {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-style: italic;
+    margin-bottom: 5px;
+}
+
+/*-----------------------------------------------
+ * 2. CHART ELEMENTS
+ *-----------------------------------------------*/
+.nowcast-chart-container {
+    height: 150px;
+    position: relative;
+    margin-bottom: 30px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Chart elements */
+.nowcast-chart {
+    position: relative;
+    height: 120px;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    padding: 10px 5px;
+}
+
+.nowcast-chart-bars {
+    display: flex;
+    align-items: flex-end;
+    height: 100%;
+    width: 100%;
+    position: relative;
+}
+
+.nowcast-bar {
+    flex: 1;
+    background-color: #29B6F6;
+    border-radius: 2px 2px 0 0;
+    margin: 0 1px;
+    min-height: 1px;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+}
+
+.nowcast-bar:hover {
+    transform: scaleY(1.05);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.nowcast-bar.selected {
+    outline: 2px solid rgba(255, 255, 255, 0.8);
+    outline-offset: 1px;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    z-index: 2;
+}
+
+/* Special styling for snow precipitation type */
+.nowcast-bar.precip-type-snow {
+    /* Add subtle snow effect with repeating linear gradient */
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent 4px,
+        rgba(255, 255, 255, 0.3) 4px,
+        rgba(255, 255, 255, 0.3) 6px
+    );
+    /* Make the snow bar have a slightly different shape */
+    border-radius: 3px 3px 1px 1px;
+    /* Add a subtle shadow for depth */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Mixed precipitation styling */
+.nowcast-bar.precip-type-mix, 
+.nowcast-bar.precip-type-sleet {
+    /* Add a diagonal pattern for mixed precipitation */
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 3px,
+        rgba(255, 255, 255, 0.2) 3px,
+        rgba(255, 255, 255, 0.2) 6px
+    );
+    /* Slightly different border radius */
+    border-radius: 2px 2px 0 0;
+}
+
+/*-----------------------------------------------
+ * 3. TIMELINE COMPONENTS
+ *-----------------------------------------------*/
+/* Timeline elements */
+.nowcast-timeline {
+    height: 30px;
+    width: 100%;
+    padding: 0 5px;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.nowcast-time-markers {
+    width: 100%;
+    position: relative;
+    height: 20px;
+}
+
+.nowcast-time-marker {
+    position: absolute;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.9);
+    transform: translateX(-50%);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.nowcast-time-marker.active {
+    color: #ffffff;
+    font-weight: bold;
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Special handling for edge markers to prevent overflow */
+.nowcast-time-marker:first-child {
+    transform: translateX(0);
+    text-align: left;
+}
+
+.nowcast-time-marker:last-child {
+    transform: translateX(-100%);
+    text-align: right;
+}
+
+/* Settings toggle in nowcast section */
+.nowcast-settings-toggle {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.nowcast-settings-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.nowcast-settings-toggle .bi {
+    margin-right: 4px;
+}
+
+.tap-hint {
+    font-size: 0.85em;
+    opacity: 0.9;
+    font-style: italic;
+    margin-left: 6px;
+    font-weight: normal;
+}
+
+/*-----------------------------------------------
+ * 4. INFO PANEL
+ *-----------------------------------------------*/
+/* Nowcast info panel */
+.nowcast-info-panel {
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin: 10px 0 15px;
+    color: white;
+    min-height: 50px;
+    transition: all 0.3s ease;
+}
+
+.nowcast-info-content {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.nowcast-selected-time {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.nowcast-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 0.95rem;
+}
+
+.nowcast-probability {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nowcast-intensity {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nowcast-type {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/*-----------------------------------------------
+ * 5. LEGEND & ATTRIBUTION
+ *-----------------------------------------------*/
+/* Legend for precipitation intensity */
+.nowcast-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-top: 8px;
+    margin-bottom: 5px;
+    padding: 6px 10px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+}
+
+.nowcast-legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 3px 5px;
+    white-space: nowrap;
+}
+
+.nowcast-legend-color {
+    width: 12px;
+    height: 12px;
+    margin-right: 4px;
+    border-radius: 2px;
+    /* Add a subtle border */
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Snow-specific legend items */
+.nowcast-legend-item[data-type="snow"] .nowcast-legend-color {
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent 2px,
+        rgba(255, 255, 255, 0.3) 2px,
+        rgba(255, 255, 255, 0.3) 3px
+    );
+}
+
+/* Mix-specific legend items */
+.nowcast-legend-item[data-type="mix"] .nowcast-legend-color {
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        rgba(255, 255, 255, 0.2) 2px,
+        rgba(255, 255, 255, 0.2) 4px
+    );
+}
+
+/* Attribution styling */
+.nowcast-attribution {
+    position: absolute;
+    bottom: -25px; /* Change from 0 to -25px to create space */
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    background-color: var(--attribution-bg);
+    border-radius: 8px;
+    font-style: italic;
+    padding: 2px;
+    margin-top: 20px;
+    margin-bottom: 35px;
+}
+
+.nowcast-attribution a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+    transition: all 0.2s ease;
+}
+
+.nowcast-attribution a:hover {
+    color: #fff;
+    text-decoration-style: solid;
+}
+
+/*-----------------------------------------------
+ * 6. NO DATA STATES
+ *-----------------------------------------------*/
+/* No data message */
+.nowcast-no-data {
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+}
+
+/* No precipitation message */
+.nowcast-no-precip {
+    color: rgba(255, 255, 255, 0.8);
+    text-align: center;
+    padding: 30px 20px;
+    font-style: italic;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.nowcast-no-precip::before {
+    content: "☀️";
+    margin-right: 8px;
+    font-style: normal;
+    font-size: 1.2em;
+}
+
+/* No precipitation message with expand button */
+.nowcast-no-precip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 0;
+    font-style: normal; /* Override italic style */
+}
+
+/*-----------------------------------------------
+ * 7. COLLAPSED STATE (NEW)
+ *-----------------------------------------------*/
+/* Collapsed state */
+.nowcast-collapsed .nowcast-chart-container,
+.nowcast-collapsed .nowcast-legend,
+.nowcast-collapsed .nowcast-info-panel {
+    display: none;
+}
+
+.nowcast-collapsed .nowcast-section h3 {
+    margin-bottom: 5px;
+}
+
+.nowcast-collapsed .nowcast-no-precip {
+    margin-bottom: 5px;
+}
+
+/* Expand/Collapse Button */
+.nowcast-expand-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.nowcast-expand-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.nowcast-expand-btn i {
+    font-size: 16px;
+}
+
+/*-----------------------------------------------
+ * 8. RESPONSIVE ADJUSTMENTS
+ *-----------------------------------------------*/
+@media (max-width: 768px) {
+    .weather-card .nowcast-section {
+        padding-top: 15px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .nowcast-chart-container {
+        height: 120px;
+    }
+    
+    .nowcast-chart {
+        height: 90px;
+    }
+    
+    .nowcast-description {
+        font-size: 1rem;
+    }
+    
+    .nowcast-legend {
+        padding: 4px 6px;
+    }
+    
+    .nowcast-legend-item {
+        font-size: 0.7rem;
+        margin: 2px 3px;
+    }
+    
+    .nowcast-legend-color {
+        width: 10px;
+        height: 10px;
+        margin-right: 3px;
+    }
+    
+    .nowcast-time-marker {
+        font-size: 0.75rem;
+        padding: 1px 3px;
+    }
+
+    .nowcast-info-panel {
+        padding: 8px 12px;
+        min-height: 40px;
+    }
+    
+    .nowcast-selected-time {
+        font-size: 1rem;
+    }
+    
+    .nowcast-details {
+        font-size: 0.85rem;
+    }
+    
+    .nowcast-no-precip {
+        padding: 8px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .weather-card .nowcast-section {
+        padding-top: 12px;
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .nowcast-chart-container {
+        height: 100px;
+    }
+    
+    .nowcast-chart {
+        height: 70px;
+        margin-top: 10px;
+    }
+    
+    .nowcast-time-marker {
+        font-size: 0.7rem;
+        padding: 0 2px;
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+    
+    .nowcast-legend {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+    
+    .nowcast-legend-item {
+        flex: 0 0 auto;
+        margin-right: 8px;
+        font-size: 0.65rem;
+    }
+
+    .nowcast-info-panel {
+        margin: 8px 0 12px;
+    }
+
+    .tap-hint {
+        font-size: 0.75em;
+        display: block;
+        margin-top: 2px;
+        margin-left: 0;
+    }
+
+    .nowcast-attribution {
+        font-size: 0.7rem;
+        margin-top: 8px;
+        padding-top: 6px;
+    }
+}

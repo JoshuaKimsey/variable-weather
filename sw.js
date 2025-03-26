@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '1.9.0';
+const SW_VERSION = '1.9.1';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
@@ -15,12 +15,24 @@ const API_URLs = [
 ]
 
 /* 
-* Add assets that should be cached here, including new API JS files
+* Add assets that should be cached here
 */
 const ASSETS = [
   './',
   './index.html',
-  './styles.css',
+  './offline.html',
+  './manifest.json',
+  
+  // CSS Files
+  './styles/alerts.css',
+  './styles/animations.css',
+  './styles/astronomical.css',
+  './styles/base-layout.css',
+  './styles/modals.css',
+  './styles/nowcast.css',
+  './styles/radar.css',
+  './styles/weather-displays.css',
+  
   // Core files
   './js/main.js',
   './js/api.js',
@@ -28,15 +40,16 @@ const ASSETS = [
   './js/pwa.js',
   './js/pwaUpdates.js',
   './js/standardWeatherFormat.js',
+  './sw.js',
   
   // UI core and components
   './js/ui/core.js',
   './js/ui/components/alertsDisplay.js',
+  './js/ui/components/astronomical.js',
   './js/ui/components/currentWeather.js',
   './js/ui/components/forecasts.js',
   './js/ui/components/nowcast.js',
   './js/ui/components/radar.js',
-  './js/ui/components/astronomical.js',
   
   // UI controls
   './js/ui/controls/searchBar.js',
@@ -54,6 +67,7 @@ const ASSETS = [
   // Utils
   './js/utils/astroCalc.js',
   './js/utils/autoUpdate.js',
+  './js/utils/cssLoader.js',
   './js/utils/formatting.js',
   './js/utils/geo.js',
   './js/utils/time.js',
@@ -65,17 +79,16 @@ const ASSETS = [
   './js/api/pirateWeatherApi.js',
 
   // Alert API modules
-  './js/api/alerts/alertApi.js',
-  './js/api/alerts/nwsAlertApi.js',
-
+  './js/api/alerts/alertsApi.js',
+  './js/api/alerts/nwsAlerts.js',
   
-  // Add fonts, images, and other assets as needed
+  // Resources - keep only essential ones that are needed for offline functionality
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
   './icons/favicon-32x32.png',
   './icons/social-thumbnail.png',
   './resources/bootstrap/css/bootstrap.min.css',
-  './resources/bootstrap/icons/bootstrap-icons.css',
+  './resources/bootstrap/icons/bootstrap-icons.min.css',
   './resources/bootstrap/icons/fonts/bootstrap-icons.woff',
   './resources/bootstrap/icons/fonts/bootstrap-icons.woff2',
   './resources/leafet/leaflet.css',
@@ -88,7 +101,7 @@ const ASSETS = [
   './resources/suncalc3/suncalc.js',
   './resources/tz-lookup/tz.js',
 
-  // Meteocons SVG icons currently in use
+  // Weather icons (keep these essential ones)
   './resources/meteocons/all/clear-day.svg',
   './resources/meteocons/all/partly-cloudy-day.svg',
   './resources/meteocons/all/overcast-day.svg',

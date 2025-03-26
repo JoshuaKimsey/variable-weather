@@ -1,0 +1,624 @@
+/*-----------------------------------------------
+ * WEATHER DISPLAY STYLES
+ * 
+ * Contents:
+ * 1. Weather Main Display
+ * 2. Weather Details Cards
+ * 3. Daily Forecast Elements
+ * 4. Hourly Forecast Elements
+ * 5. Responsive Adjustments
+ *-----------------------------------------------*/
+
+/*-----------------------------------------------
+ * 1. WEATHER MAIN DISPLAY
+ *-----------------------------------------------*/
+ .weather-info {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.weather-main {
+    flex: 1;
+    min-width: 300px;
+}
+
+/* Style for Meteocon UI icons */
+.meteocon-ui-icon {
+    margin: 0 auto 10px;
+    filter: brightness(0) saturate(100%) invert(47%) sepia(98%) 
+           saturate(1720%) hue-rotate(190deg) brightness(97%) contrast(87%);
+    transition: transform 0.3s ease;
+}
+
+/* Fix for older browsers that don't support SVG filters well */
+@supports not (filter: invert(47%)) {
+    .meteocon-ui-icon {
+        filter: none;
+    }
+}
+
+.location {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #ffffff;
+}
+
+.local-time {
+    font-size: 1.1rem;
+    color: #e3e3e3;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.date {
+    font-size: 1.1rem;
+    color: #cccccc;
+    margin-bottom: 20px;
+}
+
+.last-updated {
+    font-size: 0.8rem;
+    color: #cccccc;
+    margin-bottom: 20px;
+    font-style: italic;
+}
+
+.temperature {
+    font-size: 4rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #ffffff;
+}
+
+.weather-description {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    color: #ffffff;
+}
+
+.station-info {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 15px;
+    padding: 5px 10px;
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.station-info .station-name {
+    font-weight: 600;
+}
+
+.station-info .observation-time {
+    font-style: italic;
+    margin-left: 5px;
+}
+
+.station-info.forecast-data {
+    background-color: rgba(255, 173, 51, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.description-source {
+    font-size: 0.75rem;
+    padding: 2px 4px;
+    border-radius: 3px;
+    background-color: rgba(0, 164, 74, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.description-source.forecast-description {
+    background-color: rgba(255, 173, 51, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.attribution-link {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+    transition: all 0.2s ease;
+}
+
+.attribution-link:hover {
+    color: #fff;
+    text-decoration-style: solid;
+}
+
+/* Improved Weather Icon Styling */
+.weather-icon {
+    flex: 0 0 250px;
+    height: 250px;
+    position: relative;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Wrapper to ensure proper positioning of weather elements */
+.weather-icon-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Ensure icon container children are properly positioned */
+.weather-icon > div {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+}
+
+/* Base positioning for animation elements */
+.animation-element {
+    position: absolute;
+    pointer-events: none;
+}
+
+/* Force cloud element positioning to be relative to its container */
+.cloud {
+    position: absolute !important;
+}
+
+/*-----------------------------------------------
+ * 2. WEATHER DETAILS CARDS
+ *-----------------------------------------------*/
+.weather-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.detail-card {
+    flex: 1;
+    min-width: 120px;
+    background-color: var(--detail-card-bg);
+    border-radius: 15px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 5px 15px var(--shadow-color);
+}
+
+.detail-card i {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+.detail-card .title {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.detail-card .value {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.value-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* Main wind row container - holds direction and speed side by side */
+.wind-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+}
+
+/* Wind direction container - holds arrow and label side by side */
+.wind-direction {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Arrow styling */
+#wind-direction-arrow {
+    color: var(--primary-color);
+    font-size: 28px;
+    transition: transform 0.5s ease;
+    display: inline-block;
+    vertical-align: middle;
+    position: relative;
+    top: 5px;
+}
+
+/* Direction label styling */
+.wind-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* Hide when no data is available */
+.wind-direction.no-data {
+    display: none;
+}
+
+/* Responsive adjustments for different screen sizes */
+@media (max-width: 1200px) {
+    .detail-card {
+        min-width: 110px;
+    }
+}
+
+/* For medium screens, make cards take up ~45% of the space */
+@media (max-width: 768px) {
+    .weather-details {
+        gap: 15px;
+    }
+    
+    .detail-card {
+        flex: 0 0 calc(50% - 10px);
+        min-width: auto;
+        margin-bottom: 5px;
+    }
+}
+
+/* For very small screens, revert to one card per row */
+@media (max-width: 350px) {
+    .detail-card {
+        flex: 1 0 100%;
+    }
+}
+
+/*-----------------------------------------------
+ * 3. DAILY FORECAST ELEMENTS
+ *-----------------------------------------------*/
+.forecast {
+    margin-top: 30px;
+}
+
+.forecast h3 {
+    margin-bottom: 20px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.forecast-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 15px;
+    padding: 10px 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.forecast-card {
+    flex: 1;
+    min-width: 120px;
+    background-color: var(--forecast-card-bg);
+    border-radius: 15px;
+    padding: 15px 10px;
+    text-align: center;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.forecast-card .day {
+    font-weight: 600;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+/* Forecast icons styling - smaller variant */
+.forecast-icon {
+    height: 60px;
+    width: 60px;
+    margin: 0 auto 20px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Ensure forecast icons are properly sized and positioned */
+.forecast-icon > div {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+}
+
+.forecast-card .temp {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 3px;
+    white-space: nowrap;
+}
+
+/* New forecast details container */
+.forecast-details {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin-top: 5px;
+}
+
+/* Precipitation chance styling */
+.forecast-card .precip-chance {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    color: #29b6f6;
+    gap: 3px;
+}
+
+.precip-chance i {
+    color: #29b6f6;
+}
+
+/* Weather-themed scrollbar styles */
+.forecast-container::-webkit-scrollbar {
+    height: 8px;
+    border-radius: 4px;
+}
+
+.forecast-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.forecast-container::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: background 0.3s ease;
+}
+
+/* Weather-specific scrollbar themes */
+.weather-sunny::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #ff9800, #ffeb3b);
+}
+
+.weather-sunny::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #f57c00, #ffd600);
+}
+
+.weather-rainy::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #29b6f6, #81d4fa);
+}
+
+.weather-rainy::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #0288d1, #4fc3f7);
+}
+
+.weather-cloudy::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #78909c, #b0bec5);
+}
+
+.weather-cloudy::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #546e7a, #90a4ae);
+}
+
+.weather-snowy::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #cfd8dc, #eceff1);
+}
+
+.weather-snowy::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #b0bec5, #ffffff);
+}
+
+.weather-fog::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #9e9e9e, #e0e0e0);
+}
+
+.weather-fog::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #757575, #bdbdbd);
+}
+
+.weather-storm::-webkit-scrollbar-thumb {
+    background: linear-gradient(to right, #5c6bc0, #9575cd);
+}
+
+.weather-storm::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to right, #3949ab, #7e57c2);
+}
+
+/* Firefox scrollbar compatibility */
+.forecast-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+/* These classes override the Firefox scrollbar-color */
+.weather-sunny {
+    scrollbar-color: #ffb74d transparent;
+}
+
+.weather-rainy {
+    scrollbar-color: #4fc3f7 transparent;
+}
+
+.weather-cloudy {
+    scrollbar-color: #90a4ae transparent;
+}
+
+.weather-snowy {
+    scrollbar-color: #e0e0e0 transparent;
+}
+
+.weather-fog {
+    scrollbar-color: #bdbdbd transparent;
+}
+
+.weather-storm {
+    scrollbar-color: #7986cb transparent;
+}
+
+/*-----------------------------------------------
+ * 4. HOURLY FORECAST ELEMENTS
+ *-----------------------------------------------*/
+.hourly-forecast-section h3 {
+    margin-bottom: 20px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.hourly-forecast-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 15px;
+    padding: 10px 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.hourly-forecast-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.hourly-forecast-container::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.hourly-forecast-card {
+    flex: 1;
+    min-width: 120px;
+    background-color: var(--detail-card-bg);
+    border-radius: 15px;
+    padding: 15px 10px;
+    text-align: center;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hourly-forecast-card .time {
+    font-weight: 600;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.hourly-forecast-card .forecast-icon {
+    height: 60px;
+    width: 60px;
+    margin: 0 auto 20px;
+    position: relative;
+}
+
+.hourly-forecast-card .temp {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+
+/* Preserve the same scrollbar styles for hourly forecast */
+.hourly-forecast-container::-webkit-scrollbar,
+.forecast-container::-webkit-scrollbar {
+    height: 8px;
+    border-radius: 4px;
+}
+
+.hourly-forecast-container::-webkit-scrollbar-track,
+.forecast-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.hourly-forecast-container::-webkit-scrollbar-thumb,
+.forecast-container::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: background 0.3s ease;
+}
+
+.hourly-forecast-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+/*-----------------------------------------------
+ * 5. RESPONSIVE ADJUSTMENTS
+ *-----------------------------------------------*/
+@media (max-width: 768px) {
+    .weather-info {
+        flex-direction: column;
+    }
+
+    .weather-icon {
+        /* Adjust size for mobile phones */
+        flex: 0 0 180px;
+        height: 180px;
+        width: 180px; /* Ensure width is explicitly set */
+        margin: 15px auto 0;
+    }
+    
+    /* Ensure the wrapper fills the container */
+    .weather-icon-wrapper {
+        width: 100%;
+        height: 100%;
+        min-width: 150px; /* Ensure minimum width */
+    }
+
+    .temperature {
+        font-size: 3.5rem;
+    }
+
+    .weather-description {
+        font-size: 1.3rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .temperature {
+        font-size: 3rem;
+    }
+
+    .weather-description {
+        font-size: 1.2rem;
+    }
+
+    .forecast-card, .hourly-forecast-card {
+        min-width: 90px;
+        padding: 12px 8px;
+    }
+    
+    .forecast-card .temp, .hourly-forecast-card .temp {
+        font-size: 1.1rem;
+    }
+    
+    .precip-chance {
+        font-size: 0.75rem;
+    }
+    
+    .precip-chance i {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 350px) {
+    .forecast-card .temp, .hourly-forecast-card .temp {
+        font-size: 0.9rem;
+    }
+
+    .forecast-card, .hourly-forecast-card {
+        min-width: 80px;
+    }
+}

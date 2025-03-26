@@ -8,7 +8,7 @@
 // 1. IMPORTS
 //==============================================================================
 
-// No imports needed for this component
+import { loadComponentCSS } from '../../utils/cssLoader.js';
 
 //==============================================================================
 // 2. DOM REFERENCES
@@ -37,6 +37,9 @@ export function initAlertsDisplay() {
  * @param {Array} alerts - Array of alert objects
  */
 export function displayAlerts(alerts) {
+
+    loadComponentCSS('./styles/alerts.css').catch(error => console.warn('Failed to load radar styles:', error));
+
     try {
         // Clear previous alerts
         alertsContainer.innerHTML = '';

@@ -79,16 +79,17 @@
     }
     </script>
 
-    <!-- Preload critical stylesheets -->
-    <link rel="preload" href="resources/bootstrap/css/bootstrap.min.css" as="style"
-        onload="this.onload=null;this.rel='stylesheet'">
-    <link rel="preload" href="resources/bootstrap/icons/bootstrap-icons.min.css" as="style"
-        onload="this.onload=null;this.rel='stylesheet'">
-    <link rel="preload" href="styles.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-
+    <!-- Critical, render-blocking styles -->
     <link rel="stylesheet" href="./resources/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./styles/base-layout.css">
+    <link rel="stylesheet" href="./styles/weather-displays.css">
     <link rel="stylesheet" href="./resources/bootstrap/icons/bootstrap-icons.min.css">
-    <link href="styles.css" rel="stylesheet">
+
+    <!-- Preload component styles that will be needed soon -->
+
+    <!-- Optional/less important styles loaded with lower priority -->
+    <link rel="stylesheet" href="./styles/animations.css" fetchpriority="low">
+    <link rel="stylesheet" href="./styles/modals.css" fetchpriority="low">
 
     <style>
         /* Styles for the install button */
@@ -155,6 +156,31 @@
                         <div class="weather-icon" id="weather-icon"></div>
                     </div>
 
+                    <!-- Nowcast -->
+                    <div id="nowcast-container" class="nowcast-section">
+                        <h3>
+                            <i class="bi bi-umbrella"></i> Precipitation Nowcast
+                        </h3>
+                        <div class="nowcast-description" id="nowcast-description"></div>
+                        <div class="nowcast-chart-container">
+                            <div class="nowcast-chart" id="nowcast-chart"></div>
+                            <div class="nowcast-timeline" id="nowcast-timeline"></div>
+                        </div>
+                        <div class="nowcast-info-panel" id="nowcast-info-panel">
+                            <div class="nowcast-info-content">
+                                <div class="nowcast-selected-time"></div>
+                                <div class="nowcast-details">
+                                    <span class="nowcast-probability"></span>
+                                    <span class="nowcast-intensity"></span>
+                                    <span class="nowcast-type"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="nowcast-legend">
+                            <!-- Legend items -->
+                        </div>
+                    </div>
+
                     <div class="weather-details">
                         <div class="detail-card">
                             <i class="bi bi-wind"></i>
@@ -192,52 +218,6 @@
                         <div class="forecast-container" id="forecast-container">
                             <!-- Forecast cards will be added dynamically -->
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="nowcast-container" class="weather-card nowcast-card">
-            <div class="nowcast-section">
-                <h3>
-                    <i class="bi bi-umbrella"></i> Precipitation Forecast
-                </h3>
-                <div class="nowcast-description" id="nowcast-description">
-                    No precipitation expected in the next few hours
-                </div>
-                <div class="nowcast-chart-container">
-                    <div class="nowcast-chart" id="nowcast-chart"></div>
-                    <div class="nowcast-timeline" id="nowcast-timeline"></div>
-                </div>
-                <div class="nowcast-info-panel" id="nowcast-info-panel">
-                    <div class="nowcast-info-content">
-                        <div class="nowcast-selected-time">Select a time period to see details</div>
-                        <div class="nowcast-details">
-                            <span class="nowcast-probability"></span>
-                            <span class="nowcast-intensity"></span>
-                            <span class="nowcast-type"></span>
-                        </div>
-                    </div>
-                </div>
-                <div class="nowcast-legend">
-                    <div class="nowcast-legend-item">
-                        <div class="nowcast-legend-color" style="background-color: #C5E8FF;"></div>
-                        <span>Very Light</span>
-                    </div>
-                    <div class="nowcast-legend-item">
-                        <div class="nowcast-legend-color" style="background-color: #81D4FA;"></div>
-                        <span>Light</span>
-                    </div>
-                    <div class="nowcast-legend-item">
-                        <div class="nowcast-legend-color" style="background-color: #29B6F6;"></div>
-                        <span>Moderate</span>
-                    </div>
-                    <div class="nowcast-legend-item">
-                        <div class="nowcast-legend-color" style="background-color: #0288D1;"></div>
-                        <span>Heavy</span>
-                    </div>
-                    <div id="nowcast-attribution" class="nowcast-attribution">
-
                     </div>
                 </div>
             </div>
@@ -295,6 +275,9 @@
     <div class="modal-backdrop" id="api-settings-backdrop" style="display:none;"></div>
     <div class="settings-modal" id="api-settings-modal" style="display:none;">
         <div class="settings-modal-header">
+            <button id="settings-back-button" class="settings-back-button">
+                <i class="bi bi-chevron-left"></i>
+            </button>
             <h3>Settings</h3>
         </div>
 
@@ -385,6 +368,28 @@
         <button id="open-radar" title="Open Radar">
             <i class="bi bi-radar"></i>
         </button>
+    </div>
+    <div id="radar-modal-backdrop" class="radar-modal-backdrop" style="display: none;"></div>
+    <div id="radar-modal" class="radar-modal" style="display: none;">
+        <div class="radar-modal-header">
+            <button id="radar-back-button" class="radar-back-button">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <h2>Weather Radar</h2>
+        </div>
+        <div class="radar-modal-content">
+            <div id="modal-radar-view" class="modal-radar-container">
+                <!-- Radar content will be generated here -->
+                <div class="radar-loading">
+                    <div class="radar-loading-spinner">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                    </div>
+                    <div class="radar-loading-text">Loading radar data...</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- PWA Install Button -->
