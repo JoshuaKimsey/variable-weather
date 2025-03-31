@@ -72,7 +72,7 @@ export function displayNowcast(nowcastData) {
 
     // Check if there is actual precipitation data to render
     // IMPORTANT: Look for probability > 0, not just intensity > 0
-    const hasPrecipData = nowcastData.data.some(point => point.precipProbability > 0.05);
+    const hasPrecipData = nowcastData.data.some(point => point.precipProbability > 0.10);
 
     if (!hasPrecipData) {
         // No precipitation expected - use collapsed view
@@ -572,7 +572,7 @@ function addCurrentTimeIndicator(chartElement, data) {
  */
 function calculateBarHeight(probability) {
     // No precipitation or very low probability
-    if (probability <= 0.05) return 5; // Minimal height for visibility
+    if (probability <= 0.05) return 0; // Minimal height for visibility
 
     // Map probability directly to percentage height with a slight curve for better visualization
     // Use a power curve to emphasize differences in lower probabilities
@@ -685,19 +685,6 @@ function updateNowcastAttribution(nowcastData) {
         }
         
         attributionElement.innerHTML = attributionText;
-    } else {
-        // Fall back to source-based attribution for backward compatibility
-        if (source === 'pirate') {
-            attributionElement.innerHTML = 'Precipitation data provided by <a href="https://pirateweather.net/" target="_blank" class="attribution-link">Pirate Weather</a>';
-        } else if (source === 'open-meteo') {
-            attributionElement.innerHTML = 'Precipitation data provided by <a href="https://open-meteo.com/" target="_blank" class="attribution-link">Open-Meteo</a> (CC BY 4.0)';
-        } else if (source === 'nws') {
-            attributionElement.innerHTML = 'Precipitation data provided by <a href="https://www.weather.gov/" target="_blank" class="attribution-link">National Weather Service</a>';
-        } else if (source === '') {
-            attributionElement.innerHTML = 'Loading precipitation data...';
-        } else {
-            attributionElement.innerHTML = 'Precipitation data provided by multiple services';
-        }
     }
 }
 

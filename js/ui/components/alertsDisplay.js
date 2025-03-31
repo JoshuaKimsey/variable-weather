@@ -164,7 +164,7 @@ function getHazardIcon(hazardType) {
         case 'rain': return `${baseIconPath}rain.svg`;
         case 'special-weather': return `${baseIconPath}code-yellow.svg`;
         case 'hurricane': return `${baseIconPath}hurricane.svg`;
-        default: return `${baseIconPath}not-available.svg`; // Fallback icon
+        default: return `${baseIconPath}code-yellow.svg`; // Fallback icon
     }
 }
 
