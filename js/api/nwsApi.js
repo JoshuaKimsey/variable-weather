@@ -9,16 +9,39 @@
 // 1. IMPORTS AND DEPENDENCIES
 //==============================================================================
 
-import { API_ENDPOINTS, createNWSRequestOptions } from '../config.js';
 import { displayWeatherWithAlerts, showLoading, hideLoading, hideError, showError } from '../ui/core.js';
 import { calculateDistance, isDaytime } from '../utils/geo.js';
-import { formatLocationName } from '../utils/formatting.js'; // Fixed import location
+import { formatLocationName } from '../utils/formatting.js';
 import { fetchOpenMeteoWeather } from './openMeteoApi.js';
 import { setApiAttribution } from '../api.js';
 import { createEmptyWeatherData, ALERT_SEVERITY, WEATHER_ICONS, PRECIP_INTENSITY } from '../standardWeatherFormat.js';
 
 //==============================================================================
-// 2. PUBLIC API FUNCTIONS
+// 2. API ENDPOINTS AND CONFIGURATION
+//==============================================================================
+
+// Define NWS API endpoints
+const NWS_ENDPOINTS = {
+    POINTS: 'https://api.weather.gov/points',
+    GRIDPOINTS: 'https://api.weather.gov/gridpoints',
+    ALERTS: 'https://api.weather.gov/alerts/active'
+};
+
+// User Agent for NWS API
+const NWS_USER_AGENT = '(joshuakimsey.github.io/variable-weather, https://github.com/JoshuaKimsey)';
+
+// Create request options with proper headers for NWS API calls
+export function createNWSRequestOptions() {
+    return {
+        headers: {
+            'User-Agent': NWS_USER_AGENT,
+            'Accept': 'application/geo+json'
+        }
+    };
+}
+
+//==============================================================================
+// 3. PUBLIC API FUNCTIONS
 //==============================================================================
 
 /**
@@ -56,7 +79,7 @@ export function fetchNWSWeather(lat, lon, locationName = null, returnData = fals
             const formattedLat = parseFloat(lat).toFixed(3);
             const formattedLon = parseFloat(lon).toFixed(3);
 
-            const pointsUrl = `${API_ENDPOINTS.NWS_POINTS}/${formattedLat},${formattedLon}`;
+            const pointsUrl = `${NWS_ENDPOINTS.POINTS}/${formattedLat},${formattedLon}`;
             const requestOptions = createNWSRequestOptions();
 
             fetch(pointsUrl, requestOptions)
@@ -95,11 +118,11 @@ export function fetchNWSWeather(lat, lon, locationName = null, returnData = fals
                                     // Now get forecast, hourly forecast, and alerts in parallel
                                     return Promise.all([
                                         // Get forecast
-                                        fetch(`${API_ENDPOINTS.NWS_GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast`, requestOptions),
+                                        fetch(`${NWS_ENDPOINTS.GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast`, requestOptions),
                                         // Get hourly forecast
-                                        fetch(`${API_ENDPOINTS.NWS_GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast/hourly`, requestOptions),
+                                        fetch(`${NWS_ENDPOINTS.GRIDPOINTS}/${gridId}/${gridX},${gridY}/forecast/hourly`, requestOptions),
                                         // Get alerts
-                                        fetch(`${API_ENDPOINTS.NWS_ALERTS}?point=${formattedLat},${formattedLon}`, requestOptions)
+                                        fetch(`${NWS_ENDPOINTS.ALERTS}?point=${formattedLat},${formattedLon}`, requestOptions)
                                     ])
                                         .then(responses => {
                                             // Check if all responses are ok
@@ -218,7 +241,7 @@ export function fetchNWSWeather(lat, lon, locationName = null, returnData = fals
 }
 
 //==============================================================================
-// 3. UTILITY FUNCTIONS
+// 4. UTILITY FUNCTIONS
 //==============================================================================
 
 /**
@@ -401,7 +424,7 @@ function mapNWSIconToGeneric(nwsIconUrl) {
 }
 
 //==============================================================================
-// 4. OBSERVATION STATION FUNCTIONS
+// 5. OBSERVATION STATION FUNCTIONS
 //==============================================================================
 
 /**

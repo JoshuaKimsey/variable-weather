@@ -10,14 +10,29 @@
 // 1. IMPORTS AND DEPENDENCIES
 //==============================================================================
 
+// Core utility imports
 import { resetLastUpdateTime } from './utils/autoUpdate.js';
 import { saveLocationToCache } from './utils/geo.js';
 import { locationChanged } from './ui/components/astronomical.js';
 import { showLoading, hideLoading, hideError, displayWeatherWithAlerts, showError } from './ui/core.js';
-import { API_METADATA as nwsMetadata, fetchNWSWeather } from './api/nwsApi.js';
-import { API_METADATA as openMeteoMetadata, fetchOpenMeteoWeather, fetchOpenMeteoNowcastOnly } from './api/openMeteoApi.js';
-import { API_METADATA as pirateMetadata, fetchPirateWeather, fetchPirateWeatherNowcastOnly } from './api/pirateWeatherApi.js';
 import { getNowcastSource, getWeatherProvider } from './ui/controls/settings.js';
+
+//==============================================================================
+// API PROVIDER IMPORTS
+// Add new API provider imports below this line
+//==============================================================================
+
+// National Weather Service API
+import { API_METADATA as nwsMetadata, fetchNWSWeather } from './api/nwsApi.js';
+
+// Open-Meteo API
+import { API_METADATA as openMeteoMetadata, fetchOpenMeteoWeather, fetchOpenMeteoNowcastOnly } from './api/openMeteoApi.js';
+
+// Pirate Weather API
+import { API_METADATA as pirateMetadata, fetchPirateWeather, fetchPirateWeatherNowcastOnly } from './api/pirateWeatherApi.js';
+
+// OpenWeatherMap API
+import { API_METADATA as openWeatherMapMetadata, fetchOpenWeatherMapWeather } from './api/openWeatherMapApi.js';
 
 //==============================================================================
 // 2. API PROVIDER REGISTRY
@@ -229,6 +244,12 @@ registerApiProvider(
     pirateMetadata,
     fetchPirateWeather,
     fetchPirateWeatherNowcastOnly
+);
+
+registerApiProvider(
+    openWeatherMapMetadata,
+    fetchOpenWeatherMapWeather,
+    null // OpenWeatherMap doesn't support nowcast in the free tier
 );
 
 //==============================================================================

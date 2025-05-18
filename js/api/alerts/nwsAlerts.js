@@ -5,8 +5,28 @@
  * It maintains all existing functionality from the original implementation.
  */
 
-import { API_ENDPOINTS, createNWSRequestOptions } from '../../config.js';
 import { ALERT_SEVERITY } from '../../standardWeatherFormat.js';
+
+const NWS_ENDPOINTS = {
+  POINTS: 'https://api.weather.gov/points',
+  GRIDPOINTS: 'https://api.weather.gov/gridpoints',
+  ALERTS: 'https://api.weather.gov/alerts/active'
+};
+
+// Define NWS User Agent - Required for the NWS API
+// CHANGE THIS TO YOUR OWN USER AGENT FOR DEPLOYMENT
+const NWS_USER_AGENT = '(joshuakimsey.github.io/variable-weather, https://github.com/JoshuaKimsey)';
+
+// Create request options with proper headers for NWS API calls
+function createNWSRequestOptions() {
+  return {
+      headers: {
+          'User-Agent': NWS_USER_AGENT,
+          'Accept': 'application/geo+json'
+      }
+  };
+}
+
 
 /**
  * Fetch alerts from the NWS API for a specific point
@@ -23,7 +43,7 @@ export async function fetchNWSAlerts(lat, lon, options = {}) {
     const formattedLon = parseFloat(lon).toFixed(4);
     
     // Create the request URL with proper formatting
-    const alertsUrl = `${API_ENDPOINTS.NWS_ALERTS}?point=${formattedLat},${formattedLon}`;
+    const alertsUrl = `${NWS_ENDPOINTS.ALERTS}?point=${formattedLat},${formattedLon}`;
     
     // Create request options with proper headers
     const requestOptions = createNWSRequestOptions();
@@ -63,7 +83,7 @@ export async function fetchNWSAreaAlerts(bounds, centerLat, centerLon, options =
     // with all active alerts and filter as needed
     
     // Create the request URL for all active alerts
-    const alertsUrl = API_ENDPOINTS.NWS_ALERTS;
+    const alertsUrl = NWS_ENDPOINTS.ALERTS;
     
     // Create request options with proper headers
     const requestOptions = createNWSRequestOptions();

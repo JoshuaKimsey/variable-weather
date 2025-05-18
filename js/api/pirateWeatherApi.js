@@ -9,14 +9,20 @@
 // 1. IMPORTS AND DEPENDENCIES
 //==============================================================================
 
-import { API_ENDPOINTS } from '../config.js';
 import { displayWeatherWithAlerts, showError, hideLoading, hideError } from '../ui/core.js';
 import { isDaytime } from '../utils/geo.js';
 import { setApiAttribution } from '../api.js';
 import { createEmptyWeatherData, WEATHER_ICONS, ALERT_SEVERITY, PRECIP_INTENSITY } from '../standardWeatherFormat.js';
 
 //==============================================================================
-// 2. API KEY MANAGEMENT
+// 2. API ENDPOINTS AND CONFIGURATION
+//==============================================================================
+
+// Define Pirate Weather API endpoint
+const PIRATE_WEATHER_ENDPOINT = 'https://api.pirateweather.net/forecast';
+
+//==============================================================================
+// 3. API KEY MANAGEMENT
 //==============================================================================
 
 // Internal storage for API key
@@ -141,7 +147,7 @@ export function fetchPirateWeather(lat, lon, locationName = null, returnData = f
         return;
     }
 
-    const url = `${API_ENDPOINTS.PIRATE_WEATHER}/${apiKey}/${lat},${lon}`;
+    const url = `${PIRATE_WEATHER_ENDPOINT}/${apiKey}/${lat},${lon}`;
 
     if (returnData) {
         return new Promise((resolve, reject) => {
@@ -218,7 +224,7 @@ export function fetchPirateWeatherNowcastOnly(lat, lon) {
 
         // We want timezone information, so include it with the request
         // Instead of excluding timezone info, let's just exclude longer forecast data
-        const url = `${API_ENDPOINTS.PIRATE_WEATHER}/${apiKey}/${lat},${lon}?exclude=hourly,daily,alerts`;
+        const url = `${PIRATE_WEATHER_ENDPOINT}/${apiKey}/${lat},${lon}?exclude=hourly,daily,alerts`;
 
         fetch(url)
             .then(response => {

@@ -15,14 +15,20 @@
 // 1. IMPORTS AND DEPENDENCIES
 //==============================================================================
 
-import { API_ENDPOINTS } from '../config.js';
 import { displayWeatherWithAlerts, hideLoading, hideError, showError } from '../ui/core.js';
 import { isDaytime } from '../utils/geo.js';
 import { setApiAttribution } from '../api.js';
 import { createEmptyWeatherData, WEATHER_ICONS, PRECIP_INTENSITY } from '../standardWeatherFormat.js';
 
 //==============================================================================
-// 2. PUBLIC API FUNCTIONS
+// 2. API ENDPOINTS AND CONFIGURATION
+//==============================================================================
+
+// Define Open-Meteo API endpoint
+const OPEN_METEO_ENDPOINT = 'https://api.open-meteo.com/v1/forecast';
+
+//==============================================================================
+// 3. PUBLIC API FUNCTIONS
 //==============================================================================
 
 /**
@@ -119,7 +125,7 @@ export function fetchOpenMeteoWeather(lat, lon, locationName = null, returnData 
     ];
 
     // Construct a single consolidated URL with all parameters
-    const url = `${API_ENDPOINTS.OPEN_METEO_FORECAST}?` +
+    const url = `${OPEN_METEO_ENDPOINT}?` +
         `latitude=${formattedLat}&` +
         `longitude=${formattedLon}&` +
         `elevation=nan&` +
@@ -197,7 +203,7 @@ export function fetchOpenMeteoNowcastOnly(lat, lon) {
         const formattedLon = parseFloat(lon).toFixed(4);
 
         // Only fetch the minutely_15 data with automatic timezone detection
-        const url = `${API_ENDPOINTS.OPEN_METEO_FORECAST}?` +
+        const url = `${OPEN_METEO_ENDPOINT}?` +
             `latitude=${formattedLat}&` +
             `longitude=${formattedLon}&` +
             `minutely_15=precipitation,precipitation_probability,snowfall&forecast_minutely_15=24&past_minutely_15=0&` +
@@ -223,7 +229,7 @@ export function fetchOpenMeteoNowcastOnly(lat, lon) {
 }
 
 //==============================================================================
-// 3. DATA PROCESSING FUNCTIONS
+// 4. DATA PROCESSING FUNCTIONS
 //==============================================================================
 
 /**
