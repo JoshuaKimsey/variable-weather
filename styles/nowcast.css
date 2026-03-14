@@ -287,7 +287,7 @@
     flex-wrap: wrap;
     justify-content: space-between;
     margin-top: 8px;
-    margin-bottom: 5px;
+    margin-bottom: 12px;
     padding: 6px 10px;
     background-color: rgba(0, 0, 0, 0.1);
     border-radius: 6px;
@@ -409,7 +409,84 @@
 }
 
 /*-----------------------------------------------
- * 7. COLLAPSED STATE (NEW)
+ * 7. COMBINED DATA & TRANSITION INDICATOR
+ *-----------------------------------------------*/
+
+/* Transition marker between detailed and extended data */
+.nowcast-transition-marker {
+    position: relative;
+    width: 3px;
+    min-width: 3px;
+    max-width: 3px;
+    height: 100%;
+    background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(255, 255, 255, 0.4) 20%,
+        rgba(255, 255, 255, 0.6) 50%,
+        rgba(255, 255, 255, 0.4) 80%,
+        transparent 100%
+    );
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+.nowcast-transition-marker::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Extended forecast bars have slightly different styling */
+.nowcast-bar-extended {
+    opacity: 0.85;
+    /* Subtle pattern to differentiate from detailed data */
+    background-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.05) 50%,
+        transparent 100%
+    );
+}
+
+/* Source tags in info panel */
+.nowcast-source-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nowcast-source-tag.detailed {
+    background-color: rgba(41, 182, 246, 0.3);
+    color: #81D4FA;
+}
+
+.nowcast-source-tag.extended {
+    background-color: rgba(156, 39, 176, 0.3);
+    color: #CE93D8;
+}
+
+/* Attribution styling for multiple sources */
+.nowcast-attribution .attribution-range {
+    font-size: 0.65rem;
+    opacity: 0.8;
+    display: inline;
+}
+
+/*-----------------------------------------------
+ * 8. COLLAPSED STATE
  *-----------------------------------------------*/
 /* Collapsed state */
 .nowcast-collapsed .nowcast-chart-container,
@@ -451,7 +528,7 @@
 }
 
 /*-----------------------------------------------
- * 8. RESPONSIVE ADJUSTMENTS
+ * 9. RESPONSIVE ADJUSTMENTS
  *-----------------------------------------------*/
 @media (max-width: 768px) {
     .weather-card .nowcast-section {
@@ -474,6 +551,7 @@
     
     .nowcast-legend {
         padding: 4px 6px;
+        margin-bottom: 8px;
     }
     
     .nowcast-legend-item {
@@ -485,6 +563,11 @@
         width: 10px;
         height: 10px;
         margin-right: 3px;
+    }
+    
+    /* Multi-source attribution on tablet */
+    .nowcast-attribution .attribution-range {
+        font-size: 0.6rem;
     }
     
     .nowcast-time-marker {
@@ -513,6 +596,7 @@
 @media (max-width: 480px) {
     .weather-card .nowcast-section {
         padding-top: 12px;
+        padding-bottom: 55px; /* More room for multi-line attribution */
         margin-top: 15px;
         margin-bottom: 15px;
     }
@@ -535,6 +619,7 @@
     .nowcast-legend {
         flex-wrap: wrap;
         justify-content: flex-start;
+        margin-bottom: 8px;
     }
     
     .nowcast-legend-item {
@@ -555,8 +640,36 @@
     }
 
     .nowcast-attribution {
-        font-size: 0.7rem;
+        font-size: 0.65rem;
         margin-top: 8px;
         padding-top: 6px;
+        line-height: 1.3;
+    }
+    
+    /* Compact attribution on mobile - keep inline but smaller */
+    .nowcast-attribution .attribution-range {
+        font-size: 0.55rem;
+        display: inline;
+    }
+
+    /* Transition marker responsive */
+    .nowcast-transition-marker {
+        width: 2px;
+        min-width: 2px;
+        max-width: 2px;
+        margin: 0 2px;
+    }
+
+    .nowcast-transition-marker::before {
+        border-left: 3px solid transparent;
+        border-right: 3px solid transparent;
+        border-top: 4px solid rgba(255, 255, 255, 0.6);
+    }
+
+    /* Source tags responsive */
+    .nowcast-source-tag {
+        font-size: 0.6rem;
+        padding: 1px 4px;
+        margin-left: 4px;
     }
 }

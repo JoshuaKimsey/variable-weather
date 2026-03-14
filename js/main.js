@@ -29,7 +29,6 @@ import {
 import { initBackgrounds } from './ui/visuals/dynamicBackgrounds.js';
 import { initApiSettings } from './ui/controls/settings.js';
 import { initUnits } from './utils/units.js';
-import { initIconSettings } from './ui/visuals/iconPerformance.js';
 import { initModalController } from './ui/components/radar.js';
 import { initAstro, updateAstroInfo, refreshAstroDisplay } from './ui/components/astronomical.js';
 import { searchLocation } from './ui/controls/searchBar.js';
@@ -54,9 +53,6 @@ function initApp() {
 
     // Then initialize API settings that might use the units system
     initApiSettings();
-
-    // Initialize icon settings and performance detection
-    initIconSettings();
 
     // Initialize astronomical display with a longer delay
     setTimeout(() => {

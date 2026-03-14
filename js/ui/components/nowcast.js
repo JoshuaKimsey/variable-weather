@@ -236,24 +236,37 @@ function renderNowcastChart(nowcastData, chartElement, timelineElement) {
     const data = nowcastData.data;
     const source = nowcastData.source;
     const interval = nowcastData.interval;
+    const transitionIndex = nowcastData.transitionIndex || -1; // Index where data source changes
+    const isCombinedData = source === 'combined';
 
     // Create the chart
     const chartBars = document.createElement('div');
     chartBars.className = 'nowcast-chart-bars';
+    
+    // Add combined class if using combined data
+    if (isCombinedData) {
+        chartBars.classList.add('nowcast-combined');
+    }
 
     // Create the timeline
     const timeMarkers = document.createElement('div');
     timeMarkers.className = 'nowcast-time-markers';
 
     // Determine how many time markers to show based on total duration
-    // Show fewer markers to prevent crowding
-    const totalMarkers = Math.min(5, data.length);
-
+    // For combined data, ensure we have markers at key points including transition
+    let totalMarkers = Math.min(6, data.length);
+    
     // Calculate positions to spread markers evenly
     const positions = [];
     if (totalMarkers > 1) {
         for (let i = 0; i <= totalMarkers; i++) {
             positions.push(Math.floor(i * (data.length - 1) / totalMarkers));
+        }
+        
+        // For combined data, ensure transition point is marked if not already
+        if (isCombinedData && transitionIndex > 0 && !positions.includes(transitionIndex)) {
+            positions.push(transitionIndex);
+            positions.sort((a, b) => a - b);
         }
     } else {
         // If only one marker, show first and last
@@ -269,6 +282,20 @@ function renderNowcastChart(nowcastData, chartElement, timelineElement) {
 
         // Add data-index attribute to each bar for reliable selection later
         bar.setAttribute('data-index', index);
+        
+        // Mark bars from extended data source (Open-Meteo)
+        if (isCombinedData && point.source === 'open-meteo') {
+            bar.classList.add('nowcast-bar-extended');
+        }
+        
+        // Add transition marker before the first extended bar
+        if (isCombinedData && index === transitionIndex) {
+            // Create transition indicator
+            const transitionMarker = document.createElement('div');
+            transitionMarker.className = 'nowcast-transition-marker';
+            transitionMarker.title = 'Extended forecast (15-min intervals)';
+            chartBars.appendChild(transitionMarker);
+        }
 
         // Use precipitation probability to determine height
         // This ensures bars will display even if intensity is zero
@@ -357,16 +384,19 @@ function renderNowcastChart(nowcastData, chartElement, timelineElement) {
         if (significantIndex !== -1) {
             // Use a small delay to ensure the DOM is ready
             setTimeout(() => {
-                updateNowcastInfoPanel(data[significantIndex], significantIndex, true); // Pass true for isInitialSelection
+                updateNowcastInfoPanel(data[significantIndex], significantIndex, true, isCombinedData); // Pass true for isInitialSelection
             }, 100);
         }
 
-        const tooltipText = `${point.formattedTime}: ${probPercent}% chance${intensityDisplay}`;
+        // Add source info to tooltip for combined data
+        const sourceInfo = isCombinedData && point.source ? 
+            ` (${point.source === 'pirate' ? 'detailed' : 'extended'})` : '';
+        const tooltipText = `${point.formattedTime}: ${probPercent}% chance${intensityDisplay}${sourceInfo}`;
         bar.title = tooltipText;
 
         // Add click/tap event to show selected precipitation data
         bar.addEventListener('click', () => {
-            updateNowcastInfoPanel(point, index);
+            updateNowcastInfoPanel(point, index, false, isCombinedData);
         });
 
         // Add the hover events for desktop
@@ -414,8 +444,10 @@ function renderNowcastChart(nowcastData, chartElement, timelineElement) {
  * Update the nowcast info panel with data from the selected bar
  * @param {Object} point - The data point for the selected bar
  * @param {number} index - The index of the selected bar
+ * @param {boolean} isInitialSelection - Whether this is the automatic initial selection
+ * @param {boolean} isCombinedData - Whether this is combined data from multiple sources
  */
-function updateNowcastInfoPanel(point, index, isInitialSelection = false) {
+function updateNowcastInfoPanel(point, index, isInitialSelection = false, isCombinedData = false) {
     const infoPanel = document.getElementById('nowcast-info-panel');
     if (!infoPanel) return;
 
@@ -424,19 +456,24 @@ function updateNowcastInfoPanel(point, index, isInitialSelection = false) {
     const intensityEl = infoPanel.querySelector('.nowcast-intensity');
     const typeEl = infoPanel.querySelector('.nowcast-type');
 
+    // Source indicator for combined data
+    const sourceLabel = isCombinedData && point.source ? 
+        (point.source === 'pirate' ? ' <span class="nowcast-source-tag detailed">detailed</span>' : 
+         ' <span class="nowcast-source-tag extended">extended</span>') : '';
+
     // Update the time with special messaging for initial selection
     if (isInitialSelection) {
         // For the automatic selection, show a more explanatory message
         if (point.precipIntensity > 0) {
-            selectedTime.innerHTML = `<strong>Peak precipitation at ${point.formattedTime}</strong> <span class="tap-hint">(tap bars for details)</span>`;
+            selectedTime.innerHTML = `<strong>Peak precipitation at ${point.formattedTime}</strong>${sourceLabel} <span class="tap-hint">(tap bars for details)</span>`;
         } else if (point.precipProbability > 0.2) {
-            selectedTime.innerHTML = `<strong>Highest chance at ${point.formattedTime}</strong> <span class="tap-hint">(tap bars for details)</span>`;
+            selectedTime.innerHTML = `<strong>Highest chance at ${point.formattedTime}</strong>${sourceLabel} <span class="tap-hint">(tap bars for details)</span>`;
         } else {
-            selectedTime.innerHTML = `<strong>${point.formattedTime}</strong> <span class="tap-hint">(tap any bar for details)</span>`;
+            selectedTime.innerHTML = `<strong>${point.formattedTime}</strong>${sourceLabel} <span class="tap-hint">(tap any bar for details)</span>`;
         }
     } else {
-        // For user selections, just show the time
-        selectedTime.textContent = point.formattedTime;
+        // For user selections, show the time with source indicator
+        selectedTime.innerHTML = `${point.formattedTime}${sourceLabel}`;
     }
 
     // Update probability
@@ -676,8 +713,21 @@ function updateNowcastAttribution(nowcastData) {
         attribution = nowcastData.attribution;
     }
     
-    // Use the attribution object if available
-    if (attribution && attribution.name) {
+    // Handle combined attribution (multiple sources)
+    if (attribution && attribution.sources && Array.isArray(attribution.sources)) {
+        // Build attribution for multiple sources
+        const sourceLinks = attribution.sources.map(src => {
+            let link = `<a href="${src.url}" target="_blank" class="attribution-link">${src.name}</a>`;
+            if (src.range) {
+                link += ` <span class="attribution-range">(${src.range})</span>`;
+            }
+            return link;
+        });
+        
+        let attributionText = `Precipitation data: ${sourceLinks.join(' · ')}`;
+        attributionElement.innerHTML = attributionText;
+    } else if (attribution && attribution.name) {
+        // Single source attribution
         let attributionText = `Precipitation nowcasting provided by <a href="${attribution.url}" target="_blank" class="attribution-link">${attribution.name}</a>`;
         
         if (attribution.license) {

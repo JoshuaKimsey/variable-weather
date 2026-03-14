@@ -34,7 +34,7 @@
   - Weather radar, with integrated severe weather alert polygons in it's own larger popout modal
   - Astronomical data, including sunrise/sunset times, day length, and moon phases (more to come!)
 - **Modular API System** - Uses the Open-Meteo API globally for weather by default
-  - Other API options include Pirate Weather (Global, requires a free API key), OpenWeatherMap (Global, requires a free API key) or the National Weather Service (US)
+  - Other API options include Pirate Weather (Global, requires a free API key)
   - The modular API system allows new sources to be added easily as well (Please see the [Custom Weather API Guide](js/api/custom-weather-api-guide.md))
 - **Smart Location Detection** - Automatic geolocation with manual search options
 - **Progressive Web App (PWA)** - Install on any device with automatic updates
@@ -102,7 +102,7 @@ When a new version is available, and it has not already automatically updated, y
 ## Technology
 
 - **Frontend**: HTML5, CSS3, & Plain JavaScript (ES6+), with Bootstrap for styling and font-icons
-- **Weather Data**: Open_Meteo [(CC BY 4.0)](https://creativecommons.org/licenses/by/4.0), Pirate Weather API, OpenWeatherMap, The National Weather Service (US), Rain Viewer
+- **Weather Data**: Open_Meteo [(CC BY 4.0)](https://creativecommons.org/licenses/by/4.0), Pirate Weather API, The National Weather Service (US Weather Alerts Only), [LibreWRX](https://github.com/JoshuaKimsey/LibreWRX)
 - **Geocoding**: OpenStreetMap Nominatim API, Leaflet
 - **Timezone Lookup**: TZ-Lookup
 - **Astronomical Data**: SunCalc3
@@ -114,15 +114,9 @@ When a new version is available, and it has not already automatically updated, y
 Variable Weather uses free weather data providers when possible, however, options with API keys also exist:
 
 - **Global Locations**: [Pirate Weather API](https://pirateweather.net/) (requires free API key)
-- **Global Locations**: [OpenWeatherMap](https://openweathermap.org/) (requires free API key)
 
 To add your Pirate Weather API key:
 1. Get a free key from [Pirate Weather](https://pirateweather.net/getting-started)
-2. Click the settings gear icon in the app
-3. Enter your API key and save
-
-To add your OpenWeatherMap API key:
-1. Get a free key from [OpenWeatherMap](https://openweathermap.org/api)
 2. Click the settings gear icon in the app
 3. Enter your API key and save
 
@@ -143,11 +137,11 @@ This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICE
 ## Acknowledgments
 
 - Inspired by [Breezy Weather](https://github.com/breezy-weather/breezy-weather)
-- Weather data provided by [Open-Meteo](https://open-meteo.com/), [Pirate Weather](https://pirateweather.net/), [OpenWeatherMap](https://openweathermap.org/), and the [National Weather Service](https://www.weather.gov/)
-- Radar data provided by [Rain Viewer](https://www.rainviewer.com/)
+- Weather data provided by [Open-Meteo](https://open-meteo.com/), [Pirate Weather](https://pirateweather.net/), and the [National Weather Service](https://www.weather.gov/)
+- Radar data provided by [LibreWRX](https://github.com/JoshuaKimsey/LibreWRX)
 - Mapping data provided by [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors via [Leaflet](https://leafletjs.com/)
 - Timezone lookup functionality provided by PhotoStructure's [tz-lookup](https://github.com/photostructure/tz-lookup)
 - Astronomical data functionality provided by [SunCalc3](https://github.com/Hypnos3/suncalc3)
 - Dynamic icons and animations created with CSS and SVG
 - Meteocons created and provided by [Bas Milius](https://github.com/basmilius/weather-icons)
-- Special thanks to Anthropic's <a href="https://claude.ai">Claude 3.7 Sonnet</a> for helping in the building and creation of this app
+- Special thanks to Anthropic's <a href="https://claude.ai">Claude</a> for helping in the building and creation of this app

@@ -1040,14 +1040,15 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
         { pattern: /\bhail\b/g, type: 'hail' },
         { pattern: /\bflash flood\b|\bflooding\b|\bflood\b/g, type: 'flood' },
         { pattern: /\bthunder\b|\blightning\b|\bthunderstorm\b|\bsevere thunderstorm\b/g, type: 'thunderstorm' },
-        { pattern: /\bsnow\b|\bblizzard\b|\bwinter\b/g, type: 'snow' },
-        { pattern: /\bfreez(e|ing)\b|\bice\b|\bsleet\b/g, type: 'ice' },
+        { pattern: /\bsnow\b|\bblizzard\b|\bwinter storm\b|\bwinter weather\b/g, type: 'snow' },
+        { pattern: /\bice storm\b|\bsleet\b|\bfreezing rain\b|\bfreezing drizzle\b|\bice pellets\b/g, type: 'ice' },
+        { pattern: /\bfreeze\b|\bfreezing\b|\bfrost\b|\bsub-freezing\b/g, type: 'cold' },
         { pattern: /\bwind\b|\bgust\b/g, type: 'wind' },
         { pattern: /\bdust\b/g, type: 'dust' },
         { pattern: /\bsmoke\b/g, type: 'smoke' },
         { pattern: /\bfog\b/g, type: 'fog' },
         { pattern: /\bheat\b/g, type: 'heat' },
-        { pattern: /\bcold\b|\bchill\b/g, type: 'cold' },
+        { pattern: /\bcold\b|\bchill\b|\bwind chill\b|\bhypothermia\b/g, type: 'cold' },
         { pattern: /\brain\b|\bshower\b/g, type: 'rain' },
         { pattern: /\bhurricane\b|\btropical\b/g, type: 'hurricane' }
     ];
@@ -1076,8 +1077,9 @@ function getPrimaryHazardType(alertTitle) {
     if (/\bflash flood\b/.test(title)) return 'flood';
     if (/\bthunderstorm\b/.test(title)) return 'thunderstorm';
     if (/\bflood\b/.test(title)) return 'flood';
-    if (/\bsnow\b|\bblizzard\b/.test(title)) return 'snow';
-    if (/\bice\b|\bfreezing\b/.test(title)) return 'ice';
+    if (/\bsnow\b|\bblizzard\b|\bwinter storm\b|\bwinter weather\b/.test(title)) return 'snow';
+    if (/\bice storm\b|\bfreezing rain\b|\bfreezing drizzle\b|\bsleet\b/.test(title)) return 'ice';
+    if (/\bfreeze\b|\bfreezing\b|\bfrost\b/.test(title)) return 'cold';
     if (/\bwind\b/.test(title)) return 'wind';
     if (/\bheat\b/.test(title)) return 'heat';
     if (/\bcold\b/.test(title)) return 'cold';

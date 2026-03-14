@@ -22,17 +22,11 @@ import { getNowcastSource, getWeatherProvider } from './ui/controls/settings.js'
 // Add new API provider imports below this line
 //==============================================================================
 
-// National Weather Service API
-import { API_METADATA as nwsMetadata, fetchNWSWeather } from './api/nwsApi.js';
-
 // Open-Meteo API
 import { API_METADATA as openMeteoMetadata, fetchOpenMeteoWeather, fetchOpenMeteoNowcastOnly } from './api/openMeteoApi.js';
 
 // Pirate Weather API
 import { API_METADATA as pirateMetadata, fetchPirateWeather, fetchPirateWeatherNowcastOnly } from './api/pirateWeatherApi.js';
-
-// OpenWeatherMap API
-import { API_METADATA as openWeatherMapMetadata, fetchOpenWeatherMapWeather } from './api/openWeatherMapApi.js';
 
 //==============================================================================
 // 2. API PROVIDER REGISTRY
@@ -229,12 +223,6 @@ export function hasRegionSpecificProviders(region) {
 
 // Register all available providers
 registerApiProvider(
-    nwsMetadata,
-    fetchNWSWeather,
-    null // NWS doesn't support nowcast
-);
-
-registerApiProvider(
     openMeteoMetadata,
     fetchOpenMeteoWeather,
     fetchOpenMeteoNowcastOnly
@@ -244,12 +232,6 @@ registerApiProvider(
     pirateMetadata,
     fetchPirateWeather,
     fetchPirateWeatherNowcastOnly
-);
-
-registerApiProvider(
-    openWeatherMapMetadata,
-    fetchOpenWeatherMapWeather,
-    null // OpenWeatherMap doesn't support nowcast in the free tier
 );
 
 //==============================================================================
@@ -550,8 +532,27 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
                         // console.log(`Fetching nowcast data from ${nowcastProvider.name}...`);
                         const nowcastData = await nowcastProvider.fetchNowcast(lat, lon, weatherData.timezone);
 
-                        // Replace the existing nowcast data with the new data
-                        weatherData.nowcast = nowcastData;
+                        // If using Pirate Weather, also fetch Open-Meteo for extended forecast
+                        // and merge the two datasets into a unified timeline
+                        if (nowcastProviderId === 'pirate') {
+                            const openMeteoProvider = getProviderById('open-meteo');
+                            if (openMeteoProvider && typeof openMeteoProvider.fetchNowcast === 'function') {
+                                try {
+                                    const extendedData = await openMeteoProvider.fetchNowcast(lat, lon, weatherData.timezone);
+                                    // Merge the two datasets
+                                    weatherData.nowcast = mergeNowcastData(nowcastData, extendedData);
+                                } catch (extendedError) {
+                                    console.warn('Failed to fetch extended forecast from Open-Meteo:', extendedError);
+                                    // Use just Pirate Weather data if Open-Meteo fails
+                                    weatherData.nowcast = nowcastData;
+                                }
+                            } else {
+                                weatherData.nowcast = nowcastData;
+                            }
+                        } else {
+                            // Replace the existing nowcast data with the new data
+                            weatherData.nowcast = nowcastData;
+                        }
                         // console.log('Nowcast data added from:', nowcastProvider.name);
 
                         // Ensure the attribution is set correctly for the nowcast
@@ -579,7 +580,7 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
             const openMeteoProvider = getProviderById('open-meteo');
             if (openMeteoProvider && typeof openMeteoProvider.fetchNowcast === 'function') {
                 try {
-                    const nowcastData = await nowcastProvider.fetchNowcast(lat, lon, weatherData.timezone);
+                    const nowcastData = await openMeteoProvider.fetchNowcast(lat, lon, weatherData.timezone);
                     weatherData.nowcast = nowcastData;
                     // console.log('Nowcast data added from Open-Meteo (fallback)');
                 } catch (err) {
@@ -631,6 +632,134 @@ function ensureDefaultNowcast(weatherData, provider = null) {
             license: 'CC BY 4.0'
         };
     }
+}
+
+/**
+ * Merge Pirate Weather's detailed 1-minute nowcast with Open-Meteo's extended 15-minute forecast
+ * Creates a unified timeline with high resolution for the first hour and extended coverage for hours 1-5
+ * 
+ * @param {Object} pirateData - Pirate Weather nowcast data (1-minute intervals, ~60 minutes)
+ * @param {Object} openMeteoData - Open-Meteo nowcast data (15-minute intervals, ~5 hours)
+ * @returns {Object} - Merged nowcast data with transition point marked
+ */
+function mergeNowcastData(pirateData, openMeteoData) {
+    // If Pirate Weather data is missing or empty, just use Open-Meteo
+    if (!pirateData || !pirateData.data || pirateData.data.length === 0) {
+        return openMeteoData;
+    }
+
+    // If Open-Meteo data is missing or empty, just use Pirate Weather
+    if (!openMeteoData || !openMeteoData.data || openMeteoData.data.length === 0) {
+        return pirateData;
+    }
+
+    // Get the end time of Pirate Weather data (approximately 1 hour from now)
+    const pirateEndTime = pirateData.data[pirateData.data.length - 1].time;
+    
+    // Sample Pirate Weather data to reduce the number of bars while keeping detail
+    // Take every 2nd point for the first 60 minutes (30 bars instead of 60)
+    const sampledPirateData = [];
+    for (let i = 0; i < pirateData.data.length; i += 2) {
+        const point = { ...pirateData.data[i] };
+        point.source = 'pirate'; // Mark the source
+        sampledPirateData.push(point);
+    }
+
+    // Filter Open-Meteo data to only include points AFTER Pirate Weather ends
+    // Add a small buffer (2 minutes) to avoid overlap
+    const extendedData = openMeteoData.data
+        .filter(point => point.time > pirateEndTime + 120)
+        .map(point => ({
+            ...point,
+            source: 'open-meteo' // Mark the source
+        }));
+
+    // Find the transition point index (where we switch from Pirate to Open-Meteo)
+    const transitionIndex = sampledPirateData.length;
+
+    // Combine the datasets
+    const mergedData = [...sampledPirateData, ...extendedData];
+
+    // Create the merged nowcast object
+    const mergedNowcast = {
+        available: true,
+        source: 'combined', // Indicate this is combined data
+        sources: ['pirate', 'open-meteo'], // List of sources used
+        interval: 'variable', // Variable intervals (1-min then 15-min)
+        startTime: pirateData.startTime,
+        endTime: extendedData.length > 0 
+            ? extendedData[extendedData.length - 1].time 
+            : pirateData.endTime,
+        description: generateCombinedDescription(sampledPirateData, extendedData),
+        transitionIndex: transitionIndex, // Mark where the transition occurs
+        transitionTime: pirateEndTime, // Time when transition happens
+        data: mergedData,
+        // Combined attribution
+        attribution: {
+            name: 'Pirate Weather + Open-Meteo',
+            sources: [
+                { name: 'Pirate Weather', url: 'https://pirateweather.net/', range: 'Next hour (detailed)' },
+                { name: 'Open-Meteo', url: 'https://open-meteo.com/', range: 'Extended forecast', license: 'CC BY 4.0' }
+            ]
+        }
+    };
+
+    return mergedNowcast;
+}
+
+/**
+ * Generate a description for the combined nowcast data
+ * @param {Array} pirateData - Sampled Pirate Weather data
+ * @param {Array} extendedData - Extended Open-Meteo data
+ * @returns {string} - Human-readable description
+ */
+function generateCombinedDescription(pirateData, extendedData) {
+    // Check for precipitation in the detailed (first hour) data
+    const hasPrecipNearTerm = pirateData.some(point => 
+        point.precipIntensity > 0 && point.precipProbability > 0.2
+    );
+    
+    // Check for precipitation in the extended data
+    const hasPrecipExtended = extendedData.some(point => 
+        point.precipProbability > 0.2
+    );
+
+    if (hasPrecipNearTerm) {
+        // Find the first precipitation point
+        const firstPrecip = pirateData.find(point => 
+            point.precipIntensity > 0 && point.precipProbability > 0.2
+        );
+        
+        if (firstPrecip) {
+            const now = Date.now() / 1000;
+            const timeDiff = Math.round((firstPrecip.time - now) / 60);
+            const precipType = firstPrecip.precipType === 'snow' ? 'Snow' : 
+                               firstPrecip.precipType === 'mix' ? 'Mixed precipitation' : 'Rain';
+            
+            if (timeDiff <= 0) {
+                return `${precipType} occurring now`;
+            } else if (timeDiff < 5) {
+                return `${precipType} expected in the next few minutes`;
+            } else {
+                return `${precipType} expected in about ${timeDiff} minutes`;
+            }
+        }
+    } else if (hasPrecipExtended) {
+        // Find the first precipitation in extended data
+        const firstExtendedPrecip = extendedData.find(point => point.precipProbability > 0.2);
+        if (firstExtendedPrecip) {
+            const now = Date.now() / 1000;
+            const hoursDiff = Math.round((firstExtendedPrecip.time - now) / 3600);
+            
+            if (hoursDiff <= 1) {
+                return 'Precipitation possible within the next hour';
+            } else {
+                return `Precipitation possible in about ${hoursDiff} hours`;
+            }
+        }
+    }
+
+    return 'No precipitation expected in the next few hours';
 }
 
 /**

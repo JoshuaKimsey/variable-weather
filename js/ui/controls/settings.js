@@ -13,8 +13,7 @@ import {
     hasRegionSpecificProviders,
     getProvidersByRegion,
     getProviderById,
-    getAllProviders,
-    getNowcastProviders
+    getAllProviders
 } from '../../api.js';
 
 // DOM elements
@@ -32,7 +31,6 @@ let dataSourcesContainer;
 const UNITS_STORAGE = 'weather_app_units';
 const ACTIVE_SETTINGS_TAB = 'weather_app_settings_tab';
 const GLOBAL_PROVIDER_STORAGE = 'weather_app_weather_provider';
-const NOWCAST_SOURCE_STORAGE = 'weather_app_nowcast_source';
 
 /**
  * Initialize API settings functionality
@@ -134,18 +132,6 @@ function initDataSourcesSection() {
         }
     });
 
-    // Add precipitation forecast dropdown if nowcast providers exist
-    const nowcastProviders = getNowcastProviders();
-    if (nowcastProviders && nowcastProviders.length > 0) {
-        const nowcastSection = createProviderSection(
-            'Precipitation Forecast:',
-            'nowcast-source',
-            'nowcast',
-            'Select your preferred source for short-term precipitation forecasts'
-        );
-        dataSourcesContainer.appendChild(nowcastSection);
-    }
-
     // Update API key section
     updateApiKeySection();
 }
@@ -218,35 +204,17 @@ function populateProviderOptions(selectElement, region) {
         if (defaultProvider) {
             automaticOption.textContent = `Automatic (${defaultProvider.name})`;
         }
-    } else if (region === 'nowcast') {
-        // For nowcast, find the default provider
-        const defaultProvider = getProviderById('open-meteo');
-        if (defaultProvider) {
-            automaticOption.textContent = defaultProvider.name;
-        } else {
-            automaticOption.textContent = 'Default';
-        }
     } else {
         automaticOption.textContent = 'Same as Global Setting';
     }
 
     selectElement.appendChild(automaticOption);
 
-    // Get providers for this region or nowcast providers
-    let providers = [];
-    if (region === 'nowcast') {
-        providers = getNowcastProviders();
-    } else {
-        providers = getProvidersByRegion(region);
-    }
+    // Get providers for this region
+    const providers = getProvidersByRegion(region);
 
     // Add options for each provider
     providers.forEach(provider => {
-        // Skip the provider if it's the same as the automatic option for nowcast
-        if (region === 'nowcast' && provider.id === 'open-meteo' && automaticOption.textContent.includes('Open-Meteo')) {
-            return;
-        }
-
         const option = document.createElement('option');
         option.value = provider.id;
 
@@ -265,25 +233,12 @@ function populateProviderOptions(selectElement, region) {
             }
         }
 
-        // Add feature info for nowcast providers
-        if (region === 'nowcast') {
-            // Add timing info if provided in the metadata
-            if (provider.nowcastInterval) {
-                displayText += ` (${provider.nowcastInterval}-minute intervals)`;
-            } else {
-                // Default for other providers
-                displayText += ' (forecast)';
-            }
-        }
-
         option.textContent = displayText;
         selectElement.appendChild(option);
     });
 
     // Add event listener based on select element ID
-    if (selectElement.id === 'nowcast-source') {
-        selectElement.addEventListener('change', updateNowcastSource);
-    } else if (selectElement.id === 'weather-provider') {
+    if (selectElement.id === 'weather-provider') {
         selectElement.addEventListener('change', updateWeatherProvider);
     } else if (selectElement.id.endsWith('-weather-provider')) {
         // For region-specific providers
@@ -297,9 +252,6 @@ function populateProviderOptions(selectElement, region) {
     try {
         if (selectElement.id === 'weather-provider') {
             const savedValue = localStorage.getItem(GLOBAL_PROVIDER_STORAGE) || 'automatic';
-            selectElement.value = savedValue;
-        } else if (selectElement.id === 'nowcast-source') {
-            const savedValue = localStorage.getItem(NOWCAST_SOURCE_STORAGE) || 'open-meteo';
             selectElement.value = savedValue;
         }
     } catch (error) {
@@ -405,12 +357,6 @@ function updateApiKeySection() {
             selectedProviders.add(selectElement.value);
         }
     });
-
-    // Add nowcast provider
-    const nowcastElement = document.getElementById('nowcast-source');
-    if (nowcastElement && nowcastElement.value !== 'automatic') {
-        selectedProviders.add(nowcastElement.value);
-    }
 
     // Get a set of all providers that need API keys
     const providersNeedingKeys = new Set();
@@ -700,64 +646,6 @@ function resetProvidersRequiringKeys() {
             showApiKeyStatus(`${getRegionDisplayName(region)} weather source reset to Same as Global Setting`, 'status-info');
         }
     });
-
-    // Reset nowcast source if it requires an API key
-    const nowcastSource = localStorage.getItem(NOWCAST_SOURCE_STORAGE);
-    const nowcastProviderObj = getProviderById(nowcastSource);
-
-    if (nowcastProviderObj && nowcastProviderObj.requiresApiKey) {
-        // Find the first nowcast provider that doesn't require an API key
-        const nowcastProviders = getNowcastProviders();
-        const defaultProvider = nowcastProviders.find(p => !p.requiresApiKey) || { id: 'open-meteo' };
-
-        localStorage.setItem(NOWCAST_SOURCE_STORAGE, defaultProvider.id);
-        const nowcastSourceSelect = document.getElementById('nowcast-source');
-        if (nowcastSourceSelect) {
-            nowcastSourceSelect.value = defaultProvider.id;
-        }
-        showApiKeyStatus(`Precipitation forecast source reset to ${defaultProvider.name || defaultProvider.id}`, 'status-info');
-    }
-}
-
-/**
- * Update nowcast source based on user selection
- */
-function updateNowcastSource() {
-    const nowcastSourceSelect = document.getElementById('nowcast-source');
-    if (!nowcastSourceSelect) return;
-
-    const source = nowcastSourceSelect.value;
-    localStorage.setItem(NOWCAST_SOURCE_STORAGE, source);
-
-    // Show status message
-    const provider = getProviderById(source);
-    const statusMessage = provider ?
-        `Precipitation forecast changed to ${provider.name}` :
-        `Precipitation forecast changed to ${source}`;
-
-    showApiKeyStatus(statusMessage, 'status-success');
-
-    // Always update the API key section when source changes
-    updateApiKeySection();
-
-    // Check if selected provider requires API key and if we have it
-    if (provider) {
-        const requiresKey = provider.requiresApiKey;
-        const hasKey = requiresKey ?
-            (typeof provider.hasApiKey === 'function' ? provider.hasApiKey() : false) :
-            true;
-
-        if (!requiresKey || hasKey) {
-            // Refresh weather data
-            refreshWeatherData();
-        } else {
-            // Prompt for API key
-            showApiKeyStatus(`Please enter a ${provider.name} API key and click Save`, 'status-info');
-        }
-    } else {
-        // Unknown provider, just refresh
-        refreshWeatherData();
-    }
 }
 
 /**
@@ -812,19 +700,27 @@ function updateWeatherProvider() {
 }
 
 /**
- * Get the selected nowcast source
- * @returns {string} - Provider ID or 'automatic'
+ * Get the nowcast source based on the current weather provider
+ * Nowcast source now follows the weather provider selection automatically
+ * @returns {string} - Provider ID for nowcast
  */
 export function getNowcastSource() {
-    const storedProvider = localStorage.getItem(NOWCAST_SOURCE_STORAGE) || 'automatic';
+    // Get the current weather provider
+    const weatherProvider = getWeatherProvider();
     
-    // When set to automatic, resolve to open-meteo
-    if (storedProvider === 'automatic') {
-        // console.log('Nowcast source set to automatic, using Open-Meteo');
+    // If automatic or not set, use open-meteo for nowcast
+    if (weatherProvider === 'automatic' || !weatherProvider) {
         return 'open-meteo';
     }
     
-    return storedProvider;
+    // Check if the selected weather provider supports nowcast
+    const provider = getProviderById(weatherProvider);
+    if (provider && typeof provider.supportsNowcast === 'function' && provider.supportsNowcast()) {
+        return weatherProvider;
+    }
+    
+    // Fall back to open-meteo if the provider doesn't support nowcast
+    return 'open-meteo';
 }
 
 /**

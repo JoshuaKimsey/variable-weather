@@ -299,13 +299,14 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
       type: 'snow'
     },
 
-    { pattern: /\bfreez(e|ing)\b|\bice\b|\bsleet\b/g, type: 'ice' },
+    { pattern: /\bice storm\b|\bsleet\b|\bfreezing rain\b|\bfreezing drizzle\b|\bice pellets\b/g, type: 'ice' },
+    { pattern: /\bfreeze\b|\bfreezing\b|\bfrost\b|\bsub-freezing\b/g, type: 'cold' },
     { pattern: /\bwind\b|\bgust\b|\bstrong winds\b/g, type: 'wind' },
     { pattern: /\bdust\b/g, type: 'dust' },
     { pattern: /\bsmoke\b/g, type: 'smoke' },
     { pattern: /\bfog\b/g, type: 'fog' },
     { pattern: /\bheat\b/g, type: 'heat' },
-    { pattern: /\bcold\b|\bchill\b/g, type: 'cold' },
+    { pattern: /\bcold\b|\bchill\b|\bwind chill\b|\bhypothermia\b/g, type: 'cold' },
     { pattern: /\brain\b|\bshower\b/g, type: 'rain' },
 
     // Improved hurricane pattern that avoids matching place names
@@ -413,7 +414,8 @@ function getPrimaryHazardType(alertTitle) {
   if (/\bsnow\b/.test(title) && !/\bsnow creek\b/.test(title) && !isLikelyPlaceName('snow')) return 'snow';
   if (/\bblizzard\b/.test(title) && !isLikelyPlaceName('blizzard')) return 'snow';
 
-  if (/\bice\b|\bfreezing\b/.test(title)) return 'ice';
+  if (/\bice\b|\bfreezing rain\b|\bfreezing drizzle\b|\bice storm\b/.test(title)) return 'ice';
+  if (/\bfreeze\b|\bfreezing\b|\bfrost\b/.test(title)) return 'cold';
   if (/\bwind\b/.test(title)) return 'wind';
   if (/\bheat\b/.test(title)) return 'heat';
   if (/\bcold\b/.test(title)) return 'cold';

@@ -24,7 +24,8 @@ let lastClickedAlertId = null;
 const MODAL_STATE_ID = 'weather_radar_modal_open';
 
 // Constants
-const RAINVIEWER_API_URL = 'https://api.rainviewer.com/public/weather-maps.json';
+const RADAR_API_URL = '46.225.49.208'; // API endpoint for LibreWRX
+const RAINVIEWER_API_URL = 'http://' + RADAR_API_URL + ':8080/public/weather-maps.json';
 const DEFAULT_COLOR_SCHEME = 7; // Rainbow SELEX-IS
 const SMOOTHING = 1; // True
 const SNOW_VIEW = 1; // True
@@ -1294,11 +1295,6 @@ function fetchRadarData() {
 
             processRadarData(data);
 
-            // Hide loading indicator
-            if (loadingIndicator) {
-                loadingIndicator.style.display = 'none';
-            }
-
             // Show the latest frame only (don't start animation)
             if (radarFrames.length > 0) {
                 // Set the animation position to the latest frame
@@ -1313,8 +1309,21 @@ function fetchRadarData() {
                     playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
                 }
                 isPlaying = false;
+                
+                // Preload all radar frames in the background
+                preloadRadarFrames().then(() => {
+                    console.log('All radar frames preloaded');
+                    // Hide loading indicator after preloading
+                    if (loadingIndicator) {
+                        loadingIndicator.style.display = 'none';
+                    }
+                });
             } else {
                 console.warn('No radar frames available after processing');
+                // Hide loading indicator
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
             }
         })
         .catch(error => {
@@ -1327,6 +1336,81 @@ function fetchRadarData() {
 
             showModalMapError('Failed to load radar data: ' + error.message);
         });
+}
+
+// Store preloaded tile layers
+let preloadedLayers = [];
+
+/**
+ * Preload all radar frame tiles for smooth animation
+ * @returns {Promise} - Resolves when all frames are preloaded
+ */
+async function preloadRadarFrames() {
+    if (!modalMap || radarFrames.length === 0) {
+        return;
+    }
+    
+    // Clear any existing preloaded layers
+    preloadedLayers.forEach(layer => {
+        if (layer && modalMap.hasLayer(layer)) {
+            modalMap.removeLayer(layer);
+        }
+    });
+    preloadedLayers = [];
+    
+    console.log(`Preloading ${radarFrames.length} radar frames...`);
+    
+    // Get current map bounds to prioritize visible tiles
+    const bounds = modalMap.getBounds();
+    
+    // Create all tile layers and add them invisibly to trigger loading
+    const loadPromises = radarFrames.map((frame, index) => {
+        return new Promise((resolve) => {
+            const tileUrl = `http://${RADAR_API_URL}:8080/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+            
+            const layer = L.tileLayer(tileUrl, {
+                opacity: 0, // Invisible during preload
+                zIndex: 5,  // Below the active layer
+                tileSize: 256,
+            });
+            
+            // Track when tiles are loaded
+            let loadTimeout;
+            
+            const onLoad = () => {
+                clearTimeout(loadTimeout);
+                // console.log(`Frame ${index + 1}/${radarFrames.length} preloaded`);
+                resolve(layer);
+            };
+            
+            layer.on('load', onLoad);
+            
+            // Add to map to start loading
+            layer.addTo(modalMap);
+            
+            // Store the layer reference
+            preloadedLayers[index] = layer;
+            
+            // Timeout fallback in case load event doesn't fire
+            loadTimeout = setTimeout(() => {
+                // console.log(`Frame ${index + 1} load timeout, continuing...`);
+                resolve(layer);
+            }, 5000);
+        });
+    });
+    
+    // Wait for all frames to load
+    await Promise.all(loadPromises);
+    
+    // Remove all preloaded layers from the map (they're cached now)
+    preloadedLayers.forEach(layer => {
+        if (layer) {
+            layer.setOpacity(0);
+            modalMap.removeLayer(layer);
+        }
+    });
+    
+    console.log('Radar frame preloading complete');
 }
 
 /**
@@ -1559,7 +1643,7 @@ function showFrame(index) {
     const oldOverlay = currentOverlay;
 
     // Create the tile URL for this frame
-    const tileUrl = `https://tilecache.rainviewer.com/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+    const tileUrl = `http://${RADAR_API_URL}:8080/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
 
     // Create a new tile layer and add it to the map
     const newOverlay = L.tileLayer(tileUrl, {
@@ -1574,11 +1658,13 @@ function showFrame(index) {
     // Update current overlay reference
     currentOverlay = newOverlay;
 
-    // Remove the old overlay after a short delay
+    // Remove the old overlay after a short delay (allows for smoother transition)
     if (oldOverlay) {
         setTimeout(() => {
-            modalMap.removeLayer(oldOverlay);
-        }, 90);
+            if (modalMap.hasLayer(oldOverlay)) {
+                modalMap.removeLayer(oldOverlay);
+            }
+        }, 50);
     }
 
     // Update timestamp display
