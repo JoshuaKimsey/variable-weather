@@ -24,7 +24,7 @@ let lastClickedAlertId = null;
 const MODAL_STATE_ID = 'weather_radar_modal_open';
 
 // Constants
-const RADAR_API_URL = '46.225.49.208'; // API endpoint for LibreWRX
+const RADAR_API_URL = 'api.librewxr.net'; // API endpoint for LibreWRX
 const RAINVIEWER_API_URL = 'http://' + RADAR_API_URL + ':8080/public/weather-maps.json';
 const DEFAULT_COLOR_SCHEME = 7; // Rainbow SELEX-IS
 const SMOOTHING = 1; // True
