@@ -25,7 +25,7 @@ const MODAL_STATE_ID = 'weather_radar_modal_open';
 
 // Constants
 const RADAR_API_URL = 'api.librewxr.net'; // API endpoint for LibreWRX
-const RAINVIEWER_API_URL = 'http://' + RADAR_API_URL + ':8080/public/weather-maps.json';
+const RAINVIEWER_API_URL = 'https://' + RADAR_API_URL + '/public/weather-maps.json';
 const DEFAULT_COLOR_SCHEME = 7; // Rainbow SELEX-IS
 const SMOOTHING = 1; // True
 const SNOW_VIEW = 1; // True
@@ -1366,7 +1366,7 @@ async function preloadRadarFrames() {
     // Create all tile layers and add them invisibly to trigger loading
     const loadPromises = radarFrames.map((frame, index) => {
         return new Promise((resolve) => {
-            const tileUrl = `http://${RADAR_API_URL}:8080/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+            const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
             
             const layer = L.tileLayer(tileUrl, {
                 opacity: 0, // Invisible during preload
@@ -1643,7 +1643,7 @@ function showFrame(index) {
     const oldOverlay = currentOverlay;
 
     // Create the tile URL for this frame
-    const tileUrl = `http://${RADAR_API_URL}:8080/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+    const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
 
     // Create a new tile layer and add it to the map
     const newOverlay = L.tileLayer(tileUrl, {
