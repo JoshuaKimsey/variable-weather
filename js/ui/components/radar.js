@@ -1,303 +1,223 @@
-// modalRadarController.js with complete radar functionality
+// radar.js — modal radar controller with complete radar functionality
 
 import { loadComponentCSS } from '../../utils/cssLoader.js';
+import { log, warn, error as logError } from '../../utils/logger.js';
 
-// Global state
-let modalMap = null;
-let radarModalOpen = false;
-let radarFrames = [];
-let animationPosition = 0;
-let currentOverlay = null;
-let animationTimer = null;
-let isPlaying = false;
-let lastSuccessfulAlerts = [];
-let alertLayers = [];
-let timestampDisplay = null;
-let alertFetchInProgress = false;
-let lastAlertFetchTime = 0;
-let historyStateAdded = false;
-let isProgrammaticMove = false;
-let ignoreNextMoveEnd = false;
-let lastClickedAlertId = null;
-
-// Define a unique identifier for our history state
 const MODAL_STATE_ID = 'weather_radar_modal_open';
 
-// Constants
-const RADAR_API_URL = 'api.librewxr.net'; // API endpoint for LibreWRX
+const RADAR_API_URL = 'api.librewxr.net';
 const RAINVIEWER_API_URL = 'https://' + RADAR_API_URL + '/public/weather-maps.json';
 const DEFAULT_COLOR_SCHEME = 7; // Rainbow SELEX-IS
-const SMOOTHING = 1; // True
-const SNOW_VIEW = 1; // True
+const SMOOTHING = 1;
+const SNOW_VIEW = 1;
 const DEFAULT_OPACITY = 0.8;
-const FRAMES_TO_KEEP = 11; // Number of recent frames to use in animation
-const ANIMATION_SPEED = 1000; // time per frame in ms
-const ALERT_FETCH_THROTTLE = 3000; // Minimum time between fetches (3 seconds)
+const FRAMES_TO_KEEP = 11;
+const ANIMATION_SPEED = 1000;
+const ALERT_FETCH_THROTTLE = 3000;
 
-/**
- * Initialize the modal controller
- */
-export function initModalController() {
+class RadarController {
+    constructor() {
+        this.modalMap = null;
+        this.radarModalOpen = false;
+        this.radarFrames = [];
+        this.animationPosition = 0;
+        this.currentOverlay = null;
+        this.animationTimer = null;
+        this.isPlaying = false;
+        this.lastSuccessfulAlerts = [];
+        this.alertLayers = [];
+        this.timestampDisplay = null;
+        this.alertFetchInProgress = false;
+        this.lastAlertFetchTime = 0;
+        this.historyStateAdded = false;
+        this.isProgrammaticMove = false;
+        this.ignoreNextMoveEnd = false;
+        this.lastClickedAlertId = null;
+        this.preloadedLayers = [];
+        this.pendingTimers = new Set();
+        this.initialCenter = null;
+        this.initialZoom = 7;
+    }
 
-    loadComponentCSS('./styles/radar.css').catch(error => console.warn('Failed to load radar styles:', error));
+    schedule(fn, delay) {
+        const id = setTimeout(() => {
+            this.pendingTimers.delete(id);
+            fn();
+        }, delay);
+        this.pendingTimers.add(id);
+        return id;
+    }
 
-    // Get radar button and modal elements
-    const openRadarBtn = document.getElementById('open-radar');
-    const closeRadarBtn = document.getElementById('close-radar-modal');
-    const backRadarBtn = document.getElementById('radar-back-button');
-    const radarModal = document.getElementById('radar-modal');
-    const radarBackdrop = document.getElementById('radar-modal-backdrop');
+    cancelPending() {
+        this.pendingTimers.forEach(id => clearTimeout(id));
+        this.pendingTimers.clear();
+    }
 
-    if (openRadarBtn && radarModal && radarBackdrop) {
-        // Add event listeners for opening and closing the radar modal
-        openRadarBtn.addEventListener('click', openRadarModal);
+    init() {
+        loadComponentCSS('./styles/radar.css').catch(err => warn('Failed to load radar styles:', err));
 
-        if (closeRadarBtn) {
-            closeRadarBtn.addEventListener('click', closeRadarModal);
-        }
+        const openRadarBtn = document.getElementById('open-radar');
+        const backRadarBtn = document.getElementById('radar-back-button');
+        const radarModal = document.getElementById('radar-modal');
+        const radarBackdrop = document.getElementById('radar-modal-backdrop');
 
-        if (backRadarBtn) {
-            backRadarBtn.addEventListener('click', closeRadarModal);
-        }
+        if (openRadarBtn && radarModal && radarBackdrop) {
+            openRadarBtn.addEventListener('click', () => this.open());
 
-        radarBackdrop.addEventListener('click', closeRadarModal);
-
-        // Also close on escape key
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && radarModalOpen) {
-                closeRadarModal();
+            if (backRadarBtn) {
+                backRadarBtn.addEventListener('click', () => this.close());
             }
-        });
 
-        // Set up history event listener for back button/gesture
-        window.addEventListener('popstate', function (event) {
-            console.log('History navigation detected', event.state);
-            if (radarModalOpen) {
-                // If the modal is open and we navigate back, close it
-                closeRadarModal(true); // true = coming from popstate event
-            }
-        });
-    } else {
-        console.error('Could not find radar modal elements');
-    }
-}
+            radarBackdrop.addEventListener('click', () => this.close());
 
-/**
- * Open the radar modal and initialize map
- */
-function openRadarModal() {
-    // Update state
-    radarModalOpen = true;
-
-    document.body.classList.add('radar-modal-open');
-
-    // Hide all weather icons and animations to improve performance
-    hideWeatherElements(true);
-
-    // Show the modal and backdrop
-    const radarModal = document.getElementById('radar-modal');
-    const radarBackdrop = document.getElementById('radar-modal-backdrop');
-    const backButton = document.getElementById('radar-back-button');
-
-    if (!radarModal || !radarBackdrop) {
-        console.error('Modal elements not found');
-        return;
-    }
-
-    // Update back button visibility
-    if (backButton) {
-        backButton.style.display = window.innerWidth <= 480 ? 'flex' : 'none';
-    }
-
-    // CRITICAL FIX: Reset visibility and positioning properties
-    radarModal.style.visibility = 'visible';
-    radarModal.style.pointerEvents = 'auto';
-    radarModal.style.zIndex = '2000';
-
-    radarBackdrop.style.visibility = 'visible';
-    radarBackdrop.style.pointerEvents = 'auto';
-    radarBackdrop.style.zIndex = '1999';
-
-    // Add a history entry for back button support
-    try {
-        // Get current URL to preserve it
-        const currentUrl = window.location.href;
-        // Push state with our modal identifier
-        history.pushState({ modalId: MODAL_STATE_ID }, document.title, currentUrl);
-        historyStateAdded = true;
-    } catch (e) {
-        console.error('Failed to add history state:', e);
-    }
-
-    // Display modal
-    radarModal.style.display = 'block';
-    radarBackdrop.style.display = 'block';
-
-    // Add mobile-specific class if needed
-    if (window.innerWidth <= 480) {
-        document.body.classList.add('radar-modal-open');
-    }
-
-    // Add class for animation
-    setTimeout(() => {
-        radarModal.classList.add('open');
-        radarBackdrop.classList.add('open');
-        document.body.classList.add('modal-open');
-
-        // Initialize or refresh map after modal is visible
-        setTimeout(() => {
-            initModalMap();
-        }, 300);
-    }, 10);
-}
-
-/**
- * Close the radar modal
- * @param {boolean} fromPopState - Whether this was triggered from a popstate event
- */
-function closeRadarModal(fromPopState = false) {
-    // Only manipulate history when closing directly (not from back button)
-    if (historyStateAdded && !fromPopState) {
-        console.log('Manually going back in history');
-        history.back();
-        return; // Exit early - the popstate will call this function again
-    }
-
-    // Reset the flag
-    historyStateAdded = false;
-
-    // Update state
-    radarModalOpen = false;
-
-    document.body.classList.remove('radar-modal-open');
-
-    // Pause animation if running
-    if (animationTimer) {
-        clearInterval(animationTimer);
-        animationTimer = null;
-    }
-
-    // Hide the modal with animation
-    const radarModal = document.getElementById('radar-modal');
-    const radarBackdrop = document.getElementById('radar-modal-backdrop');
-
-    if (!radarModal || !radarBackdrop) return;
-
-    radarModal.classList.remove('open');
-    radarBackdrop.classList.remove('open');
-    document.body.classList.remove('modal-open');
-    document.body.classList.remove('radar-modal-open');
-
-    // After animation completes
-    setTimeout(() => {
-        // CRITICAL FIX: Use visibility:hidden instead of display:none
-        // This ensures it doesn't block clicks but keeps the map state
-        radarModal.style.display = 'none';
-        radarModal.style.visibility = 'hidden';
-        radarModal.style.pointerEvents = 'none'; // Ensure it doesn't capture clicks
-        radarModal.style.zIndex = '-1'; // Move it below other elements
-
-        radarBackdrop.style.display = 'none';
-        radarBackdrop.style.visibility = 'hidden';
-        radarBackdrop.style.pointerEvents = 'none';
-        radarBackdrop.style.zIndex = '-1';
-
-        // Show weather elements again
-        hideWeatherElements(false);
-    }, 300);
-}
-
-/**
- * Hide or show weather elements to improve performance when radar is open
- * @param {boolean} hide - True to hide elements, false to show them
- */
-function hideWeatherElements(hide) {
-    // Main weather icon
-    const weatherIcon = document.getElementById('weather-icon');
-    if (weatherIcon) {
-        weatherIcon.style.display = hide ? 'none' : 'block';
-    }
-
-    // Weather background animations
-    const weatherBackground = document.getElementById('weather-background');
-    if (weatherBackground) {
-        weatherBackground.style.visibility = hide ? 'hidden' : 'visible';
-    }
-
-    // Forecast icons
-    const forecastIcons = document.querySelectorAll('.forecast-icon');
-    forecastIcons.forEach(icon => {
-        icon.style.visibility = hide ? 'hidden' : 'visible';
-    });
-
-    // Hourly forecast icons
-    const hourlyIcons = document.querySelectorAll('.hourly-forecast-card .forecast-icon');
-    hourlyIcons.forEach(icon => {
-        icon.style.visibility = hide ? 'hidden' : 'visible';
-    });
-
-    // Weather cards visibility (optional - you might want to keep these visible)
-    // Uncomment if you want to hide entire cards
-    /*
-    const weatherCards = document.querySelectorAll('.weather-card');
-    weatherCards.forEach(card => {
-        if (!card.id.includes('search-container')) { // Keep search container visible
-            card.style.opacity = hide ? '0.5' : '1';
-        }
-    });
-    */
-
-    // console.log(`Weather elements ${hide ? 'hidden' : 'shown'} for performance optimization`);
-}
-
-/**
- * Initialize the modal map with radar functionality
- */
-function initModalMap() {
-    const container = document.getElementById('modal-radar-view');
-    if (!container) {
-        console.error('Modal radar container not found');
-        return;
-    }
-
-    // IMPORTANT: Make the container fully visible
-    container.style.position = 'absolute';
-    container.style.top = '0';
-    container.style.left = '0';
-    container.style.right = '0';
-    container.style.bottom = '0';
-    container.style.overflow = 'hidden';
-    container.style.width = '100%';
-    container.style.height = '100%';
-
-    // If map already exists, just refresh data
-    if (modalMap) {
-        console.log('Map exists, refreshing');
-
-        // CRITICAL FIX: Force multiple map size updates with increasing delays
-        modalMap.invalidateSize(true);
-
-        // Add additional delayed invalidations
-        [100, 300, 800].forEach(delay => {
-            setTimeout(() => {
-                if (modalMap) {
-                    console.log(`Invalidating map size after ${delay}ms`);
-                    modalMap.invalidateSize(true);
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && this.radarModalOpen) {
+                    this.close();
                 }
-            }, delay);
-        });
+            });
 
-        // Fetch new radar data
-        fetchRadarData();
-
-        // Fetch alerts
-        fetchMapAreaAlerts(true);
-
-        return;
+            window.addEventListener('popstate', (event) => {
+                log('History navigation detected', event.state);
+                if (this.radarModalOpen) {
+                    this.close(true);
+                }
+            });
+        } else {
+            logError('Could not find radar modal elements');
+        }
     }
 
-    // Show loading indicator
-    container.innerHTML = `
+    open() {
+        this.radarModalOpen = true;
+
+        document.body.classList.add('radar-modal-open');
+
+        hideWeatherElements(true);
+
+        const radarModal = document.getElementById('radar-modal');
+        const radarBackdrop = document.getElementById('radar-modal-backdrop');
+
+        if (!radarModal || !radarBackdrop) {
+            logError('Modal elements not found');
+            return;
+        }
+
+        radarModal.style.visibility = 'visible';
+        radarModal.style.pointerEvents = 'auto';
+        radarModal.style.zIndex = '2000';
+
+        radarBackdrop.style.visibility = 'visible';
+        radarBackdrop.style.pointerEvents = 'auto';
+        radarBackdrop.style.zIndex = '1999';
+
+        try {
+            const currentUrl = window.location.href;
+            history.pushState({ modalId: MODAL_STATE_ID }, document.title, currentUrl);
+            this.historyStateAdded = true;
+        } catch (e) {
+            logError('Failed to add history state:', e);
+        }
+
+        radarModal.style.display = 'block';
+        radarBackdrop.style.display = 'block';
+
+        if (window.innerWidth <= 480) {
+            document.body.classList.add('radar-modal-open');
+        }
+
+        this.schedule(() => {
+            radarModal.classList.add('open');
+            radarBackdrop.classList.add('open');
+            document.body.classList.add('modal-open');
+
+            this.schedule(() => {
+                this.initMap();
+            }, 300);
+        }, 10);
+    }
+
+    close(fromPopState = false) {
+        if (this.historyStateAdded && !fromPopState) {
+            log('Manually going back in history');
+            history.back();
+            return;
+        }
+
+        this.historyStateAdded = false;
+        this.radarModalOpen = false;
+
+        document.body.classList.remove('radar-modal-open');
+
+        this.cancelPending();
+
+        if (this.animationTimer) {
+            clearInterval(this.animationTimer);
+            this.animationTimer = null;
+        }
+
+        const radarModal = document.getElementById('radar-modal');
+        const radarBackdrop = document.getElementById('radar-modal-backdrop');
+
+        if (!radarModal || !radarBackdrop) return;
+
+        radarModal.classList.remove('open');
+        radarBackdrop.classList.remove('open');
+        document.body.classList.remove('modal-open');
+        document.body.classList.remove('radar-modal-open');
+
+        // Untracked: must run to completion even after close
+        setTimeout(() => {
+            radarModal.style.display = 'none';
+            radarModal.style.visibility = 'hidden';
+            radarModal.style.pointerEvents = 'none';
+            radarModal.style.zIndex = '-1';
+
+            radarBackdrop.style.display = 'none';
+            radarBackdrop.style.visibility = 'hidden';
+            radarBackdrop.style.pointerEvents = 'none';
+            radarBackdrop.style.zIndex = '-1';
+
+            hideWeatherElements(false);
+        }, 300);
+    }
+
+    initMap() {
+        const container = document.getElementById('modal-radar-view');
+        if (!container) {
+            logError('Modal radar container not found');
+            return;
+        }
+
+        container.style.position = 'absolute';
+        container.style.top = '0';
+        container.style.left = '0';
+        container.style.right = '0';
+        container.style.bottom = '0';
+        container.style.overflow = 'hidden';
+        container.style.width = '100%';
+        container.style.height = '100%';
+
+        if (this.modalMap) {
+            log('Map exists, refreshing');
+
+            this.modalMap.invalidateSize(true);
+
+            [100, 300, 800].forEach(delay => {
+                this.schedule(() => {
+                    if (this.modalMap) {
+                        log(`Invalidating map size after ${delay}ms`);
+                        this.modalMap.invalidateSize(true);
+                    }
+                }, delay);
+            });
+
+            this.fetchRadarData();
+            this.fetchAlerts(true);
+
+            return;
+        }
+
+        container.innerHTML = `
     <div class="radar-loading" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 1000;">
         <div class="radar-loading-spinner"><div></div><div></div><div></div></div>
         <div class="radar-loading-text">Loading radar data...</div>
@@ -305,10 +225,10 @@ function initModalMap() {
     <div style="width: 100%; height: 100%; position: relative; overflow: hidden;">
         <!-- Map Container -->
         <div id="modal-map-container" style="width: 100%; height: calc(100% - 60px); position: absolute; top: 0; left: 0;"></div>
-        
+
         <!-- Timestamp Display -->
         <div id="timestamp-display" class="timestamp-display" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 6px 10px; border-radius: 4px; font-size: 14px; z-index: 1000;"></div>
-        
+
         <!-- Control Bar -->
         <div id="radar-controls" class="radar-controls" style="position: absolute; bottom: 0; left: 0; right: 0; height: 60px; padding: 10px 15px; background-color: #222222; border-top: 1px solid rgba(255,255,255,0.2); box-shadow: 0 -2px 10px rgba(0,0,0,0.3); z-index: 1001;">
             <div class="radar-timeline-wrapper" style="display: flex; align-items: flex-start; gap: 12px; width: 100%;">
@@ -324,445 +244,377 @@ function initModalMap() {
     </div>
 `;
 
-    // Create a new map container with guaranteed dimensions
-    const mapContainer = document.getElementById('modal-map-container');
-    if (!mapContainer) {
-        console.error('Map container element not created');
-        return;
-    }
+        const mapContainer = document.getElementById('modal-map-container');
+        if (!mapContainer) {
+            logError('Map container element not created');
+            return;
+        }
 
-    // CRITICAL: Explicitly set dimensions
-    mapContainer.style.width = '100%';
-    mapContainer.style.height = 'calc(100% - 60px)';
-    mapContainer.style.position = 'absolute';
-    mapContainer.style.top = '0';
-    mapContainer.style.left = '0';
+        mapContainer.style.width = '100%';
+        mapContainer.style.height = 'calc(100% - 60px)';
+        mapContainer.style.position = 'absolute';
+        mapContainer.style.top = '0';
+        mapContainer.style.left = '0';
 
-    // Get play/pause button and timeline elements
-    const playPauseButton = document.getElementById('radar-play-pause');
-    const timelineContainer = document.getElementById('radar-timeline');
+        const playPauseButton = document.getElementById('radar-play-pause');
 
-    // Store timestamp display
-    timestampDisplay = document.getElementById('timestamp-display');
+        this.timestampDisplay = document.getElementById('timestamp-display');
 
-    // Add event listener to play/pause button
-    if (playPauseButton) {
-        playPauseButton.addEventListener('click', toggleAnimation);
-    }
+        if (playPauseButton) {
+            playPauseButton.addEventListener('click', () => this.toggleAnimation());
+        }
 
-    // Ensure Leaflet CSS is loaded
-    ensureLeafletCSS();
+        ensureLeafletCSS();
 
-    // Get coordinates from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const lat = parseFloat(urlParams.get('lat')) || 39.8283;
-    const lon = parseFloat(urlParams.get('lon')) || -98.5795;
+        const urlParams = new URLSearchParams(window.location.search);
+        const lat = parseFloat(urlParams.get('lat')) || 39.8283;
+        const lon = parseFloat(urlParams.get('lon')) || -98.5795;
+        this.initialCenter = [lat, lon];
 
-    // Load Leaflet script and initialize map
-    loadLeafletScript()
-        .then(() => {
-            if (!window.L) {
-                throw new Error('Leaflet not available after loading');
-            }
-
-            try {
-                console.log('Creating Leaflet map instance');
-
-                // IMPORTANT: Make sure the map container has explicit dimensions
-                mapContainer.style.width = '100%';
-                mapContainer.style.height = 'calc(100% - 60px)';
-
-                // Create map instance with explicit dimensions
-                modalMap = L.map(mapContainer, {
-                    zoomControl: true,
-                    attributionControl: true,
-                    fadeAnimation: false,       // Disable fade animations
-                    preferCanvas: true
-                });
-
-                // Set view BEFORE adding layers
-                modalMap.setView([lat, lon], 7);
-                console.log('Map view set');
-
-                // Now add the tile layer
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | &copy; <a href="https://carto.com/">CARTO</a> | Radar: <a href="https://librewxr.net">LibreWXR</a>',
-                    subdomains: 'abcd',
-                    maxZoom: 19,
-                    opacity: 0.8
-                }).addTo(modalMap);
-                console.log('Tile layer added');
-
-                // Add a marker at the current location
-                L.marker([lat, lon]).addTo(modalMap);
-                console.log('Marker added');
-
-                // CRITICAL: Force multiple map size updates with increasing delays
-                modalMap.invalidateSize(true);
-                // console.log('Initial invalidateSize called');
-
-                // Multiple delayed invalidations for reliability
-                [100, 300, 600, 1000, 2000].forEach(delay => {
-                    setTimeout(() => {
-                        if (modalMap) {
-                            // console.log(`Invalidating map size after ${delay}ms`);
-                            modalMap.invalidateSize(true);
-                        }
-                    }, delay);
-                });
-
-                // Fetch radar data
-                fetchRadarData();
-
-                // Fetch alerts after a delay
-                setTimeout(() => {
-                    fetchMapAreaAlerts(true);
-                }, 1000);
-
-                // Add event listener for map movements to update alerts
-                modalMap.on('moveend', debounce(() => {
-                    if (ignoreNextMoveEnd) {
-                        ignoreNextMoveEnd = false;
-                        return;
-                    }
-
-                    if (radarModalOpen) {
-                        fetchMapAreaAlerts();
-                    }
-                }, 500));
-
-                modalMap.on('moveend', function () {
-                    if (isProgrammaticMove) {
-                        isProgrammaticMove = false;
-                        return;
-                    }
-
-                    if (lastClickedAlertId != null) {
-                        lastClickedAlertId = null;
-                    }
-                });
-            } catch (error) {
-                console.error('Error initializing modal map:', error);
-                showModalMapError('Error initializing map: ' + error.message);
-            }
-        })
-        .catch(error => {
-            console.error('Failed to load Leaflet:', error);
-            showModalMapError('Failed to load map library: ' + error.message);
-        });
-}
-
-/**
- * Fetch map alerts from the alerts API system
- * 
- * @param {boolean} forceRefresh - Force refresh regardless of throttling
- * @returns {Promise} - Promise resolving after fetch completes
- */
-function fetchMapAreaAlerts(forceRefresh = false) {
-    return new Promise((resolve, reject) => {
-        try {
-            if (!modalMap) {
-                console.warn('Cannot fetch map alerts - map not initialized');
-                resolve(false);
-                return;
-            }
-
-            // Check if modal is open
-            if (!radarModalOpen && !forceRefresh) {
-                // console.log('Modal not open, skipping alert fetch');
-                resolve(false);
-                return;
-            }
-
-            // Get current time for throttling
-            const now = Date.now();
-
-            // If fetch is in progress, don't start another one
-            if (alertFetchInProgress) {
-                // console.log('Alert fetch already in progress, skipping');
-                resolve(false);
-                return;
-            }
-
-            // Throttle fetches unless force refresh is requested
-            if (!forceRefresh && now - lastAlertFetchTime < ALERT_FETCH_THROTTLE) {
-                // console.log('Throttling alert fetch');
-
-                // If we have cached alerts, use those
-                if (lastSuccessfulAlerts.length > 0) {
-                    // console.log('Using cached alerts');
-                    updateAlertPolygons(lastSuccessfulAlerts);
+        loadLeafletScript()
+            .then(() => {
+                if (!window.L) {
+                    throw new Error('Leaflet not available after loading');
                 }
 
-                resolve(false);
-                return;
-            }
+                try {
+                    log('Creating Leaflet map instance');
 
-            // Update timestamp and set fetch in progress
-            lastAlertFetchTime = now;
-            alertFetchInProgress = true;
+                    mapContainer.style.width = '100%';
+                    mapContainer.style.height = 'calc(100% - 60px)';
 
-            // Show loading indicator
-            showMapLoadingIndicator('Fetching alerts...');
+                    this.modalMap = L.map(mapContainer, {
+                        zoomControl: true,
+                        attributionControl: true,
+                        fadeAnimation: false,
+                        preferCanvas: true
+                    });
 
-            // Get the map bounds for the alert query
-            const bounds = modalMap.getBounds();
-            const mapBounds = {
-                north: bounds.getNorth(),
-                south: bounds.getSouth(),
-                east: bounds.getEast(),
-                west: bounds.getWest()
-            };
+                    this.modalMap.setView([lat, lon], 7);
+                    log('Map view set');
 
-            // Import the alertsApi fetchMapAreaAlerts function
-            import('../../api/alerts/alertsApi.js')
-                .then(({ fetchMapAreaAlerts }) => {
-                    // Call the centralized alerts API function
-                    return fetchMapAreaAlerts(mapBounds);
-                })
-                .then(alerts => {
-                    // Hide loading indicator
-                    hideMapLoadingIndicator();
-                    alertFetchInProgress = false;
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | &copy; <a href="https://carto.com/">CARTO</a> | Radar: <a href="https://librewxr.net">LibreWXR</a>',
+                        subdomains: 'abcd',
+                        maxZoom: 19,
+                        opacity: 0.8
+                    }).addTo(this.modalMap);
+                    log('Tile layer added');
 
-                    // Check if we have valid alerts
-                    if (!alerts || !Array.isArray(alerts)) {
-                        console.warn('Invalid response from alert API');
-                        throw new Error('Invalid alert API response');
+                    L.marker([lat, lon]).addTo(this.modalMap);
+                    log('Marker added');
+
+                    this.addRecenterControl();
+
+                    this.modalMap.invalidateSize(true);
+
+                    [100, 300, 600, 1000, 2000].forEach(delay => {
+                        this.schedule(() => {
+                            if (this.modalMap) {
+                                this.modalMap.invalidateSize(true);
+                            }
+                        }, delay);
+                    });
+
+                    this.fetchRadarData();
+
+                    this.schedule(() => {
+                        this.fetchAlerts(true);
+                    }, 1000);
+
+                    this.modalMap.on('moveend', debounce(() => {
+                        if (this.ignoreNextMoveEnd) {
+                            this.ignoreNextMoveEnd = false;
+                            return;
+                        }
+
+                        if (this.radarModalOpen) {
+                            this.fetchAlerts();
+                        }
+                    }, 500));
+
+                    this.modalMap.on('moveend', () => {
+                        if (this.isProgrammaticMove) {
+                            this.isProgrammaticMove = false;
+                            return;
+                        }
+
+                        if (this.lastClickedAlertId != null) {
+                            this.lastClickedAlertId = null;
+                        }
+                    });
+                } catch (err) {
+                    logError('Error initializing modal map:', err);
+                    showModalMapError('Error initializing map: ' + err.message);
+                }
+            })
+            .catch(err => {
+                logError('Failed to load Leaflet:', err);
+                showModalMapError('Failed to load map library: ' + err.message);
+            });
+    }
+
+    addRecenterControl() {
+        if (!this.modalMap || !window.L) return;
+
+        const RecenterControl = L.Control.extend({
+            options: { position: 'topleft' },
+            onAdd: () => {
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control radar-recenter-control');
+                const button = L.DomUtil.create('a', 'radar-recenter-button', container);
+                button.href = '#';
+                button.title = 'Recenter map';
+                button.setAttribute('role', 'button');
+                button.setAttribute('aria-label', 'Recenter map');
+                button.innerHTML = '<i class="bi bi-crosshair"></i>';
+
+                L.DomEvent.on(button, 'click', (e) => {
+                    L.DomEvent.preventDefault(e);
+                    L.DomEvent.stopPropagation(e);
+                    if (this.modalMap && this.initialCenter) {
+                        this.modalMap.flyTo(this.initialCenter, this.initialZoom);
                     }
-
-                    // console.log(`Found ${alerts.length} alerts for map area`);
-
-                    // Get alerts with geometry
-                    const alertsWithGeometry = alerts.filter(alert => alert.geometry);
-
-                    // Update display if we have alerts with geometry
-                    if (alertsWithGeometry.length > 0) {
-                        // Store for later use
-                        lastSuccessfulAlerts = [...alertsWithGeometry];
-
-                        // Update the alert polygons
-                        updateAlertPolygons(alertsWithGeometry);
-                        resolve(true);
-                    } else if (lastSuccessfulAlerts.length > 0) {
-                        // Use cached alerts if no new ones found
-                        updateAlertPolygons(lastSuccessfulAlerts);
-                        resolve(false);
-                    } else {
-                        // Clear alerts if none found
-                        clearAlertLayers();
-                        resolve(false);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching alerts:', error);
-                    hideMapLoadingIndicator();
-                    alertFetchInProgress = false;
-
-                    // Show error message
-                    showMapErrorMessage('Failed to load alerts');
-
-                    // Use cached alerts if available
-                    if (lastSuccessfulAlerts.length > 0) {
-                        updateAlertPolygons(lastSuccessfulAlerts);
-                    }
-
-                    resolve(false);
                 });
-        } catch (error) {
-            console.error('Unexpected error in fetchMapAreaAlerts:', error);
-            alertFetchInProgress = false;
-            resolve(false);
-        }
-    });
-}
+                L.DomEvent.disableClickPropagation(container);
 
-/**
- * Update alert polygons on the map
- * @param {Array} alerts - Array of alert objects with properties and geometry
- */
-function updateAlertPolygons(alerts) {
-    if (!modalMap) {
-        console.warn('Cannot update alert polygons - map not initialized');
-        return;
+                return container;
+            }
+        });
+
+        new RecenterControl().addTo(this.modalMap);
     }
 
-    // Store alert that was clicked before clearing layers
-    let clickedAlert = null;
-    if (lastClickedAlertId && alertLayers.length > 0) {
-        // Find the alert by ID in our current collection
-        clickedAlert = alerts.find(alert =>
-            alert.id === lastClickedAlertId ||
-            (alert.properties && alert.properties.id === lastClickedAlertId)
-        );
-    }
-
-    // Clear existing alert layers
-    clearAlertLayers();
-
-    if (!alerts || alerts.length === 0) return;
-
-    // Add CSS animation for severe/extreme alerts
-    addAlertAnimationCSS();
-
-    // Define severity levels for z-index
-    const severityZIndex = {
-        'extreme': 1000,
-        'severe': 800,
-        'moderate': 600,
-        'minor': 400
-    };
-
-    // Sort alerts by severity (less severe first)
-    const sortedAlerts = [...alerts].sort((a, b) => {
-        const severityA = (a.properties && a.properties.severity) ? a.properties.severity.toLowerCase() :
-            (a.severity ? a.severity.toLowerCase() : 'minor');
-        const severityB = (b.properties && b.properties.severity) ? b.properties.severity.toLowerCase() :
-            (b.severity ? b.severity.toLowerCase() : 'minor');
-
-        return (severityZIndex[severityA] || 0) - (severityZIndex[severityB] || 0);
-    });
-
-    // Process each alert
-    sortedAlerts.forEach(alert => {
-        // Get alert ID for tracking
-        const alertId = alert.id || (alert.properties && alert.properties.id);
-
-        // Get severity
-        let severity = 'moderate';
-        if (alert.properties && alert.properties.severity) {
-            severity = alert.properties.severity.toLowerCase();
-        } else if (alert.severity) {
-            severity = alert.severity.toLowerCase();
+    async fetchAlerts(forceRefresh = false) {
+        if (!this.modalMap) {
+            warn('Cannot fetch map alerts - map not initialized');
+            return false;
         }
 
-        // Check severity levels
-        const isExtreme = severity === 'extreme';
-        const isSevere = severity === 'severe';
+        if (!this.radarModalOpen && !forceRefresh) {
+            return false;
+        }
 
-        // Get alert color
-        const alertColor = getAlertTypeColor(alert);
+        const now = Date.now();
 
-        // Create style for the alert
-        const alertStyle = {
-            color: alertColor.color,
-            weight: isExtreme ? 3 : (isSevere ? 2.5 : 2),
-            opacity: alertColor.borderOpacity || 0.9,
-            fillColor: alertColor.color,
-            fillOpacity: alertColor.fillOpacity || 0.2,
-            className: isExtreme ? 'extreme-alert-polygon' : (isSevere ? 'severe-alert-polygon' : '')
+        if (this.alertFetchInProgress) {
+            return false;
+        }
+
+        if (!forceRefresh && now - this.lastAlertFetchTime < ALERT_FETCH_THROTTLE) {
+            if (this.lastSuccessfulAlerts.length > 0) {
+                this.updateAlertPolygons(this.lastSuccessfulAlerts);
+            }
+            return false;
+        }
+
+        this.lastAlertFetchTime = now;
+        this.alertFetchInProgress = true;
+
+        showMapLoadingIndicator('Fetching alerts...');
+
+        const bounds = this.modalMap.getBounds();
+        const mapBounds = {
+            north: bounds.getNorth(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            west: bounds.getWest()
         };
 
         try {
-            // Create the layer
-            const alertLayer = L.geoJSON(alert.geometry, {
-                style: alertStyle,
-                onEachFeature: (feature, layer) => {
-                    // Add popup with alert information
-                    if (alert.title || (alert.properties && alert.properties.event)) {
-                        const title = alert.title || alert.properties.event || 'Weather Alert';
-                        const description = alert.description || (alert.properties && alert.properties.headline) || '';
+            const { fetchMapAreaAlerts } = await import('../../api/alerts/alertsApi.js');
+            const alerts = await fetchMapAreaAlerts(mapBounds);
 
-                        // Create popup content with more detailed information
-                        let popupContent = `
+            if (!alerts || !Array.isArray(alerts)) {
+                warn('Invalid response from alert API');
+                throw new Error('Invalid alert API response');
+            }
+
+            const alertsWithGeometry = alerts.filter(alert => alert.geometry);
+
+            if (alertsWithGeometry.length > 0) {
+                this.lastSuccessfulAlerts = [...alertsWithGeometry];
+                this.updateAlertPolygons(alertsWithGeometry);
+                return true;
+            } else if (this.lastSuccessfulAlerts.length > 0) {
+                this.updateAlertPolygons(this.lastSuccessfulAlerts);
+                return false;
+            } else {
+                this.clearAlertLayers();
+                return false;
+            }
+        } catch (err) {
+            logError('Error fetching alerts:', err);
+            showMapErrorMessage('Failed to load alerts');
+
+            if (this.lastSuccessfulAlerts.length > 0) {
+                this.updateAlertPolygons(this.lastSuccessfulAlerts);
+            }
+            return false;
+        } finally {
+            this.alertFetchInProgress = false;
+            hideMapLoadingIndicator();
+        }
+    }
+
+    updateAlertPolygons(alerts) {
+        if (!this.modalMap) {
+            warn('Cannot update alert polygons - map not initialized');
+            return;
+        }
+
+        let clickedAlert = null;
+        if (this.lastClickedAlertId && this.alertLayers.length > 0) {
+            clickedAlert = alerts.find(alert =>
+                alert.id === this.lastClickedAlertId ||
+                (alert.properties && alert.properties.id === this.lastClickedAlertId)
+            );
+        }
+
+        this.clearAlertLayers();
+
+        if (!alerts || alerts.length === 0) return;
+
+        addAlertAnimationCSS();
+
+        const severityZIndex = {
+            'extreme': 1000,
+            'severe': 800,
+            'moderate': 600,
+            'minor': 400
+        };
+
+        const sortedAlerts = [...alerts].sort((a, b) => {
+            const severityA = (a.properties && a.properties.severity) ? a.properties.severity.toLowerCase() :
+                (a.severity ? a.severity.toLowerCase() : 'minor');
+            const severityB = (b.properties && b.properties.severity) ? b.properties.severity.toLowerCase() :
+                (b.severity ? b.severity.toLowerCase() : 'minor');
+
+            return (severityZIndex[severityA] || 0) - (severityZIndex[severityB] || 0);
+        });
+
+        sortedAlerts.forEach(alert => {
+            const alertId = alert.id || (alert.properties && alert.properties.id);
+
+            let severity = 'moderate';
+            if (alert.properties && alert.properties.severity) {
+                severity = alert.properties.severity.toLowerCase();
+            } else if (alert.severity) {
+                severity = alert.severity.toLowerCase();
+            }
+
+            const isExtreme = severity === 'extreme';
+            const isSevere = severity === 'severe';
+
+            const alertColor = getAlertTypeColor(alert);
+
+            const alertStyle = {
+                color: alertColor.color,
+                weight: isExtreme ? 3 : (isSevere ? 2.5 : 2),
+                opacity: alertColor.borderOpacity || 0.9,
+                fillColor: alertColor.color,
+                fillOpacity: alertColor.fillOpacity || 0.2,
+                className: isExtreme ? 'extreme-alert-polygon' : (isSevere ? 'severe-alert-polygon' : '')
+            };
+
+            try {
+                const alertLayer = L.geoJSON(alert.geometry, {
+                    style: alertStyle,
+                    onEachFeature: (feature, layer) => {
+                        if (alert.title || (alert.properties && alert.properties.event)) {
+                            const title = alert.title || alert.properties.event || 'Weather Alert';
+                            const description = alert.description || (alert.properties && alert.properties.headline) || '';
+
+                            let popupContent = `
                 <div class="alert-popup-content">
                   <h3 style="margin-top: 0; color: ${alertColor.color}; ${isExtreme ? 'animation: pulse-text 1.5s infinite;' : ''}">
                     ${isExtreme ? '⚠️ ' : ''}${title}${isExtreme ? ' ⚠️' : ''}
                   </h3>`;
 
-                        // Add severity and urgency badges
-                        let severityText = '';
-                        if (isExtreme) {
-                            severityText = 'EXTREME';
-                        } else if (isSevere) {
-                            severityText = 'SEVERE';
-                        } else if (severity === 'moderate') {
-                            severityText = 'MODERATE';
-                        } else {
-                            severityText = 'MINOR';
-                        }
+                            let severityText = '';
+                            if (isExtreme) {
+                                severityText = 'EXTREME';
+                            } else if (isSevere) {
+                                severityText = 'SEVERE';
+                            } else if (severity === 'moderate') {
+                                severityText = 'MODERATE';
+                            } else {
+                                severityText = 'MINOR';
+                            }
 
-                        const urgency = alert.urgency || (alert.properties && alert.properties.urgency) || '';
-                        popupContent += `<div style="display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap;">
+                            const urgency = alert.urgency || (alert.properties && alert.properties.urgency) || '';
+                            popupContent += `<div style="display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap;">
                 <span class="alert-severity ${severity}" style="background-color: ${alertColor.color};">
                   ${severityText}
                 </span>`;
 
-                        if (urgency) {
-                            popupContent += `
+                            if (urgency) {
+                                popupContent += `
                   <span style="background-color: #424242; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em;">
                     ${urgency.toUpperCase()}
                   </span>`;
-                        }
-                        popupContent += `</div>`;
+                            }
+                            popupContent += `</div>`;
 
-                        // Add description
-                        popupContent += `<p style="margin-bottom: 12px;">${description}</p>`;
+                            popupContent += `<p style="margin-bottom: 12px;">${description}</p>`;
 
-                        // Add expiration time if available
-                        const expires = alert.expires || (alert.properties && alert.properties.expires);
-                        if (expires) {
-                            let expiresDate;
-                            if (typeof expires === 'number') {
-                                expiresDate = new Date(expires * 1000); // If it's a Unix timestamp
-                            } else {
-                                expiresDate = new Date(expires); // If it's a date string
+                            const expires = alert.expires || (alert.properties && alert.properties.expires);
+                            if (expires) {
+                                let expiresDate;
+                                if (typeof expires === 'number') {
+                                    expiresDate = new Date(expires * 1000);
+                                } else {
+                                    expiresDate = new Date(expires);
+                                }
+
+                                const expiresFormatted = expiresDate.toLocaleString(undefined, {
+                                    weekday: 'short',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit'
+                                });
+
+                                popupContent += `<p style="margin-bottom: 8px; font-size: 0.9em;"><strong>Expires:</strong> ${expiresFormatted}</p>`;
                             }
 
-                            // Format expires date
-                            const expiresFormatted = expiresDate.toLocaleString(undefined, {
-                                weekday: 'short',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit'
-                            });
+                            const hazardTypes = alert.hazardTypes ||
+                                (alert.properties && alert.properties.hazardTypes) ||
+                                [];
 
-                            popupContent += `<p style="margin-bottom: 8px; font-size: 0.9em;"><strong>Expires:</strong> ${expiresFormatted}</p>`;
-                        }
-
-                        // Add hazard types if available
-                        const hazardTypes = alert.hazardTypes ||
-                            (alert.properties && alert.properties.hazardTypes) ||
-                            [];
-
-                        if (hazardTypes && hazardTypes.length > 0) {
-                            popupContent += `<div style="margin-bottom: 10px;">
+                            if (hazardTypes && hazardTypes.length > 0) {
+                                popupContent += `<div style="margin-bottom: 10px;">
                   <p style="margin-bottom: 5px; font-size: 0.9em;"><strong>Hazards:</strong></p>
                   <div class="hazard-tags" style="display: flex; flex-wrap: wrap; gap: 5px;">`;
 
-                            hazardTypes.forEach(hazard => {
-                                const hazardName = hazard.charAt(0).toUpperCase() + hazard.slice(1);
-                                popupContent += `<span class="hazard-tag" style="background-color: #616161; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em;">
+                                hazardTypes.forEach(hazard => {
+                                    const hazardName = hazard.charAt(0).toUpperCase() + hazard.slice(1);
+                                    popupContent += `<span class="hazard-tag" style="background-color: #616161; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em;">
                     ${hazardName}
                   </span>`;
-                            });
+                                });
 
-                            popupContent += `</div></div>`;
-                        }
+                                popupContent += `</div></div>`;
+                            }
 
-                        // Add action guidance based on severity
-                        if (isExtreme) {
-                            popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(183, 28, 28, 0.1); border-left: 3px solid #B71C1C; font-size: 0.9em; margin: 10px 0;">
+                            if (isExtreme) {
+                                popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(183, 28, 28, 0.1); border-left: 3px solid #B71C1C; font-size: 0.9em; margin: 10px 0;">
                   <strong>TAKE ACTION NOW:</strong> This is an EXTREME alert. Seek shelter or follow official instructions immediately.
                 </p>`;
-                        } else if (isSevere) {
-                            popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(198, 40, 40, 0.1); border-left: 3px solid #C62828; font-size: 0.9em; margin: 10px 0;">
+                            } else if (isSevere) {
+                                popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(198, 40, 40, 0.1); border-left: 3px solid #C62828; font-size: 0.9em; margin: 10px 0;">
                   <strong>BE PREPARED:</strong> This is a SEVERE alert. Prepare to take action if in the affected area.
                 </p>`;
-                        } else if (severity === 'moderate') {
-                            popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(239, 108, 0, 0.1); border-left: 3px solid #EF6C00; font-size: 0.9em; margin: 10px 0;">
+                            } else if (severity === 'moderate') {
+                                popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(239, 108, 0, 0.1); border-left: 3px solid #EF6C00; font-size: 0.9em; margin: 10px 0;">
                   <strong>STAY AWARE:</strong> Monitor conditions and follow updates.
                 </p>`;
-                        }
+                            }
 
-                        // Add full alert text in a collapsible section using HTML5 details/summary
-                        const fullText = alert.fullText || (alert.properties && alert.properties.fullText);
-                        if (fullText) {
-                            // Process the text to handle newlines and make it more readable
-                            const processedText = fullText.replace(/\n/g, '<br>');
+                            const fullText = alert.fullText || (alert.properties && alert.properties.fullText);
+                            if (fullText) {
+                                const processedText = fullText.replace(/\n/g, '<br>');
 
-                            popupContent += `
+                                popupContent += `
                   <details>
                     <summary style="cursor: pointer; background-color: #424242; color: white; padding: 6px; border-radius: 4px; font-size: 0.9em; outline: none;">
                       View Full Alert
@@ -771,89 +623,494 @@ function updateAlertPolygons(alerts) {
                       ${processedText}
                     </div>
                   </details>`;
+                            }
+
+                            popupContent += `</div>`;
+
+                            layer.bindPopup(popupContent, {
+                                maxWidth: 320,
+                                autoPan: true,
+                                autoPanPadding: [20, 20],
+                                closeOnClick: true,
+                            });
+
+                            layer.on('click', (e) => {
+                                this.ignoreNextMoveEnd = true;
+                                this.lastClickedAlertId = alertId;
+                                L.DomEvent.stopPropagation(e);
+                            });
                         }
+                    }
+                });
 
-                        popupContent += `</div>`;
+                alertLayer.setZIndex(severityZIndex[severity] || 500);
 
-                        // Create popup with options to prevent auto-close and set max width
-                        const popup = layer.bindPopup(popupContent, {
-                            maxWidth: 320,
-                            autoPan: true,
-                            autoPanPadding: [20, 20],
-                            closeOnClick: true,
-                        });
+                alertLayer.addTo(this.modalMap);
+                this.alertLayers.push(alertLayer);
 
-                        // Add click handler for this alert
-                        layer.on('click', function (e) {
-                            // Set the flag to ignore the next moveend event
-                            ignoreNextMoveEnd = true;
-
-                            // Store the ID of the clicked alert
-                            lastClickedAlertId = alertId;
-
-                            // Stop event propagation to prevent map click
-                            L.DomEvent.stopPropagation(e);
-                        });
+                if (clickedAlert && alertId === this.lastClickedAlertId) {
+                    for (const key in alertLayer._layers) {
+                        alertLayer._layers[key].openPopup();
+                        break;
                     }
                 }
+            } catch (err) {
+                logError('Error adding alert polygon:', err, alert);
+            }
+        });
+    }
+
+    clearAlertLayers() {
+        this.alertLayers.forEach(layer => {
+            if (this.modalMap) this.modalMap.removeLayer(layer);
+        });
+        this.alertLayers = [];
+    }
+
+    fetchRadarData() {
+        const loadingIndicator = document.querySelector('.radar-loading');
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'flex';
+        }
+
+        const urlWithTimestamp = `${RAINVIEWER_API_URL}?t=${Date.now()}`;
+
+        fetch(urlWithTimestamp)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data || !data.radar || !data.radar.past || data.radar.past.length === 0) {
+                    throw new Error('Invalid radar data format received');
+                }
+
+                this.processRadarData(data);
+
+                if (this.radarFrames.length > 0) {
+                    this.animationPosition = this.radarFrames.length - 1;
+
+                    this.showFrame(this.animationPosition);
+
+                    const playPauseButton = document.getElementById('radar-play-pause');
+                    if (playPauseButton) {
+                        playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+                    }
+                    this.isPlaying = false;
+
+                    this.preloadFrames().then(() => {
+                        log('All radar frames preloaded');
+                        if (loadingIndicator) {
+                            loadingIndicator.style.display = 'none';
+                        }
+                    });
+                } else {
+                    warn('No radar frames available after processing');
+                    if (loadingIndicator) {
+                        loadingIndicator.style.display = 'none';
+                    }
+                }
+            })
+            .catch(err => {
+                logError('Error fetching radar data:', err);
+
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+
+                showModalMapError('Failed to load radar data: ' + err.message);
             });
+    }
 
-            // Set z-index based on severity
-            alertLayer.setZIndex(severityZIndex[severity] || 500);
+    async preloadFrames() {
+        if (!this.modalMap || this.radarFrames.length === 0) {
+            return;
+        }
 
-            // Add to map and store reference
-            alertLayer.addTo(modalMap);
-            alertLayers.push(alertLayer);
+        this.preloadedLayers.forEach(layer => {
+            if (layer && this.modalMap.hasLayer(layer)) {
+                this.modalMap.removeLayer(layer);
+            }
+        });
+        this.preloadedLayers = [];
 
-            // If this was the clicked alert, open its popup
-            if (clickedAlert && alertId === lastClickedAlertId) {
-                // Find the first layer in the GeoJSON
-                for (const key in alertLayer._layers) {
-                    alertLayer._layers[key].openPopup();
-                    break;
+        log(`Preloading ${this.radarFrames.length} radar frames...`);
+
+        const loadPromises = this.radarFrames.map((frame, index) => {
+            return new Promise((resolve) => {
+                const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+
+                const layer = L.tileLayer(tileUrl, {
+                    opacity: 0,
+                    zIndex: 5,
+                    tileSize: 256,
+                });
+
+                let loadTimeout;
+
+                const onLoad = () => {
+                    clearTimeout(loadTimeout);
+                    resolve(layer);
+                };
+
+                layer.on('load', onLoad);
+
+                layer.addTo(this.modalMap);
+
+                this.preloadedLayers[index] = layer;
+
+                loadTimeout = setTimeout(() => {
+                    resolve(layer);
+                }, 5000);
+            });
+        });
+
+        await Promise.all(loadPromises);
+
+        this.preloadedLayers.forEach(layer => {
+            if (layer) {
+                layer.setOpacity(0);
+                this.modalMap.removeLayer(layer);
+            }
+        });
+
+        log('Radar frame preloading complete');
+    }
+
+    processRadarData(data) {
+        if (!data || !data.radar || !data.radar.past) {
+            logError('Invalid radar data format');
+            return;
+        }
+
+        let frames = [...data.radar.past];
+
+        if (frames.length > FRAMES_TO_KEEP) {
+            frames = frames.slice(-FRAMES_TO_KEEP);
+        }
+
+        this.radarFrames = frames.map(frame => ({
+            time: frame.time,
+            timestamp: new Date(frame.time * 1000)
+        }));
+
+        this.updateTimeline();
+    }
+
+    updateTimeline() {
+        const timelineContainer = document.getElementById('radar-timeline');
+        const timestampsRow = document.getElementById('radar-timestamps-row');
+        if (!timelineContainer || !timestampsRow) return;
+
+        timelineContainer.innerHTML = '';
+        timestampsRow.innerHTML = '';
+
+        if (this.radarFrames.length > 0) {
+            const containerWidth = timelineContainer.offsetWidth;
+            const minSpaceBetweenTimestamps = 60;
+            const maxTimestamps = Math.max(5, Math.floor(containerWidth / minSpaceBetweenTimestamps));
+
+            let step = Math.ceil(this.radarFrames.length / maxTimestamps);
+
+            if (this.radarFrames.length <= 6) {
+                step = 1;
+            } else if (this.radarFrames.length <= 20) {
+                step = 5;
+            }
+
+            for (let i = 0; i < this.radarFrames.length; i += step) {
+                if (i !== 0 && i !== this.radarFrames.length - 1 && i % (step * 2) !== 0 && this.radarFrames.length > 12) {
+                    continue;
+                }
+
+                const timeLabel = document.createElement('div');
+                timeLabel.className = 'radar-timestamp';
+                timeLabel.style.position = 'absolute';
+                timeLabel.style.fontSize = '11px';
+                timeLabel.style.color = 'rgba(255, 255, 255, 0.9)';
+                timeLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+                timeLabel.style.padding = '1px 4px';
+                timeLabel.style.borderRadius = '3px';
+                timeLabel.style.whiteSpace = 'nowrap';
+                timeLabel.style.overflow = 'hidden';
+                timeLabel.style.textOverflow = 'ellipsis';
+                timeLabel.style.transform = 'translateX(-50%)';
+
+                const timeString = this.radarFrames[i].timestamp.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                timeLabel.textContent = timeString;
+
+                const position = (i / (this.radarFrames.length - 1)) * 100;
+                timeLabel.style.left = `${position}%`;
+
+                timestampsRow.appendChild(timeLabel);
+            }
+
+            if (step > 1 && this.radarFrames.length > 1) {
+                const lastIndex = this.radarFrames.length - 1;
+
+                if (lastIndex % step !== 0) {
+                    const lastTimeLabel = document.createElement('div');
+                    lastTimeLabel.className = 'radar-timestamp';
+                    lastTimeLabel.style.position = 'absolute';
+                    lastTimeLabel.style.fontSize = '11px';
+                    lastTimeLabel.style.color = 'rgba(255, 255, 255, 0.9)';
+                    lastTimeLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+                    lastTimeLabel.style.padding = '1px 4px';
+                    lastTimeLabel.style.borderRadius = '3px';
+                    lastTimeLabel.style.whiteSpace = 'nowrap';
+                    lastTimeLabel.style.overflow = 'hidden';
+                    lastTimeLabel.style.textOverflow = 'ellipsis';
+                    lastTimeLabel.style.right = '0';
+                    lastTimeLabel.style.transform = 'translateX(0)';
+
+                    const timeString = this.radarFrames[lastIndex].timestamp.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    lastTimeLabel.textContent = timeString;
+                    timestampsRow.appendChild(lastTimeLabel);
                 }
             }
-        } catch (error) {
-            console.error('Error adding alert polygon:', error, alert);
         }
+
+        this.radarFrames.forEach((frame, index) => {
+            const marker = document.createElement('div');
+            marker.className = 'radar-frame-marker';
+            marker.style.position = 'absolute';
+            marker.style.width = '2px';
+            marker.style.height = '6px';
+            marker.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
+            marker.style.top = '0';
+            marker.style.cursor = 'pointer';
+            marker.style.transition = 'background-color 0.2s ease';
+            marker.setAttribute('data-index', index);
+
+            marker.style.left = `${(index / (this.radarFrames.length - 1)) * 100}%`;
+
+            const timeString = frame.timestamp.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            marker.title = timeString;
+
+            marker.addEventListener('click', () => {
+                this.stopAnimation();
+                this.animationPosition = index;
+                this.showFrame(index);
+                this.updateTimelineSelection();
+            });
+
+            timelineContainer.appendChild(marker);
+        });
+
+        const positionIndicator = document.createElement('div');
+        positionIndicator.id = 'radar-position-indicator';
+        positionIndicator.className = 'radar-position-indicator';
+        positionIndicator.style.position = 'absolute';
+        positionIndicator.style.width = '12px';
+        positionIndicator.style.height = '12px';
+        positionIndicator.style.backgroundColor = 'white';
+        positionIndicator.style.borderRadius = '50%';
+        positionIndicator.style.top = '50%';
+        positionIndicator.style.transform = 'translate(-50%, -50%)';
+        positionIndicator.style.boxShadow = '0 0 4px rgba(0, 0, 0, 0.5)';
+        positionIndicator.style.zIndex = '10';
+        positionIndicator.style.pointerEvents = 'none';
+        positionIndicator.style.transition = 'left 0.2s ease-out';
+        timelineContainer.appendChild(positionIndicator);
+
+        if (this.animationPosition === 0 && this.radarFrames.length > 0) {
+            this.animationPosition = this.radarFrames.length - 1;
+        }
+
+        this.updateTimelineSelection();
+    }
+
+    updateTimelineSelection() {
+        const timelineContainer = document.getElementById('radar-timeline');
+        if (!timelineContainer) return;
+
+        const markers = timelineContainer.querySelectorAll('.radar-frame-marker');
+        if (!markers.length) return;
+
+        markers.forEach((marker, index) => {
+            if (index === this.animationPosition) {
+                marker.style.backgroundColor = 'white';
+            } else {
+                marker.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
+            }
+        });
+
+        const positionIndicator = document.getElementById('radar-position-indicator');
+        if (positionIndicator && this.radarFrames.length > 1) {
+            const position = (this.animationPosition / (this.radarFrames.length - 1)) * 100;
+            positionIndicator.style.left = `${position}%`;
+        }
+    }
+
+    showFrame(index) {
+        if (!this.modalMap || !this.radarFrames.length || index >= this.radarFrames.length) {
+            return;
+        }
+
+        const frame = this.radarFrames[index];
+
+        const oldOverlay = this.currentOverlay;
+
+        const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+
+        const newOverlay = L.tileLayer(tileUrl, {
+            opacity: DEFAULT_OPACITY,
+            zIndex: 11,
+            tileSize: 256,
+        });
+
+        newOverlay.addTo(this.modalMap);
+
+        this.currentOverlay = newOverlay;
+
+        // Untracked: short crossfade should run even if controller state shifts
+        if (oldOverlay) {
+            setTimeout(() => {
+                if (this.modalMap && this.modalMap.hasLayer(oldOverlay)) {
+                    this.modalMap.removeLayer(oldOverlay);
+                }
+            }, 50);
+        }
+
+        this.updateTimestampDisplay(frame.timestamp);
+
+        this.updateTimelineSelection();
+    }
+
+    updateTimestampDisplay(timestamp) {
+        if (!this.timestampDisplay) return;
+
+        try {
+            const timeString = timestamp.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const dateString = timestamp.toLocaleDateString([], {
+                month: 'short',
+                day: 'numeric'
+            });
+
+            this.timestampDisplay.innerHTML = `<strong>${timeString}</strong><br>${dateString}`;
+        } catch (err) {
+            logError('Error updating timestamp display:', err);
+            this.timestampDisplay.textContent = 'Time data unavailable';
+        }
+    }
+
+    startAnimation() {
+        this.stopAnimation();
+
+        if (this.animationPosition === this.radarFrames.length - 1) {
+            this.animationPosition = 0;
+            this.showFrame(this.animationPosition);
+        }
+
+        const playPauseButton = document.getElementById('radar-play-pause');
+        if (playPauseButton) {
+            playPauseButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
+        }
+
+        this.isPlaying = true;
+
+        this.animationTimer = setInterval(() => {
+            this.animationPosition = (this.animationPosition + 1) % this.radarFrames.length;
+            this.showFrame(this.animationPosition);
+        }, ANIMATION_SPEED);
+    }
+
+    stopAnimation() {
+        if (this.animationTimer) {
+            clearInterval(this.animationTimer);
+            this.animationTimer = null;
+        }
+
+        const playPauseButton = document.getElementById('radar-play-pause');
+        if (playPauseButton) {
+            playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+        }
+
+        this.isPlaying = false;
+
+        if (this.radarFrames.length > 0) {
+            this.animationPosition = this.radarFrames.length - 1;
+
+            this.showFrame(this.animationPosition);
+
+            this.updateTimelineSelection();
+        }
+    }
+
+    toggleAnimation() {
+        if (this.isPlaying) {
+            this.stopAnimation();
+        } else {
+            this.startAnimation();
+        }
+    }
+}
+
+// ---- Module-level helpers (no controller state) ----
+
+function hideWeatherElements(hide) {
+    const weatherIcon = document.getElementById('weather-icon');
+    if (weatherIcon) {
+        weatherIcon.style.display = hide ? 'none' : 'block';
+    }
+
+    const weatherBackground = document.getElementById('weather-background');
+    if (weatherBackground) {
+        weatherBackground.style.visibility = hide ? 'hidden' : 'visible';
+    }
+
+    const forecastIcons = document.querySelectorAll('.forecast-icon');
+    forecastIcons.forEach(icon => {
+        icon.style.visibility = hide ? 'hidden' : 'visible';
+    });
+
+    const hourlyIcons = document.querySelectorAll('.hourly-forecast-card .forecast-icon');
+    hourlyIcons.forEach(icon => {
+        icon.style.visibility = hide ? 'hidden' : 'visible';
     });
 }
 
-
-/**
- * Get color for alert type
- * @param {Object} alert - Alert object
- * @returns {Object} - Color information with color, borderOpacity, fillOpacity
- */
 function getAlertTypeColor(alert) {
-    // Make sure we have valid alert properties
     if (!alert || !alert.title) {
-        return { color: '#757575', borderOpacity: 0.9, fillOpacity: 0.2 }; // Default gray
+        return { color: '#757575', borderOpacity: 0.9, fillOpacity: 0.2 };
     }
 
-    // Convert event name to lowercase for case-insensitive matching
     const eventType = alert.title.toLowerCase();
     const severity = (alert.severity || '').toLowerCase();
 
-    // Get intensity level based on severity
-    let intensityLevel = 1; // Default to moderate (1)
+    let intensityLevel = 1;
 
     if (severity === 'extreme') {
-        intensityLevel = 3; // Darkest/most intense (3)
+        intensityLevel = 3;
     } else if (severity === 'severe') {
-        intensityLevel = 2; // Dark/intense (2)
+        intensityLevel = 2;
     } else if (severity === 'minor') {
-        intensityLevel = 0; // Lightest/least intense (0)
+        intensityLevel = 0;
     }
 
-    // Calculate opacity based on severity
-    const borderOpacity = 0.7 + (intensityLevel * 0.1); // 0.7, 0.8, 0.9, 1.0
-    const fillOpacity = 0.15 + (intensityLevel * 0.05); // 0.15, 0.2, 0.25, 0.3
+    const borderOpacity = 0.7 + (intensityLevel * 0.1);
+    const fillOpacity = 0.15 + (intensityLevel * 0.05);
 
-    // Get hazard type from primaryHazard or from the title
     const hazardType = alert.primaryHazard || getDefaultHazardType(alert.title);
 
-    // FLOOD / WATER RELATED ALERTS (GREEN)
     if (hazardType === 'flood') {
         const greenShades = ['#81C784', '#66BB6A', '#4CAF50', '#2E7D32'];
         return {
@@ -863,7 +1120,6 @@ function getAlertTypeColor(alert) {
         };
     }
 
-    // THUNDERSTORM RELATED ALERTS (YELLOW/ORANGE)
     if (hazardType === 'thunderstorm' || eventType.includes('special weather')) {
         const yellowShades = ['#FFD54F', '#FFC107', '#FF9800', '#F57C00'];
         return {
@@ -873,7 +1129,6 @@ function getAlertTypeColor(alert) {
         };
     }
 
-    // TORNADO RELATED ALERTS (RED)
     if (hazardType === 'tornado' || hazardType === 'dust') {
         const redShades = ['#EF9A9A', '#EF5350', '#E53935', '#B71C1C'];
         return {
@@ -883,7 +1138,6 @@ function getAlertTypeColor(alert) {
         };
     }
 
-    // WINTER WEATHER RELATED ALERTS (BLUE/PURPLE)
     if (hazardType === 'snow' || hazardType === 'ice' || hazardType === 'cold') {
         const blueShades = ['#9FA8DA', '#7986CB', '#3F51B5', '#283593'];
         return {
@@ -893,7 +1147,6 @@ function getAlertTypeColor(alert) {
         };
     }
 
-    // FIRE / HEAT RELATED ALERTS (ORANGE/RED)
     if (hazardType === 'fire' || hazardType === 'smoke' || hazardType === 'heat') {
         const orangeShades = ['#FFAB91', '#FF7043', '#F4511E', '#BF360C'];
         return {
@@ -903,7 +1156,6 @@ function getAlertTypeColor(alert) {
         };
     }
 
-    // FOG / VISIBILITY RELATED ALERTS (GRAY)
     if (hazardType === 'fog') {
         const grayShades = ['#B0BEC5', '#90A4AE', '#607D8B', '#37474F'];
         return {
@@ -913,7 +1165,6 @@ function getAlertTypeColor(alert) {
         };
     }
 
-    // WIND RELATED ALERTS (TEAL/CYAN)
     if (hazardType === 'wind' || hazardType === 'hurricane') {
         const tealShades = ['#80CBC4', '#4DB6AC', '#009688', '#00695C'];
         return {
@@ -923,7 +1174,6 @@ function getAlertTypeColor(alert) {
         };
     }
 
-    // OTHER/MISC ALERTS (PURPLE)
     const purpleShades = ['#B39DDB', '#9575CD', '#673AB7', '#4527A0'];
     return {
         color: purpleShades[intensityLevel],
@@ -951,145 +1201,64 @@ function getDefaultHazardType(title) {
     return 'unknown';
 }
 
-/**
- * Add CSS animations for alert polygons
- */
 function addAlertAnimationCSS() {
-    // Check if already added
     if (document.getElementById('alert-animation-css')) return;
 
-    // Create style element
     const style = document.createElement('style');
     style.id = 'alert-animation-css';
     style.textContent = `
         /* Pulsing animation for extreme alert polygons */
         @keyframes extreme-alert-pulse {
-            0%, 100% { 
+            0%, 100% {
                 stroke-opacity: 0.9;
                 fill-opacity: 0.3;
                 stroke-width: 3px;
             }
-            50% { 
+            50% {
                 stroke-opacity: 1;
                 fill-opacity: 0.5;
                 stroke-width: 5px;
             }
         }
-        
+
         /* Pulsing animation for severe alert polygons */
         @keyframes severe-alert-pulse {
-            0%, 100% { 
+            0%, 100% {
                 stroke-opacity: 0.8;
                 fill-opacity: 0.25;
                 stroke-width: 2.5px;
             }
-            50% { 
+            50% {
                 stroke-opacity: 0.9;
                 fill-opacity: 0.35;
                 stroke-width: 3.5px;
             }
         }
-        
+
         /* Text pulsing for popups */
         @keyframes pulse-text {
-            0%, 100% { 
+            0%, 100% {
                 opacity: 1;
             }
-            50% { 
+            50% {
                 opacity: 0.7;
             }
         }
-        
+
         /* Apply animation to extreme alert polygons */
         .extreme-alert-polygon {
             animation: extreme-alert-pulse 2s infinite ease-in-out;
         }
-        
+
         /* Apply animation to severe alert polygons */
         .severe-alert-polygon {
             animation: severe-alert-pulse 3s infinite ease-in-out;
         }
     `;
 
-    // Add to document
     document.head.appendChild(style);
 }
 
-function formatAlertText(text) {
-    if (!text) return '';
-
-    try {
-        // Replace * with bullet points
-        text = text.replace(/\*/g, '•');
-
-        // Replace double line breaks with paragraph breaks
-        text = text.replace(/\n\n/g, '</p><p>');
-
-        // Replace single line breaks with line breaks
-        text = text.replace(/\n/g, '<br>');
-
-        // Wrap the text in paragraphs
-        text = `<p>${text}</p>`;
-
-        return text;
-    } catch (error) {
-        console.error('Error formatting alert text:', error);
-        return text; // Return original text if formatting fails
-    }
-}
-
-/**
- * Format an alert time string
- * @param {string|number} timeValue - Time value (timestamp or date string)
- * @returns {string} - Formatted time string
- */
-function formatAlertTime(timeValue) {
-    if (!timeValue) return 'Unknown';
-
-    try {
-        let date;
-
-        if (typeof timeValue === 'number') {
-            // It's a timestamp in seconds
-            date = new Date(timeValue * 1000);
-        } else {
-            // It's a date string
-            date = new Date(timeValue);
-        }
-
-        // Check if date is valid
-        if (isNaN(date.getTime())) {
-            return 'Unknown';
-        }
-
-        // Format date nicely
-        return date.toLocaleString(undefined, {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit'
-        });
-    } catch (error) {
-        console.error('Error formatting alert time:', error);
-        return 'Unknown';
-    }
-}
-
-/**
- * Clear alert layers from the map
- */
-function clearAlertLayers() {
-    alertLayers.forEach(layer => {
-        if (modalMap) modalMap.removeLayer(layer);
-    });
-    alertLayers = [];
-}
-
-/**
- * Show loading indicator for map operations
- * @param {string} message - Message to display
- */
 function showMapLoadingIndicator(message = 'Loading...') {
     let loadingElement = document.getElementById('map-data-loading');
 
@@ -1116,7 +1285,6 @@ function showMapLoadingIndicator(message = 'Loading...') {
             <div>${message}</div>
         `;
 
-        // Add animation style if not already present
         if (!document.getElementById('map-loading-animation')) {
             const animStyle = document.createElement('style');
             animStyle.id = 'map-loading-animation';
@@ -1129,13 +1297,11 @@ function showMapLoadingIndicator(message = 'Loading...') {
             document.head.appendChild(animStyle);
         }
 
-        // Add to map container
         const mapContainer = document.getElementById('modal-map-container');
         if (mapContainer) {
             mapContainer.appendChild(loadingElement);
         }
     } else {
-        // Update message
         const textElement = loadingElement.querySelector('div:last-child');
         if (textElement) {
             textElement.textContent = message;
@@ -1145,9 +1311,6 @@ function showMapLoadingIndicator(message = 'Loading...') {
     }
 }
 
-/**
- * Hide map loading indicator
- */
 function hideMapLoadingIndicator() {
     const loadingElement = document.getElementById('map-data-loading');
     if (loadingElement) {
@@ -1155,10 +1318,6 @@ function hideMapLoadingIndicator() {
     }
 }
 
-/**
- * Show error message on map
- * @param {string} message - Error message
- */
 function showMapErrorMessage(message) {
     let errorElement = document.getElementById('map-data-error');
 
@@ -1185,15 +1344,12 @@ function showMapErrorMessage(message) {
     errorElement.textContent = message;
     errorElement.style.display = 'block';
 
-    // Auto-hide after delay
+    // Untracked: error toast auto-hide
     setTimeout(() => {
         errorElement.style.display = 'none';
     }, 5000);
 }
 
-/**
- * Ensure Leaflet CSS is loaded
- */
 function ensureLeafletCSS() {
     if (!document.querySelector('link[href*="leaflet.css"]')) {
         const link = document.createElement('link');
@@ -1203,15 +1359,10 @@ function ensureLeafletCSS() {
     }
 }
 
-/**
- * Load the Leaflet JavaScript library
- * @returns {Promise} - Resolves when Leaflet is loaded
- */
 function loadLeafletScript() {
     return new Promise((resolve, reject) => {
-        // Skip if Leaflet is already loaded
         if (window.L) {
-            console.log('Leaflet already loaded');
+            log('Leaflet already loaded');
             resolve();
             return;
         }
@@ -1222,31 +1373,27 @@ function loadLeafletScript() {
             script.async = true;
 
             script.onload = () => {
-                console.log('Leaflet script loaded successfully');
+                log('Leaflet script loaded successfully');
                 resolve();
             };
 
             script.onerror = (e) => {
-                console.error('Failed to load Leaflet script:', e);
+                logError('Failed to load Leaflet script:', e);
                 reject(new Error('Failed to load Leaflet script'));
             };
 
             document.head.appendChild(script);
         } catch (err) {
-            console.error('Error setting up Leaflet script:', err);
+            logError('Error setting up Leaflet script:', err);
             reject(err);
         }
     });
 }
 
-/**
- * Display an error message on the modal map
- */
 function showModalMapError(message) {
     const container = document.getElementById('modal-radar-view');
     if (!container) return;
 
-    // Create error element if not exists
     let errorElement = container.querySelector('.radar-error');
     if (!errorElement) {
         errorElement = document.createElement('div');
@@ -1269,515 +1416,6 @@ function showModalMapError(message) {
     errorElement.style.display = 'block';
 }
 
-/**
- * Fetch radar data from RainViewer API
- */
-function fetchRadarData() {
-    const loadingIndicator = document.querySelector('.radar-loading');
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'flex';
-    }
-
-    // Add a timestamp to prevent caching
-    const urlWithTimestamp = `${RAINVIEWER_API_URL}?t=${Date.now()}`;
-
-    fetch(urlWithTimestamp)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (!data || !data.radar || !data.radar.past || data.radar.past.length === 0) {
-                throw new Error('Invalid radar data format received');
-            }
-
-            processRadarData(data);
-
-            // Show the latest frame only (don't start animation)
-            if (radarFrames.length > 0) {
-                // Set the animation position to the latest frame
-                animationPosition = radarFrames.length - 1;
-
-                // Display the latest frame
-                showFrame(animationPosition);
-
-                // Make sure play button shows correct state
-                const playPauseButton = document.getElementById('radar-play-pause');
-                if (playPauseButton) {
-                    playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
-                }
-                isPlaying = false;
-                
-                // Preload all radar frames in the background
-                preloadRadarFrames().then(() => {
-                    console.log('All radar frames preloaded');
-                    // Hide loading indicator after preloading
-                    if (loadingIndicator) {
-                        loadingIndicator.style.display = 'none';
-                    }
-                });
-            } else {
-                console.warn('No radar frames available after processing');
-                // Hide loading indicator
-                if (loadingIndicator) {
-                    loadingIndicator.style.display = 'none';
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching radar data:', error);
-
-            // Hide loading indicator
-            if (loadingIndicator) {
-                loadingIndicator.style.display = 'none';
-            }
-
-            showModalMapError('Failed to load radar data: ' + error.message);
-        });
-}
-
-// Store preloaded tile layers
-let preloadedLayers = [];
-
-/**
- * Preload all radar frame tiles for smooth animation
- * @returns {Promise} - Resolves when all frames are preloaded
- */
-async function preloadRadarFrames() {
-    if (!modalMap || radarFrames.length === 0) {
-        return;
-    }
-    
-    // Clear any existing preloaded layers
-    preloadedLayers.forEach(layer => {
-        if (layer && modalMap.hasLayer(layer)) {
-            modalMap.removeLayer(layer);
-        }
-    });
-    preloadedLayers = [];
-    
-    console.log(`Preloading ${radarFrames.length} radar frames...`);
-    
-    // Get current map bounds to prioritize visible tiles
-    const bounds = modalMap.getBounds();
-    
-    // Create all tile layers and add them invisibly to trigger loading
-    const loadPromises = radarFrames.map((frame, index) => {
-        return new Promise((resolve) => {
-            const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
-            
-            const layer = L.tileLayer(tileUrl, {
-                opacity: 0, // Invisible during preload
-                zIndex: 5,  // Below the active layer
-                tileSize: 256,
-            });
-            
-            // Track when tiles are loaded
-            let loadTimeout;
-            
-            const onLoad = () => {
-                clearTimeout(loadTimeout);
-                // console.log(`Frame ${index + 1}/${radarFrames.length} preloaded`);
-                resolve(layer);
-            };
-            
-            layer.on('load', onLoad);
-            
-            // Add to map to start loading
-            layer.addTo(modalMap);
-            
-            // Store the layer reference
-            preloadedLayers[index] = layer;
-            
-            // Timeout fallback in case load event doesn't fire
-            loadTimeout = setTimeout(() => {
-                // console.log(`Frame ${index + 1} load timeout, continuing...`);
-                resolve(layer);
-            }, 5000);
-        });
-    });
-    
-    // Wait for all frames to load
-    await Promise.all(loadPromises);
-    
-    // Remove all preloaded layers from the map (they're cached now)
-    preloadedLayers.forEach(layer => {
-        if (layer) {
-            layer.setOpacity(0);
-            modalMap.removeLayer(layer);
-        }
-    });
-    
-    console.log('Radar frame preloading complete');
-}
-
-/**
- * Process radar data from API response
- * @param {Object} data - API response data
- */
-function processRadarData(data) {
-    if (!data || !data.radar || !data.radar.past) {
-        console.error('Invalid radar data format');
-        return;
-    }
-
-    // Get the most recent frames
-    let frames = [...data.radar.past];
-
-    // Limit to FRAMES_TO_KEEP most recent frames
-    if (frames.length > FRAMES_TO_KEEP) {
-        frames = frames.slice(-FRAMES_TO_KEEP);
-    }
-
-    // Store just the timestamp information - we'll construct the full URL later
-    radarFrames = frames.map(frame => ({
-        time: frame.time,
-        timestamp: new Date(frame.time * 1000)
-    }));
-
-    // Update timeline
-    updateTimeline();
-}
-
-/**
- * Update the timeline display with frame markers
- */
-function updateTimeline() {
-    const timelineContainer = document.getElementById('radar-timeline');
-    const timestampsRow = document.getElementById('radar-timestamps-row');
-    if (!timelineContainer || !timestampsRow) return;
-
-    // Clear previous content
-    timelineContainer.innerHTML = '';
-    timestampsRow.innerHTML = '';
-
-    // Create timestamps for frames
-    if (radarFrames.length > 0) {
-        // Determine how many timestamps to show based on screen width
-        const containerWidth = timelineContainer.offsetWidth;
-        const minSpaceBetweenTimestamps = 60;
-        const maxTimestamps = Math.max(5, Math.floor(containerWidth / minSpaceBetweenTimestamps));
-
-        // Calculate step size
-        let step = Math.ceil(radarFrames.length / maxTimestamps);
-
-        // At minimum, we want timestamps at the beginning, middle and end
-        // For very short frame sequences, just show all frames
-        if (radarFrames.length <= 6) {
-            step = 1;
-        } else if (radarFrames.length <= 20) {
-            step = 5; // Show every other frame
-        }
-
-        // Create timestamps
-        for (let i = 0; i < radarFrames.length; i += step) {
-            // Skip some middle frames if we have too many
-            if (i !== 0 && i !== radarFrames.length - 1 && i % (step * 2) !== 0 && radarFrames.length > 12) {
-                continue;
-            }
-
-            const timeLabel = document.createElement('div');
-            timeLabel.className = 'radar-timestamp';
-            timeLabel.style.position = 'absolute';
-            timeLabel.style.fontSize = '11px';
-            timeLabel.style.color = 'rgba(255, 255, 255, 0.9)';
-            timeLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-            timeLabel.style.padding = '1px 4px';
-            timeLabel.style.borderRadius = '3px';
-            timeLabel.style.whiteSpace = 'nowrap';
-            timeLabel.style.overflow = 'hidden';
-            timeLabel.style.textOverflow = 'ellipsis';
-            timeLabel.style.transform = 'translateX(-50%)';
-
-            // Format the time
-            const timeString = radarFrames[i].timestamp.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
-            timeLabel.textContent = timeString;
-
-            // Calculate position as percentage
-            const position = (i / (radarFrames.length - 1)) * 100;
-            timeLabel.style.left = `${position}%`;
-
-            timestampsRow.appendChild(timeLabel);
-        }
-
-        // Always ensure the last timestamp is shown
-        if (step > 1 && radarFrames.length > 1) {
-            const lastIndex = radarFrames.length - 1;
-
-            // Check if the last timestamp wasn't already added
-            if (lastIndex % step !== 0) {
-                const lastTimeLabel = document.createElement('div');
-                lastTimeLabel.className = 'radar-timestamp';
-                lastTimeLabel.style.position = 'absolute';
-                lastTimeLabel.style.fontSize = '11px';
-                lastTimeLabel.style.color = 'rgba(255, 255, 255, 0.9)';
-                lastTimeLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-                lastTimeLabel.style.padding = '1px 4px';
-                lastTimeLabel.style.borderRadius = '3px';
-                lastTimeLabel.style.whiteSpace = 'nowrap';
-                lastTimeLabel.style.overflow = 'hidden';
-                lastTimeLabel.style.textOverflow = 'ellipsis';
-                lastTimeLabel.style.right = '0';
-                lastTimeLabel.style.transform = 'translateX(0)';
-
-                const timeString = radarFrames[lastIndex].timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-
-                lastTimeLabel.textContent = timeString;
-                timestampsRow.appendChild(lastTimeLabel);
-            }
-        }
-    }
-
-    // Create frame markers
-    radarFrames.forEach((frame, index) => {
-        const marker = document.createElement('div');
-        marker.className = 'radar-frame-marker';
-        marker.style.position = 'absolute';
-        marker.style.width = '2px';
-        marker.style.height = '6px';
-        marker.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
-        marker.style.top = '0';
-        marker.style.cursor = 'pointer';
-        marker.style.transition = 'background-color 0.2s ease';
-        marker.setAttribute('data-index', index);
-
-        // Position the marker
-        marker.style.left = `${(index / (radarFrames.length - 1)) * 100}%`;
-
-        // Format time for tooltip
-        const timeString = frame.timestamp.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        // Add time tooltip
-        marker.title = timeString;
-
-        // Make marker clickable
-        marker.addEventListener('click', () => {
-            stopAnimation();
-            animationPosition = index;
-            showFrame(index);
-            updateTimelineSelection();
-        });
-
-        timelineContainer.appendChild(marker);
-    });
-
-    // Create current position indicator
-    const positionIndicator = document.createElement('div');
-    positionIndicator.id = 'radar-position-indicator';
-    positionIndicator.className = 'radar-position-indicator';
-    positionIndicator.style.position = 'absolute';
-    positionIndicator.style.width = '12px';
-    positionIndicator.style.height = '12px';
-    positionIndicator.style.backgroundColor = 'white';
-    positionIndicator.style.borderRadius = '50%';
-    positionIndicator.style.top = '50%';
-    positionIndicator.style.transform = 'translate(-50%, -50%)';
-    positionIndicator.style.boxShadow = '0 0 4px rgba(0, 0, 0, 0.5)';
-    positionIndicator.style.zIndex = '10';
-    positionIndicator.style.pointerEvents = 'none';
-    positionIndicator.style.transition = 'left 0.2s ease-out';
-    timelineContainer.appendChild(positionIndicator);
-
-    // Default to showing the latest frame
-    if (animationPosition === 0 && radarFrames.length > 0) {
-        animationPosition = radarFrames.length - 1;
-    }
-
-    // Initial selection
-    updateTimelineSelection();
-}
-
-/**
- * Update the timeline to highlight the current frame
- */
-function updateTimelineSelection() {
-    const timelineContainer = document.getElementById('radar-timeline');
-    if (!timelineContainer) return;
-
-    // Update the marker selection
-    const markers = timelineContainer.querySelectorAll('.radar-frame-marker');
-    if (!markers.length) return;
-
-    markers.forEach((marker, index) => {
-        if (index === animationPosition) {
-            marker.style.backgroundColor = 'white';
-        } else {
-            marker.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
-        }
-    });
-
-    // Update position indicator
-    const positionIndicator = document.getElementById('radar-position-indicator');
-    if (positionIndicator && radarFrames.length > 1) {
-        // Calculate position percentage
-        const position = (animationPosition / (radarFrames.length - 1)) * 100;
-        positionIndicator.style.left = `${position}%`;
-    }
-}
-
-/**
- * Show a specific radar frame
- * @param {number} index - Index of frame to show
- */
-function showFrame(index) {
-    if (!modalMap || !radarFrames.length || index >= radarFrames.length) {
-        return;
-    }
-
-    // Get the frame
-    const frame = radarFrames[index];
-
-    // Store the old overlay for removal later
-    const oldOverlay = currentOverlay;
-
-    // Create the tile URL for this frame
-    const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
-
-    // Create a new tile layer and add it to the map
-    const newOverlay = L.tileLayer(tileUrl, {
-        opacity: DEFAULT_OPACITY,
-        zIndex: 11,
-        tileSize: 256,
-    });
-
-    // Add the new layer to the map
-    newOverlay.addTo(modalMap);
-
-    // Update current overlay reference
-    currentOverlay = newOverlay;
-
-    // Remove the old overlay after a short delay (allows for smoother transition)
-    if (oldOverlay) {
-        setTimeout(() => {
-            if (modalMap.hasLayer(oldOverlay)) {
-                modalMap.removeLayer(oldOverlay);
-            }
-        }, 50);
-    }
-
-    // Update timestamp display
-    updateTimestampDisplay(frame.timestamp);
-
-    // Update timeline selection
-    updateTimelineSelection();
-}
-
-/**
- * Update the timestamp display
- * @param {Date} timestamp - Current frame timestamp
- */
-function updateTimestampDisplay(timestamp) {
-    if (!timestampDisplay) return;
-
-    try {
-        // Format date and time
-        const timeString = timestamp.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        const dateString = timestamp.toLocaleDateString([], {
-            month: 'short',
-            day: 'numeric'
-        });
-
-        // Update display
-        timestampDisplay.innerHTML = `<strong>${timeString}</strong><br>${dateString}`;
-    } catch (error) {
-        console.error('Error updating timestamp display:', error);
-        timestampDisplay.textContent = 'Time data unavailable';
-    }
-}
-
-/**
- * Start the radar animation
- */
-function startAnimation() {
-    // Stop any existing animation
-    stopAnimation();
-
-    // Start from the beginning of the animation if we're at the end
-    if (animationPosition === radarFrames.length - 1) {
-        animationPosition = 0;
-        // Show the first frame immediately
-        showFrame(animationPosition);
-    }
-
-    // Update button state
-    const playPauseButton = document.getElementById('radar-play-pause');
-    if (playPauseButton) {
-        playPauseButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
-    }
-
-    isPlaying = true;
-
-    // Start the animation timer
-    animationTimer = setInterval(() => {
-        // Move to the next frame in the sequence
-        animationPosition = (animationPosition + 1) % radarFrames.length;
-        showFrame(animationPosition);
-    }, ANIMATION_SPEED);
-}
-
-/**
- * Stop the radar animation and return to latest frame
- */
-function stopAnimation() {
-    if (animationTimer) {
-        clearInterval(animationTimer);
-        animationTimer = null;
-    }
-
-    // Update button state
-    const playPauseButton = document.getElementById('radar-play-pause');
-    if (playPauseButton) {
-        playPauseButton.innerHTML = '<i class="bi bi-play-fill"></i>';
-    }
-
-    isPlaying = false;
-
-    // Return to the latest frame when stopping
-    if (radarFrames.length > 0) {
-        // Set position to the latest frame
-        animationPosition = radarFrames.length - 1;
-
-        // Show the latest frame
-        showFrame(animationPosition);
-
-        // Update timeline selection
-        updateTimelineSelection();
-    }
-}
-
-/**
- * Toggle the animation play/pause state
- */
-function toggleAnimation() {
-    if (isPlaying) {
-        stopAnimation();
-    } else {
-        startAnimation();
-    }
-}
-
-/**
- * Debounce function to limit how often a function is called
- * @param {Function} func - Function to debounce
- * @param {number} wait - Delay in milliseconds
- * @returns {Function} - Debounced function
- */
 function debounce(func, wait) {
     let timeout;
     return function (...args) {
@@ -1786,37 +1424,10 @@ function debounce(func, wait) {
     };
 }
 
-/**
- * Check if radar modal is open
- * @returns {boolean} True if modal is open
- */
-export function isRadarModalOpen() {
-    return radarModalOpen;
-}
+// ---- Singleton + public API ----
 
-// Add enhanced back button support
-function initRadarBackButton() {
-    // Get the back button
-    const backButton = document.getElementById('radar-back-button');
-    if (!backButton) return;
+const controller = new RadarController();
 
-    // Clear any existing listeners
-    const newBackButton = backButton.cloneNode(true);
-    backButton.parentNode.replaceChild(newBackButton, backButton);
-
-    // Add click event to call closeRadarModal
-    newBackButton.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeRadarModal();
-    });
-
-    console.log('Radar back button initialized');
-}
-
-// Initialize when DOM is ready
-if (document.readyState === 'complete') {
-    initRadarBackButton();
-} else {
-    window.addEventListener('load', initRadarBackButton);
+export function initModalController() {
+    controller.init();
 }
