@@ -386,7 +386,7 @@ function initModalMap() {
 
                 // Now add the tile layer
                 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Radar: <a href="https://rainviewer.com/">RainViewer</a>',
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | &copy; <a href="https://carto.com/">CARTO</a> | Radar: <a href="https://librewxr.net">LibreWXR</a>',
                     subdomains: 'abcd',
                     maxZoom: 19,
                     opacity: 0.8

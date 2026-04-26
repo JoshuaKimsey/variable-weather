@@ -9,7 +9,7 @@
  */
 
 // App version - change this with each release
-const APP_VERSION = '2.2.3';
+const APP_VERSION = '2.2.4';
 
 // Configuration
 const CHECK_INTERVAL = 60 * 120 * 1000; // Check for updates every 2 hours (in milliseconds)
