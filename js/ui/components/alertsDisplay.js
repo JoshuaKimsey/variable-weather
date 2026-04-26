@@ -146,25 +146,32 @@ export function displayAlerts(alerts) {
  * @returns {string} - Path to the icon
  */
 function getHazardIcon(hazardType) {
-    const baseIconPath = './resources/meteocons/all/';
+    const baseIconPath = './resources/meteocons/fill/';
 
     switch (hazardType) {
         case 'tornado': return `${baseIconPath}tornado.svg`;
         case 'hail': return `${baseIconPath}hail.svg`;
         case 'flood': return `${baseIconPath}raindrops.svg`;
         case 'thunderstorm': return `${baseIconPath}thunderstorms-rain.svg`;
+        case 'lightning': return `${baseIconPath}lightning-bolt.svg`;
         case 'snow': return `${baseIconPath}snow.svg`;
         case 'ice': return `${baseIconPath}sleet.svg`;
-        case 'wind': return `${baseIconPath}wind.svg`;
-        case 'dust': return `${baseIconPath}dust.svg`;
+        case 'wind': return `${baseIconPath}wind-alert.svg`;
+        case 'dust': return `${baseIconPath}wind-dust.svg`;
         case 'smoke': return `${baseIconPath}smoke.svg`;
         case 'fog': return `${baseIconPath}fog.svg`;
         case 'heat': return `${baseIconPath}thermometer-warmer.svg`;
         case 'cold': return `${baseIconPath}thermometer-colder.svg`;
         case 'rain': return `${baseIconPath}rain.svg`;
-        case 'special-weather': return `${baseIconPath}code-yellow.svg`;
         case 'hurricane': return `${baseIconPath}hurricane.svg`;
-        default: return `${baseIconPath}code-yellow.svg`; // Fallback icon
+        case 'fire': return `${baseIconPath}weather-alarm.svg`;
+        case 'air-quality': return `${baseIconPath}smoke-particles.svg`;
+        case 'avalanche': return `${baseIconPath}alert-avalanche-danger.svg`;
+        case 'surge': return `${baseIconPath}flag-storm-warning.svg`;
+        case 'marine': return `${baseIconPath}flag-small-craft-advisory.svg`;
+        case 'tsunami': return `${baseIconPath}weather-alarm.svg`;
+        case 'special-weather': return `${baseIconPath}code-yellow.svg`;
+        default: return `${baseIconPath}code-yellow.svg`;
     }
 }
 

@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '2.2.4';
+const SW_VERSION = '2.3.0';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
@@ -69,6 +69,7 @@ const ASSETS = [
   './js/utils/cssLoader.js',
   './js/utils/formatting.js',
   './js/utils/geo.js',
+  './js/utils/logger.js',
   './js/utils/time.js',
   './js/utils/units.js',
   
@@ -89,8 +90,8 @@ const ASSETS = [
   './resources/bootstrap/icons/bootstrap-icons.min.css',
   './resources/bootstrap/icons/fonts/bootstrap-icons.woff',
   './resources/bootstrap/icons/fonts/bootstrap-icons.woff2',
-  './resources/leafet/leaflet.css',
-  './resources/leafet/leaflet.js',
+  './resources/leaflet/leaflet.css',
+  './resources/leaflet/leaflet.js',
   './resources/leaflet/images/layers-2x.png',
   './resources/leaflet/images/marker-icon-2x.png',
   './resources/leaflet/images/marker-shadow.png',
@@ -99,32 +100,42 @@ const ASSETS = [
   './resources/suncalc3/suncalc.js',
   './resources/tz-lookup/tz.js',
 
-  // Weather icons (keep these essential ones)
-  './resources/meteocons/all/clear-day.svg',
-  './resources/meteocons/all/partly-cloudy-day.svg',
-  './resources/meteocons/all/overcast-day.svg',
-  './resources/meteocons/all/cloudy.svg',
-  './resources/meteocons/all/wind.svg',
-  './resources/meteocons/all/snow.svg',
-  './resources/meteocons/all/rain.svg',
-  './resources/meteocons/all/thunderstorms-rain.svg',
-  './resources/meteocons/all/tornado.svg',
-  './resources/meteocons/all/hurricane.svg',
-  './resources/meteocons/all/dust.svg',
-  './resources/meteocons/all/smoke.svg',
-  './resources/meteocons/all/haze.svg',
-  './resources/meteocons/all/thermometer-warmer.svg',
-  './resources/meteocons/all/thermometer-colder.svg',
-  './resources/meteocons/all/fog.svg',
-  './resources/meteocons/all/sleet.svg',
-  './resources/meteocons/all/clear-night.svg',
-  './resources/meteocons/all/partly-cloudy-night.svg',
-  './resources/meteocons/all/overcast-night.svg',
-  './resources/meteocons/all/raindrops.svg',
-  './resources/meteocons/all/hail.svg',
-  './resources/meteocons/all/thunderstorms.svg',
-  './resources/meteocons/all/code-yellow.svg',
-  './resources/meteocons/all/not-available.svg',
+  // Weather icons - core forecast set
+  './resources/meteocons/fill/clear-day.svg',
+  './resources/meteocons/fill/partly-cloudy-day.svg',
+  './resources/meteocons/fill/overcast-day.svg',
+  './resources/meteocons/fill/cloudy.svg',
+  './resources/meteocons/fill/wind.svg',
+  './resources/meteocons/fill/snow.svg',
+  './resources/meteocons/fill/rain.svg',
+  './resources/meteocons/fill/thunderstorms-rain.svg',
+  './resources/meteocons/fill/tornado.svg',
+  './resources/meteocons/fill/hurricane.svg',
+  './resources/meteocons/fill/dust.svg',
+  './resources/meteocons/fill/smoke.svg',
+  './resources/meteocons/fill/haze.svg',
+  './resources/meteocons/fill/thermometer-warmer.svg',
+  './resources/meteocons/fill/thermometer-colder.svg',
+  './resources/meteocons/fill/fog.svg',
+  './resources/meteocons/fill/sleet.svg',
+  './resources/meteocons/fill/clear-night.svg',
+  './resources/meteocons/fill/partly-cloudy-night.svg',
+  './resources/meteocons/fill/overcast-night.svg',
+  './resources/meteocons/fill/raindrops.svg',
+  './resources/meteocons/fill/hail.svg',
+  './resources/meteocons/fill/thunderstorms.svg',
+  './resources/meteocons/fill/not-available.svg',
+
+  // Alert hazard icons
+  './resources/meteocons/fill/code-yellow.svg',
+  './resources/meteocons/fill/lightning-bolt.svg',
+  './resources/meteocons/fill/wind-alert.svg',
+  './resources/meteocons/fill/wind-dust.svg',
+  './resources/meteocons/fill/weather-alarm.svg',
+  './resources/meteocons/fill/smoke-particles.svg',
+  './resources/meteocons/fill/alert-avalanche-danger.svg',
+  './resources/meteocons/fill/flag-storm-warning.svg',
+  './resources/meteocons/fill/flag-small-craft-advisory.svg',
 ];
 
 // Install event - cache the app shell
@@ -175,17 +186,31 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Listen for the skipWaiting message
+// Handle messages from the page
 self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if (!event.data) return;
+
+  if (event.data.type === 'SKIP_WAITING') {
     console.log('[Service Worker] Skip waiting and activate now');
     self.skipWaiting();
+    return;
+  }
+
+  // The page asks us for our version on init so it has a single source of truth.
+  if (event.data.type === 'GET_VERSION') {
+    const port = event.ports && event.ports[0];
+    if (port) port.postMessage({ version: SW_VERSION });
   }
 });
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', event => {
-  for (let i = 0; i <= API_URLs.length; i++) {
+  // Cache API only supports http(s); skip extension/data/blob schemes and non-GETs.
+  if (event.request.method !== 'GET') return;
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.protocol !== 'http:' && requestUrl.protocol !== 'https:') return;
+
+  for (let i = 0; i < API_URLs.length; i++) {
     if (event.request.url.includes(API_URLs[i])) {
       // For API requests, use a network-first strategy with timeout
     const timeoutPromise = new Promise((resolve) => {

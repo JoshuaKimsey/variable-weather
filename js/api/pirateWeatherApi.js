@@ -1039,7 +1039,14 @@ function identifyAlertHazards(alertTitle, alertDescription, fullDescription) {
         { pattern: /\btornado\b/g, type: 'tornado' },
         { pattern: /\bhail\b/g, type: 'hail' },
         { pattern: /\bflash flood\b|\bflooding\b|\bflood\b/g, type: 'flood' },
-        { pattern: /\bthunder\b|\blightning\b|\bthunderstorm\b|\bsevere thunderstorm\b/g, type: 'thunderstorm' },
+        { pattern: /\bthunder\b|\bthunderstorm\b|\bsevere thunderstorm\b/g, type: 'thunderstorm' },
+        { pattern: /\blightning\b/g, type: 'lightning' },
+        { pattern: /\bfire weather\b|\bred flag\b|\bwildfire\b|\bfire warning\b|\bextreme fire\b/g, type: 'fire' },
+        { pattern: /\bair quality\b|\bair stagnation\b|\bsmoke advisory\b|\bparticulate\b/g, type: 'air-quality' },
+        { pattern: /\bavalanche\b/g, type: 'avalanche' },
+        { pattern: /\bstorm surge\b|\bcoastal flood\b/g, type: 'surge' },
+        { pattern: /\btsunami\b/g, type: 'tsunami' },
+        { pattern: /\bsmall craft\b|\bgale warning\b|\bmarine warning\b|\bmarine weather\b|\bbeach hazard\b|\brip current\b|\bhigh surf\b/g, type: 'marine' },
         { pattern: /\bsnow\b|\bblizzard\b|\bwinter storm\b|\bwinter weather\b/g, type: 'snow' },
         { pattern: /\bice storm\b|\bsleet\b|\bfreezing rain\b|\bfreezing drizzle\b|\bice pellets\b/g, type: 'ice' },
         { pattern: /\bfreeze\b|\bfreezing\b|\bfrost\b|\bsub-freezing\b/g, type: 'cold' },
@@ -1073,9 +1080,16 @@ function getPrimaryHazardType(alertTitle) {
 
     // Check title for primary hazard type with word boundaries
     if (/\btornado\b/.test(title)) return 'tornado';
+    if (/\btsunami\b/.test(title)) return 'tsunami';
     if (/\bhurricane\b|\btropical storm\b/.test(title)) return 'hurricane';
+    if (/\bstorm surge\b|\bcoastal flood\b/.test(title)) return 'surge';
+    if (/\bfire weather\b|\bred flag\b|\bwildfire\b|\bextreme fire\b/.test(title)) return 'fire';
+    if (/\bair quality\b|\bair stagnation\b|\bsmoke advisory\b/.test(title)) return 'air-quality';
+    if (/\bavalanche\b/.test(title)) return 'avalanche';
+    if (/\bsmall craft\b|\bgale warning\b|\bmarine warning\b|\bmarine weather\b|\bbeach hazard\b|\brip current\b|\bhigh surf\b/.test(title)) return 'marine';
     if (/\bflash flood\b/.test(title)) return 'flood';
     if (/\bthunderstorm\b/.test(title)) return 'thunderstorm';
+    if (/\blightning\b/.test(title)) return 'lightning';
     if (/\bflood\b/.test(title)) return 'flood';
     if (/\bsnow\b|\bblizzard\b|\bwinter storm\b|\bwinter weather\b/.test(title)) return 'snow';
     if (/\bice storm\b|\bfreezing rain\b|\bfreezing drizzle\b|\bsleet\b/.test(title)) return 'ice';

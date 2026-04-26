@@ -16,6 +16,7 @@ import { saveLocationToCache } from './utils/geo.js';
 import { locationChanged } from './ui/components/astronomical.js';
 import { showLoading, hideLoading, hideError, displayWeatherWithAlerts, showError } from './ui/core.js';
 import { getNowcastSource, getWeatherProvider } from './ui/controls/settings.js';
+import { log, warn } from './utils/logger.js';
 
 //==============================================================================
 // API PROVIDER IMPORTS
@@ -105,8 +106,6 @@ export function registerApiProvider(providerMetadata, fetchFunction, nowcastFunc
             }
         });
     }
-
-    //   console.log(`Registered API provider: ${provider.name} (${provider.id})`);
 }
 
 /**
@@ -239,42 +238,22 @@ registerApiProvider(
 //==============================================================================
 
 /**
- * Debug function to understand the current provider settings
- * Add this to your console to check what's stored
+ * Read and parse the cached location metadata from localStorage exactly once.
+ * Returns an object with normalized fields, or {} if nothing usable is stored.
  */
-function debugProviderSettings() {
-    // Check global setting
-    const globalProvider = localStorage.getItem('weather_app_weather_provider');
-    // console.log('Global provider setting:', globalProvider);
-
-    // Check US setting
-    const usProvider = localStorage.getItem('weather_app_us_weather_provider');
-    // console.log('US provider setting:', usProvider);
-
-    // Check location metadata
+function readLocationMetadata() {
     try {
-        const metadata = JSON.parse(localStorage.getItem('weather_location_metadata'));
-        // console.log('Location metadata:', metadata);
+        const raw = localStorage.getItem('weather_location_metadata');
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return {
+            countryCode: parsed?.countryCode?.toLowerCase() || null,
+            state: parsed?.state || null,
+            country: parsed?.country || null
+        };
     } catch (e) {
-        console.log('No valid location metadata found');
-    }
-
-    // Check all keys in localStorage for weather settings
-    const relevantKeys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.includes('weather_app') && key.includes('provider')) {
-            relevantKeys.push({
-                key: key,
-                value: localStorage.getItem(key)
-            });
-        }
-    }
-    // console.log('All provider settings:', relevantKeys);
-
-    // Check available providers
-    if (window.getAllProviders) {
-        // console.log('Available providers:', window.getAllProviders());
+        warn('Error retrieving location metadata:', e);
+        return {};
     }
 }
 
@@ -298,8 +277,11 @@ export function fetchWeather(lat, lon, locationName) {
             // Update UI components
             updateUIComponents(lat, lon);
 
+            // Read location metadata once and reuse for both provider selection and alerts
+            const locationMetadata = readLocationMetadata();
+
             // Select the most appropriate provider based on settings
-            let selectedProviderId = selectProviderForLocation();
+            let selectedProviderId = selectProviderForLocation(locationMetadata);
 
             // Get nowcast source preference
             const nowcastProviderId = getNowcastSource();
@@ -309,17 +291,14 @@ export function fetchWeather(lat, lon, locationName) {
 
             // If provider not found or requires API key we don't have, use open-meteo
             if (!selectedProvider || (selectedProvider.requiresApiKey && !selectedProvider.hasApiKey())) {
-                // console.log(`Selected provider ${selectedProviderId} unavailable, using open-meteo instead`);
                 selectedProvider = getProviderById('open-meteo');
             }
-
-            // console.log(`Using ${selectedProvider.name} for weather data at ${lat}, ${lon}`);
 
             // Fetch the weather data
             const weatherPromise = selectedProvider.fetchWeather(lat, lon, locationName, true);
 
             // Process the weather data
-            processWeatherData(weatherPromise, nowcastProviderId, lat, lon, locationName)
+            processWeatherData(weatherPromise, nowcastProviderId, lat, lon, locationName, locationMetadata)
                 .then(weatherData => {
                     // Display the weather data and resolve the promise
                     displayWeatherWithAlerts(weatherData, locationName);
@@ -346,106 +325,59 @@ export function fetchWeather(lat, lon, locationName) {
 }
 
 /**
- * Enhanced selectProviderForLocation that checks provider region compatibility
+ * Pick the right provider for the current location based on region preferences.
+ * Takes pre-parsed metadata so we don't re-read localStorage in the same fetch.
+ *
+ * @param {{countryCode?: string|null, state?: string|null}} metadata
  */
-function selectProviderForLocation() {
+function selectProviderForLocation(metadata) {
+    const { countryCode } = metadata;
     let selectedProviderId = null;
-
-    // Try to retrieve location metadata that was stored
-    let countryCode = null;
-    let state = null;
-
-    try {
-        const metadataString = localStorage.getItem('weather_location_metadata');
-        // console.log('Raw location metadata:', metadataString);
-
-        if (metadataString) {
-            const metadata = JSON.parse(metadataString);
-            countryCode = metadata.countryCode?.toLowerCase();
-            state = metadata.state;
-            // console.log('Parsed location metadata:', {
-            //     countryCode: countryCode,
-            //     state: state,
-            //     raw: metadata
-            // });
-        } else {
-            console.warn('No location metadata found in localStorage');
-        }
-    } catch (e) {
-        console.warn('Error retrieving location metadata:', e);
-    }
 
     // If we successfully identified a country, check for region-specific provider
     if (countryCode) {
-        // console.log(`Detected country code: ${countryCode}`);
-
-        // Get the region-specific provider setting
         const regionStorageKey = `weather_app_${countryCode}_weather_provider`;
-        // console.log('Looking for region setting with key:', regionStorageKey);
-
         const regionProvider = localStorage.getItem(regionStorageKey);
-        // console.log('Found region provider setting:', regionProvider);
 
         if (regionProvider && regionProvider !== 'automatic') {
-            // Get the provider metadata to check if it actually supports this region
             const providerObj = getProviderById(regionProvider);
 
             if (providerObj) {
-                // console.log('Provider object found:', providerObj.id);
-
-                // Check if this provider actually supports this region
                 const supportsRegion = providerObj.regions?.includes(countryCode) ||
                     providerObj.regions?.includes('global');
 
-                // console.log(`Provider ${providerObj.id} supports region ${countryCode}: ${supportsRegion}`);
-
                 if (supportsRegion) {
-                    // console.log(`Using region-specific provider ${regionProvider} for ${countryCode}`);
                     selectedProviderId = regionProvider;
                 } else {
-                    console.warn(`Provider ${regionProvider} does not support region ${countryCode}, using global provider instead`);
+                    warn(`Provider ${regionProvider} does not support region ${countryCode}, using global provider instead`);
                 }
             } else {
-                console.warn(`Provider ${regionProvider} not found in registry`);
+                warn(`Provider ${regionProvider} not found in registry`);
             }
-        } else {
-            // console.log(`No valid region-specific provider found for ${countryCode}`);
         }
-    } else {
-        console.warn('No country code available for region-specific provider lookup');
     }
 
     // If we don't have a region-specific provider, use the global setting
     if (!selectedProviderId) {
-        const globalProvider = getWeatherProvider();
-        // console.log(`Using global provider setting: ${globalProvider}`);
-        selectedProviderId = globalProvider;
+        selectedProviderId = getWeatherProvider();
 
         // If global is automatic, use open-meteo
         if (selectedProviderId === 'automatic') {
             selectedProviderId = 'open-meteo';
-            // console.log(`Global set to automatic, using default: ${selectedProviderId}`);
-        } else {
+        } else if (countryCode) {
             // Check if the selected global provider supports the region
-            if (countryCode) {
-                const globalProviderObj = getProviderById(selectedProviderId);
-                if (globalProviderObj && globalProviderObj.regions) {
-                    const supportsRegion = globalProviderObj.regions.includes(countryCode) ||
-                        globalProviderObj.regions.includes('global');
+            const globalProviderObj = getProviderById(selectedProviderId);
+            if (globalProviderObj && globalProviderObj.regions) {
+                const supportsRegion = globalProviderObj.regions.includes(countryCode) ||
+                    globalProviderObj.regions.includes('global');
 
-                    // console.log(`Global provider ${selectedProviderId} supports region ${countryCode}: ${supportsRegion}`);
-
-                    if (!supportsRegion) {
-                        console.warn(`Global provider ${selectedProviderId} doesn't support region ${countryCode}, using open-meteo instead`);
-                        selectedProviderId = 'open-meteo';
-                    }
+                if (!supportsRegion) {
+                    warn(`Global provider ${selectedProviderId} doesn't support region ${countryCode}, using open-meteo instead`);
+                    selectedProviderId = 'open-meteo';
                 }
             }
         }
     }
-
-    // console.log('Final provider selection:', selectedProviderId);
-    // console.log('*** END PROVIDER SELECTION DEBUG ***');
 
     return selectedProviderId;
 }
@@ -478,25 +410,15 @@ function updateUIComponents(lat, lon) {
  * @param {number} lat - Latitude
  * @param {number} lon - Longitude
  * @param {string} locationName - Location name
+ * @param {{countryCode?: string|null}} metadata - Pre-parsed location metadata
  * @returns {Promise} Promise for the complete weather data
  */
-async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, locationName) {
+async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, locationName, metadata = {}) {
     try {
         // Wait for the main weather data
         const weatherData = await weatherPromise;
-        // console.log('Main weather data received from:', weatherData.source);
 
-        // Get the country code from the location metadata if available
-        let countryCode = null;
-        try {
-            const metadataString = localStorage.getItem('weather_location_metadata');
-            if (metadataString) {
-                const metadata = JSON.parse(metadataString);
-                countryCode = metadata.countryCode?.toLowerCase();
-            }
-        } catch (e) {
-            console.warn('Error retrieving location metadata:', e);
-        }
+        const countryCode = metadata.countryCode || null;
 
         // Process alerts using the dedicated alerts system
         try {
@@ -511,7 +433,7 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
                 }
             }
         } catch (error) {
-            console.warn('Error fetching alerts from alerts system:', error);
+            warn('Error fetching alerts from alerts system:', error);
             // Continue without alerts if there's an error
         }
 
@@ -520,8 +442,6 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
         const nowcastProvider = getProviderById(nowcastProviderId);
 
         if (nowcastProvider) {
-            // console.log(`Using ${nowcastProvider.name} for nowcast data`);
-
             // Only fetch nowcast if the provider supports it and has required API keys
             if (nowcastProvider.supportsNowcast &&
                 (!nowcastProvider.requiresApiKey || nowcastProvider.hasApiKey())) {
@@ -529,7 +449,6 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
                 try {
                     // Check if the provider has a fetchNowcast method
                     if (typeof nowcastProvider.fetchNowcast === 'function') {
-                        // console.log(`Fetching nowcast data from ${nowcastProvider.name}...`);
                         const nowcastData = await nowcastProvider.fetchNowcast(lat, lon, weatherData.timezone);
 
                         // If using Pirate Weather, also fetch Open-Meteo for extended forecast
@@ -539,10 +458,9 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
                             if (openMeteoProvider && typeof openMeteoProvider.fetchNowcast === 'function') {
                                 try {
                                     const extendedData = await openMeteoProvider.fetchNowcast(lat, lon, weatherData.timezone);
-                                    // Merge the two datasets
                                     weatherData.nowcast = mergeNowcastData(nowcastData, extendedData);
                                 } catch (extendedError) {
-                                    console.warn('Failed to fetch extended forecast from Open-Meteo:', extendedError);
+                                    warn('Failed to fetch extended forecast from Open-Meteo:', extendedError);
                                     // Use just Pirate Weather data if Open-Meteo fails
                                     weatherData.nowcast = nowcastData;
                                 }
@@ -550,10 +468,8 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
                                 weatherData.nowcast = nowcastData;
                             }
                         } else {
-                            // Replace the existing nowcast data with the new data
                             weatherData.nowcast = nowcastData;
                         }
-                        // console.log('Nowcast data added from:', nowcastProvider.name);
 
                         // Ensure the attribution is set correctly for the nowcast
                         if (weatherData.nowcast && !weatherData.nowcast.attribution) {
@@ -563,32 +479,28 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
                             };
                         }
                     } else {
-                        console.warn(`Provider ${nowcastProvider.name} doesn't have a fetchNowcast method`);
+                        warn(`Provider ${nowcastProvider.name} doesn't have a fetchNowcast method`);
                     }
                 } catch (error) {
                     console.error(`Failed to fetch nowcast from ${nowcastProvider.name}:`, error);
-                    // Keep existing nowcast data if available, or set to a default state
                     ensureDefaultNowcast(weatherData, nowcastProvider);
                 }
             } else {
-                // console.log(`Provider ${nowcastProvider.name} either doesn't support nowcast or lacks required API key`);
                 ensureDefaultNowcast(weatherData, nowcastProvider);
             }
         } else {
-            console.warn(`Nowcast provider ${nowcastProviderId} not found, using Open-Meteo as fallback`);
-            // Try to use Open-Meteo as fallback for nowcast
+            warn(`Nowcast provider ${nowcastProviderId} not found, using Open-Meteo as fallback`);
             const openMeteoProvider = getProviderById('open-meteo');
             if (openMeteoProvider && typeof openMeteoProvider.fetchNowcast === 'function') {
                 try {
                     const nowcastData = await openMeteoProvider.fetchNowcast(lat, lon, weatherData.timezone);
                     weatherData.nowcast = nowcastData;
-                    // console.log('Nowcast data added from Open-Meteo (fallback)');
                 } catch (err) {
                     console.error('Failed to fetch nowcast from Open-Meteo fallback:', err);
                     ensureDefaultNowcast(weatherData, openMeteoProvider);
                 }
             } else {
-                console.warn('Open-Meteo fallback not available for nowcast');
+                warn('Open-Meteo fallback not available for nowcast');
                 ensureDefaultNowcast(weatherData);
             }
         }
@@ -596,7 +508,7 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
         return weatherData;
     } catch (error) {
         console.error('Error processing weather data:', error);
-        throw error; // Re-throw to be handled by the caller
+        throw error;
     }
 }
 
@@ -795,7 +707,5 @@ function handleLocationUpdates(lat, lon, locationName) {
  * @param {string} source - The data source ('nws', 'open-meteo', or 'pirate')
  */
 export function setApiAttribution(source) {
-    // This function is now just a compatibility wrapper
-    // The actual attribution is set by each API implementation
-    // console.log(`Attribution source: ${source} (handled by source API)`);
+    // Compatibility wrapper. Actual attribution is set by each API implementation.
 }

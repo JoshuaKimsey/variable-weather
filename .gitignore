@@ -1,0 +1,12 @@
+# Local development server (not deployed; not needed by GitHub Pages)
+dev-server.py
+.dev-server.pid
+.dev-server.log
+
+# Editor / OS cruft
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*~

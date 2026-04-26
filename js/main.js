@@ -12,6 +12,7 @@
 import { DEFAULT_COORDINATES } from './config.js';
 import { fetchWeather } from './api.js';
 import { initAutoUpdate, startLastUpdatedTimer, resetLastUpdateTime } from './utils/autoUpdate.js';
+import { log, warn, error as logError } from './utils/logger.js';
 import {
     initUI,
     setupEventListeners,
@@ -115,14 +116,14 @@ function determineInitialLocation() {
     const locationName = urlParams.get('location');
 
     if (lat && lon) {
-        console.log('Using location from URL parameters');
+        log('Using location from URL parameters');
 
-        // Even if we have URL params, we need to fetch location metadata for API selection
-        // We'll do this in the background so the UI remains responsive
-        fetchLocationMetadata(lat, lon).then(() => {
-            console.log('Location metadata updated in background');
-        }).catch(error => {
-            console.warn('Failed to update location metadata:', error);
+        // Even if we have URL params, we need to fetch location metadata for API selection.
+        // Fire-and-forget so the UI stays responsive.
+        fetchLocationData(lat, lon).then(() => {
+            log('Location metadata updated in background');
+        }).catch(err => {
+            warn('Failed to update location metadata:', err);
         });
 
         fetchWeather(lat, lon, locationName);
@@ -134,7 +135,7 @@ function determineInitialLocation() {
     const cachedLocation = getCachedLocation();
 
     if (cachedLocation) {
-        console.log('Using cached location from localStorage');
+        log('Using cached location from localStorage');
         // Use cached location data immediately
         fetchWeather(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
 
@@ -151,68 +152,62 @@ function determineInitialLocation() {
             checkLocationChange();
         }
     } else {
-        console.log('No cached location found');
+        log('No cached location found');
         // Check if user has explicitly disabled geolocation
         const geoEnabled = localStorage.getItem('geolocation_enabled');
 
         if (geoEnabled === 'false') {
             // User has explicitly opted out of geolocation
-            console.log('Geolocation disabled, using default location');
+            log('Geolocation disabled, using default location');
             fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
         } else {
             // First time user or geolocation is enabled - directly try geolocation
-            console.log('Attempting to get user location');
+            log('Attempting to get user location');
             getUserLocation();
         }
     }
 }
 
 /**
- * Fetch location metadata from coordinates without updating the UI
- * This function will be added to main.js
+ * Reverse-geocode via Nominatim and persist location metadata to localStorage.
+ * Returns both the human-readable display name (when present) and the parsed
+ * metadata object, so callers can use whichever they need without repeating
+ * the request.
+ *
+ * @param {number} lat
+ * @param {number} lon
+ * @returns {Promise<{displayName: string|null, metadata: Object}>}
  */
-function fetchLocationMetadata(lat, lon) {
-    return new Promise((resolve, reject) => {
-        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
+async function fetchLocationData(lat, lon) {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
 
-        fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to get location metadata');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data && data.address) {
-                    // Store the location data for provider selection
-                    try {
-                        // Save countryCode and other relevant data to localStorage
-                        const locationMetadata = {
-                            countryCode: data.address?.country_code || null,
-                            country: data.address?.country || null,
-                            state: data.address?.state || null,
-                            timestamp: Date.now()
-                        };
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error('Failed to get location data');
+    }
 
-                        // Save the location data
-                        localStorage.setItem('weather_location_metadata', JSON.stringify(locationMetadata));
-                        // console.log('Stored location metadata:', locationMetadata);
-                        resolve(locationMetadata);
-                    } catch (e) {
-                        console.warn('Error storing location metadata:', e);
-                        reject(e);
-                    }
-                } else {
-                    const error = new Error('No valid location data found');
-                    console.warn(error);
-                    reject(error);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching location metadata:', error);
-                reject(error);
-            });
-    });
+    const data = await response.json();
+    if (!data || !data.address) {
+        throw new Error('No valid location data found');
+    }
+
+    const metadata = {
+        countryCode: data.address?.country_code || null,
+        country: data.address?.country || null,
+        state: data.address?.state || null,
+        timestamp: Date.now()
+    };
+
+    try {
+        localStorage.setItem('weather_location_metadata', JSON.stringify(metadata));
+    } catch (e) {
+        warn('Error storing location metadata:', e);
+    }
+
+    return {
+        displayName: data.display_name || null,
+        metadata
+    };
 }
 
 /**
@@ -258,23 +253,17 @@ function getUserLocation() {
             // Remember that user enabled geolocation
             localStorage.setItem('geolocation_enabled', 'true');
 
-            // Get location name using reverse geocoding
-            reverseGeocode(lat, lon)
-                .then(locationName => {
+            // Get location name + metadata via Nominatim
+            fetchLocationData(lat, lon)
+                .then(({ displayName }) => {
                     // Update URL with new coordinates and location name
-                    updateURLParameters(lat, lon, locationName);
+                    updateURLParameters(lat, lon, displayName);
 
                     // Fetch weather for the location
-                    fetchWeather(lat, lon, locationName);
+                    fetchWeather(lat, lon, displayName);
                 })
-                .catch(error => {
-                    console.error('Error getting location name:', error);
-
-                    // Still try to get location metadata even if display name fails
-                    fetchLocationMetadata(lat, lon).catch(e => {
-                        console.warn('Also failed to get location metadata:', e);
-                    });
-
+                .catch(err => {
+                    logError('Error getting location data:', err);
                     // Even without a location name, we can still get weather
                     updateURLParameters(lat, lon);
                     fetchWeather(lat, lon);
@@ -319,52 +308,6 @@ function getUserLocation() {
 }
 
 /**
- * Modify the existing reverseGeocode function to store structured data
- * This should be placed in main.js to replace the existing reverseGeocode function
- */
-function reverseGeocode(lat, lon) {
-    return new Promise((resolve, reject) => {
-        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
-
-        fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to get location name');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data && data.display_name) {
-                    // Store the location data for provider selection
-                    try {
-                        // Save countryCode and other relevant data to localStorage
-                        const locationMetadata = {
-                            countryCode: data.address?.country_code || null,
-                            country: data.address?.country || null,
-                            state: data.address?.state || null,
-                            timestamp: Date.now()
-                        };
-
-                        // Save with the location data
-                        localStorage.setItem('weather_location_metadata', JSON.stringify(locationMetadata));
-                        console.log('Stored location metadata:', locationMetadata);
-                    } catch (e) {
-                        console.warn('Error storing location metadata:', e);
-                    }
-
-                    resolve(data.display_name);
-                } else {
-                    throw new Error('No location name found');
-                }
-            })
-            .catch(error => {
-                console.error('Reverse geocoding error:', error);
-                reject(error);
-            });
-    });
-}
-
-/**
  * Check if the user's location has changed significantly
  * If it has, update the weather for the new location
  */
@@ -386,20 +329,20 @@ function checkLocationChange() {
                     currentLat, currentLon,
                     cachedLocation.lat, cachedLocation.lon
                 )) {
-                    console.log('Location has changed significantly, updating weather');
+                    log('Location has changed significantly, updating weather');
 
-                    // Get location name using reverse geocoding
-                    reverseGeocode(currentLat, currentLon)
-                        .then(locationName => {
+                    // Get location name + metadata via Nominatim
+                    fetchLocationData(currentLat, currentLon)
+                        .then(({ displayName }) => {
                             // Update URL and fetch new weather
-                            updateURLParameters(currentLat, currentLon, locationName);
-                            fetchWeather(currentLat, currentLon, locationName);
+                            updateURLParameters(currentLat, currentLon, displayName);
+                            fetchWeather(currentLat, currentLon, displayName);
 
                             // Update the cache
-                            saveLocationToCache(currentLat, currentLon, locationName);
+                            saveLocationToCache(currentLat, currentLon, displayName);
                         })
-                        .catch(error => {
-                            console.error('Error getting location name:', error);
+                        .catch(err => {
+                            logError('Error getting location data:', err);
                             // Even without a location name, we can still update
                             updateURLParameters(currentLat, currentLon);
                             fetchWeather(currentLat, currentLon);
@@ -408,12 +351,12 @@ function checkLocationChange() {
                             saveLocationToCache(currentLat, currentLon);
                         });
                 } else {
-                    console.log('Location has not changed significantly');
+                    log('Location has not changed significantly');
                 }
             },
             // Error callback - silent fail, just keep using cached location
-            (error) => {
-                console.log('Unable to get current location, using cached location');
+            () => {
+                log('Unable to get current location, using cached location');
             },
             // Options - quick timeout for background check
             {

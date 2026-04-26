@@ -1,128 +1,167 @@
 /**
  * PWA Update System
- * 
- * This module provides update functionality for the weather PWA:
- * 1. Detects when a new version is available
- * 2. Shows an update notification to the user
- * 3. Provides a button to apply the update
- * 4. Includes version checking and display
+ *
+ * - Reads the app version from the active service worker (single source of truth).
+ * - Surfaces "Update Now" notification when a new SW is installed and waiting.
+ * - Triggers a controlled reload after the user accepts.
+ *
+ * Browsers automatically re-check sw.js on navigation (and within 24h of an
+ * active SW), so we don't poll on a timer. The `updatefound` event from the
+ * registration is what fires when a new SW is detected.
  */
 
-// App version - change this with each release
-const APP_VERSION = '2.2.4';
+import { log, warn } from './utils/logger.js';
 
-// Configuration
-const CHECK_INTERVAL = 60 * 120 * 1000; // Check for updates every 2 hours (in milliseconds)
+const GITHUB_URL = 'https://github.com/JoshuaKimsey/variable-weather';
+const VERSION_QUERY_TIMEOUT_MS = 2000;
 
-// Global state
-let updateAvailable = false;
 let registration = null;
+let refreshing = false;
 
 /**
  * Initialize the PWA update system
  */
 function initUpdateSystem() {
-    // Expose the version in the window object for debugging
-    window.appVersion = APP_VERSION;
-
-    console.log(`Variable Weather Version: ${APP_VERSION}`);
-
-    // Display current version in the UI
-    displayAppVersion();
-
-    // Setup periodic update checks
+    initVersionDisplay();
     setupUpdateChecking();
-
-    // Create update notification UI (hidden by default)
     createUpdateNotification();
 }
 
 /**
- * Display the current app version in the UI with GitHub link
+ * Ask the active service worker for its version using a MessageChannel.
+ * Prefers `controller`, but falls back to `registration.active` so we get a
+ * version even on the first load after install when controller isn't set yet.
  */
-function displayAppVersion() {
-    const footerElement = document.querySelector('.attribution-footer');
-    const GITHUB_URL = 'https://github.com/JoshuaKimsey/variable-weather';
+function getServiceWorkerVersion(reg) {
+    if (!('serviceWorker' in navigator)) return Promise.resolve(null);
 
-    if (footerElement) {
-        // Create version display element if it doesn't exist
-        let versionDisplay = document.getElementById('app-version-display');
+    const target = navigator.serviceWorker.controller || (reg && reg.active);
+    if (!target) return Promise.resolve(null);
 
-        if (!versionDisplay) {
-            versionDisplay = document.createElement('div');
-            versionDisplay.id = 'app-version-display';
-            versionDisplay.className = 'app-version';
-            footerElement.appendChild(versionDisplay);
+    return new Promise(resolve => {
+        const channel = new MessageChannel();
+        let settled = false;
+
+        const finish = (value) => {
+            if (settled) return;
+            settled = true;
+            resolve(value);
+        };
+
+        channel.port1.onmessage = (event) => finish(event.data?.version || null);
+
+        try {
+            target.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
+        } catch (err) {
+            warn('Failed to query SW for version:', err);
+            finish(null);
+            return;
         }
 
-        // Create a link element for the version
-        versionDisplay.innerHTML = `&copy; Copyright 2025 <a href="https://github.com/JoshuaKimsey" target="_blank" rel="noopener" class="version-link">Joshua Kimsey</a> - Variable Weather: <a href="${GITHUB_URL}" target="_blank" rel="noopener" class="version-link">v${APP_VERSION}</a>`;
-    }
+        setTimeout(() => finish(null), VERSION_QUERY_TIMEOUT_MS);
+    });
 }
 
 /**
- * Setup service worker update checking
+ * Render the footer immediately with a fallback, then upgrade to the version
+ * label asynchronously once the SW responds. Never blocks on SW state — if
+ * registration fails (e.g., scope mismatch on localhost), the GitHub-link
+ * footer still renders.
+ */
+function initVersionDisplay() {
+    renderVersionFooter(null);
+
+    if (!('serviceWorker' in navigator)) return;
+
+    const ready = Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), VERSION_QUERY_TIMEOUT_MS))
+    ]);
+
+    ready
+        .then(reg => getServiceWorkerVersion(reg))
+        .then(version => {
+            if (!version) return;
+            window.appVersion = version;
+            log(`Variable Weather Version: ${version}`);
+            renderVersionFooter(version);
+        })
+        .catch(err => warn('Could not retrieve SW version:', err));
+}
+
+/**
+ * Insert (or update) the version line in the attribution footer.
+ */
+function renderVersionFooter(version) {
+    const footerElement = document.querySelector('.attribution-footer');
+    if (!footerElement) return;
+
+    let versionDisplay = document.getElementById('app-version-display');
+    if (!versionDisplay) {
+        versionDisplay = document.createElement('div');
+        versionDisplay.id = 'app-version-display';
+        versionDisplay.className = 'app-version';
+        footerElement.appendChild(versionDisplay);
+    }
+
+    const versionLink = version
+        ? `<a href="${GITHUB_URL}" target="_blank" rel="noopener" class="version-link">v${version}</a>`
+        : `<a href="${GITHUB_URL}" target="_blank" rel="noopener" class="version-link">GitHub</a>`;
+
+    versionDisplay.innerHTML =
+        `&copy; Copyright 2025 ` +
+        `<a href="https://github.com/JoshuaKimsey" target="_blank" rel="noopener" class="version-link">Joshua Kimsey</a>` +
+        ` - Variable Weather: ${versionLink}`;
+}
+
+/**
+ * Wire up SW update detection. The browser handles polling for us; we just
+ * react to `updatefound` and to a SW that's already waiting on page load.
  */
 function setupUpdateChecking() {
-    // Only run in production environments with service worker support
-    if ('serviceWorker' in navigator) {
-        // Store the registration for later use
-        navigator.serviceWorker.ready.then(reg => {
-            registration = reg;
+    if (!('serviceWorker' in navigator)) return;
 
-            // Check for updates immediately on load
-            checkForUpdates();
+    navigator.serviceWorker.ready.then(reg => {
+        registration = reg;
 
-            // Set up periodic update checks
-            setInterval(checkForUpdates, CHECK_INTERVAL);
+        // A new SW from a previous tab/session may already be waiting.
+        if (reg.waiting && navigator.serviceWorker.controller) {
+            showUpdateNotification();
+        }
 
-            // Listen for controlling service worker changes
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                // This fires when the service worker controlling this page changes,
-                // which happens when a new service worker is activated.
-                console.log('Controller changed - page will reload shortly');
+        reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (!newWorker) return;
 
-                // Wait a moment to ensure the service worker is fully active,
-                // then reload the page to load new assets
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+            newWorker.addEventListener('statechange', () => {
+                // Only notify if there's already an active controller — otherwise
+                // this is the first install, not an update.
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    log('New service worker installed and waiting');
+                    showUpdateNotification();
+                }
             });
         });
+    }).catch(err => {
+        warn('Service worker not ready:', err);
+    });
 
-        // Listen for new service workers installing
-        navigator.serviceWorker.addEventListener('message', event => {
-            if (event.data && event.data.type === 'VERSION_CHANGE') {
-                console.log(`New version available: ${event.data.version}`);
-                showUpdateNotification(event.data.version);
-            }
-        });
-    }
-}
+    // When the new SW takes control, reload exactly once.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        log('New SW now controlling — reloading');
+        window.location.reload();
+    });
 
-/**
- * Check if a service worker update is available
- */
-function checkForUpdates() {
-    if (!registration) return;
-
-    console.log('Checking for PWA updates...');
-
-    // This method checks the server for an updated service worker
-    registration.update()
-        .then(() => {
-            console.log('Update check completed');
-
-            // After update() resolves, check if there's a new service worker waiting
-            if (registration.waiting) {
-                console.log('New service worker waiting');
-                updateAvailable = true;
-                showUpdateNotification();
-            }
-        })
-        .catch(error => {
-            console.error('Update check failed:', error);
-        });
+    // Optional: SW broadcasts VERSION_CHANGE on install. We use it as a hint
+    // to surface the notification with the new version label.
+    navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data?.type === 'VERSION_CHANGE') {
+            log(`New version available: ${event.data.version}`);
+            showUpdateNotification(event.data.version);
+        }
+    });
 }
 
 /**
@@ -153,7 +192,6 @@ function createUpdateNotification() {
 
     document.body.appendChild(updateNotification);
 
-    // Add styles for the notification
     const style = document.createElement('style');
     style.innerHTML = `
         .update-notification {
@@ -170,13 +208,13 @@ function createUpdateNotification() {
             overflow: hidden;
             animation: slideUp 0.3s ease-out;
         }
-        
+
         .update-content {
             padding: 16px;
             display: flex;
             flex-wrap: wrap;
         }
-        
+
         .update-icon {
             width: 40px;
             height: 40px;
@@ -188,34 +226,34 @@ function createUpdateNotification() {
             justify-content: center;
             margin-right: 16px;
         }
-        
+
         .update-icon i {
             font-size: 20px;
         }
-        
+
         .update-message {
             flex: 1;
             min-width: 150px;
         }
-        
+
         .update-message strong {
             display: block;
             margin-bottom: 4px;
         }
-        
+
         .update-message p {
             margin: 4px 0;
             color: #666;
             font-size: 14px;
         }
-        
+
         #update-version {
             font-size: 12px;
             color: #888;
             display: inline-block;
             margin-left: 8px;
         }
-        
+
         .update-actions {
             display: flex;
             justify-content: flex-end;
@@ -224,7 +262,7 @@ function createUpdateNotification() {
             width: 100%;
             margin-top: 12px;
         }
-        
+
         .update-button {
             background-color: #1e88e5;
             color: white;
@@ -234,7 +272,7 @@ function createUpdateNotification() {
             cursor: pointer;
             font-weight: 500;
         }
-        
+
         .dismiss-button {
             background: none;
             border: none;
@@ -242,7 +280,7 @@ function createUpdateNotification() {
             cursor: pointer;
             padding: 8px;
         }
-        
+
         @keyframes slideUp {
             from {
                 transform: translate(-50%, 100%);
@@ -256,63 +294,48 @@ function createUpdateNotification() {
     `;
     document.head.appendChild(style);
 
-    // Add event listeners
     document.getElementById('apply-update').addEventListener('click', applyUpdate);
     document.getElementById('dismiss-update').addEventListener('click', dismissUpdateNotification);
 }
 
 /**
  * Show the update notification to the user
- * @param {string} newVersion - The version of the new update (optional)
+ * @param {string} newVersion - Optional version label
  */
 function showUpdateNotification(newVersion = '') {
     const notification = document.getElementById('update-notification');
-    if (notification) {
-        // Show version info if available
-        if (newVersion) {
-            const versionElement = document.getElementById('update-version');
-            if (versionElement) {
-                versionElement.textContent = `(${newVersion})`;
-            }
-        }
+    if (!notification) return;
 
-        notification.style.display = 'block';
+    if (newVersion) {
+        const versionElement = document.getElementById('update-version');
+        if (versionElement) versionElement.textContent = `(${newVersion})`;
     }
+
+    notification.style.display = 'block';
 }
 
-/**
- * Hide the update notification
- */
 function dismissUpdateNotification() {
     const notification = document.getElementById('update-notification');
-    if (notification) {
-        notification.style.display = 'none';
-    }
+    if (notification) notification.style.display = 'none';
 }
 
 /**
- * Apply the available update
+ * Tell the waiting SW to take over. The `controllerchange` listener handles
+ * the reload once it does.
  */
 function applyUpdate() {
     if (!registration || !registration.waiting) {
-        console.warn('No update available to apply');
+        warn('No update available to apply');
         dismissUpdateNotification();
         return;
     }
 
-    console.log('Applying update...');
-
-    // Send message to the waiting service worker to skip waiting
+    log('Applying update...');
     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-
-    // Hide the notification
     dismissUpdateNotification();
 }
 
-// Export functions for external use
 export {
     initUpdateSystem,
-    checkForUpdates,
-    applyUpdate,
-    APP_VERSION
+    applyUpdate
 };

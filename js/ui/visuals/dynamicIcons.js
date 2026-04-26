@@ -108,7 +108,7 @@ function createMeteoconIcon(element, iconName, isForecast = false) {
     try {
         // Create an img element for the SVG
         const icon = document.createElement('img');
-        icon.src = `./resources/meteocons/all/${iconName}.svg`;
+        icon.src = `./resources/meteocons/fill/${iconName}.svg`;
         icon.alt = iconName.replace(/-/g, ' ') + ' weather icon';
         icon.style.width = `${size}px`;
         icon.style.height = `${size}px`;
