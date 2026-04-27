@@ -161,9 +161,24 @@
 }
 
 /* Severity-specific styles */
+.alert-emergency {
+    border-left-color: var(--emergency-color);
+    animation: flash-alert-emergency 1s infinite;
+}
+
+.alert-emergency .alert-severity {
+    background-color: var(--emergency-color);
+    color: white;
+}
+
 .alert-extreme {
     border-left-color: var(--extreme-color);
     animation: flash-alert 2s infinite;
+}
+
+.alert-extreme .alert-severity {
+    background-color: var(--extreme-color);
+    color: white;
 }
 
 .alert-severe {
@@ -204,6 +219,17 @@
     50% {
         background-color: rgba(255, 255, 255, 0.85);
         box-shadow: 0 0 5px rgba(211, 47, 47, 0.2);
+    }
+}
+
+@keyframes flash-alert-emergency {
+    0%, 100% {
+        background-color: rgba(225, 190, 231, 0.95);
+        box-shadow: 0 0 18px rgba(123, 31, 162, 0.55);
+    }
+    50% {
+        background-color: rgba(255, 255, 255, 0.85);
+        box-shadow: 0 0 6px rgba(123, 31, 162, 0.25);
     }
 }
 

@@ -44,6 +44,7 @@
     --warning-color: #ff9800;
 
     /* Alert severity colors */
+    --emergency-color: #7B1FA2;
     --extreme-color: #d32f2f;
     --severe-color: #f44336;
     --moderate-color: #ff9800;

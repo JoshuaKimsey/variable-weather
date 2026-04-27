@@ -53,6 +53,7 @@ export function displayAlerts(alerts) {
         // Sort alerts by severity (extreme first, then severe, etc.)
         const sortedAlerts = [...alerts].sort((a, b) => {
             const severityOrder = {
+                'emergency': 0,
                 'extreme': 1,
                 'severe': 2,
                 'moderate': 3,

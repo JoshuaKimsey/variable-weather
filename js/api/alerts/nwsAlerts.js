@@ -148,103 +148,100 @@ function processNWSAlerts(alertsData, includeGeometry = false) {
 }
 
 /**
- * Determine alert severity based on NWS properties
+ * Determine alert severity based on NWS properties.
+ *
+ * Five-tier system:
+ *   emergency – immediate, catastrophic, life-saving action required
+ *   extreme   – imminent threat to life and property
+ *   severe    – significant threat (most warnings)
+ *   moderate  – possible threat (most watches, plus freeze warnings)
+ *   minor     – low-impact advisories/statements
+ *
+ * Emergency-level phrasing ("particularly dangerous situation",
+ * "tornado emergency", "flash flood emergency") often appears in the
+ * headline or description rather than the event field, so the detection
+ * scans event + headline + description + parameters.NWSheadline.
+ *
  * @param {Object} props - Alert properties
  * @returns {string} Standardized severity level
  */
 function determineAlertSeverity(props) {
-  // First check if the API provides a severity level directly
+  const event = (props.event || '').toLowerCase();
+  const headline = (props.headline || '').toLowerCase();
+  const description = (props.description || '').toLowerCase();
+  const nwsHeadline = (props.parameters && Array.isArray(props.parameters.NWSheadline))
+    ? props.parameters.NWSheadline.join(' ').toLowerCase()
+    : '';
+  const combined = `${event} ${headline} ${description} ${nwsHeadline}`;
+
+  // 1. Emergency – the highest tier. Either the event itself is an
+  //    extreme-wind warning, or the wider text contains an emergency
+  //    phrase or PDS marker.
+  if (
+    event.includes('extreme wind warning') ||
+    combined.includes('tornado emergency') ||
+    combined.includes('flash flood emergency') ||
+    combined.includes('particularly dangerous situation')
+  ) {
+    return ALERT_SEVERITY.EMERGENCY;
+  }
+
+  // 2. Extreme – imminent threat warnings.
+  if (
+    event.includes('tornado warning') ||
+    event.includes('hurricane warning') ||
+    event.includes('flash flood warning') ||
+    event.includes('tsunami warning') ||
+    event.includes('storm surge warning')
+  ) {
+    return ALERT_SEVERITY.EXTREME;
+  }
+
+  // 3. Moderate – freeze warnings get demoted because southern offices
+  //    issue them for any sub-32°F night. Storm Surge Watch is the lone
+  //    watch that gets promoted to Severe (handled below).
+  if (event.includes('freeze warning')) {
+    return ALERT_SEVERITY.MODERATE;
+  }
+
+  if (event.includes('storm surge watch')) {
+    return ALERT_SEVERITY.SEVERE;
+  }
+
+  // 4. Minor – advisories, statements, outlooks.
+  if (
+    event.includes('special weather statement') ||
+    event.includes('hazardous weather outlook') ||
+    event.includes('air quality alert') ||
+    event.includes('hydrologic outlook') ||
+    event.includes('beach hazards statement') ||
+    event.includes('urban and small stream') ||
+    event.includes('lake wind advisory') ||
+    event.includes('short term forecast') ||
+    event.includes('advisory') ||
+    event.includes('statement')
+  ) {
+    return ALERT_SEVERITY.MINOR;
+  }
+
+  // 5. Severe – every other warning.
+  if (event.includes('warning')) {
+    return ALERT_SEVERITY.SEVERE;
+  }
+
+  // 6. Moderate – every other watch.
+  if (event.includes('watch')) {
+    return ALERT_SEVERITY.MODERATE;
+  }
+
+  // Fallback: trust an explicit API-provided extreme/severe label, else moderate.
   if (props.severity) {
     const apiSeverity = props.severity.toLowerCase();
-
-    // If the API says it's extreme or severe, trust it
     if (apiSeverity === 'extreme' || apiSeverity === 'severe') {
       return apiSeverity;
     }
   }
 
-  // Extract the alert title/event for mapping
-  const lowerTitle = (props.event || '').toLowerCase();
-
-  // Event-based severity mapping - more comprehensive list
-  // Extreme threats - immediate danger to life and property
-  if (
-    lowerTitle.includes('tornado warning') ||
-    lowerTitle.includes('flash flood emergency') ||
-    lowerTitle.includes('hurricane warning') && lowerTitle.includes('category 4') ||
-    lowerTitle.includes('hurricane warning') && lowerTitle.includes('category 5') ||
-    lowerTitle.includes('tsunami warning') ||
-    lowerTitle.includes('extreme wind warning') ||
-    lowerTitle.includes('particularly dangerous situation')
-  ) {
-    return ALERT_SEVERITY.EXTREME;
-  }
-
-  // Severe threats - significant threat to life or property
-  if (
-    lowerTitle.includes('severe thunderstorm warning') ||
-    lowerTitle.includes('tornado watch') ||
-    lowerTitle.includes('flash flood warning') ||
-    lowerTitle.includes('hurricane warning') ||
-    lowerTitle.includes('blizzard warning') ||
-    lowerTitle.includes('ice storm warning') ||
-    lowerTitle.includes('winter storm warning') ||
-    lowerTitle.includes('storm surge warning') ||
-    lowerTitle.includes('hurricane watch') ||
-    lowerTitle.includes('avalanche warning') ||
-    lowerTitle.includes('fire warning') ||
-    lowerTitle.includes('red flag warning') ||
-    lowerTitle.includes('excessive heat warning')
-  ) {
-    return ALERT_SEVERITY.SEVERE;
-  }
-
-  // Moderate threats - possible threat to life or property
-  if (
-    lowerTitle.includes('flood warning') ||
-    lowerTitle.includes('thunderstorm watch') ||
-    lowerTitle.includes('winter storm watch') ||
-    lowerTitle.includes('winter weather advisory') ||
-    lowerTitle.includes('wind advisory') ||
-    lowerTitle.includes('heat advisory') ||
-    lowerTitle.includes('freeze warning') ||
-    lowerTitle.includes('dense fog advisory') ||
-    lowerTitle.includes('flood advisory') ||
-    lowerTitle.includes('rip current statement') ||
-    lowerTitle.includes('frost advisory') ||
-    lowerTitle.includes('small craft advisory')
-  ) {
-    return ALERT_SEVERITY.MODERATE;
-  }
-
-  // Minor threats - minimal threat to life or property
-  if (
-    lowerTitle.includes('special weather statement') ||
-    lowerTitle.includes('hazardous weather outlook') ||
-    lowerTitle.includes('air quality alert') ||
-    lowerTitle.includes('hydrologic outlook') ||
-    lowerTitle.includes('beach hazards statement') ||
-    lowerTitle.includes('urban and small stream') ||
-    lowerTitle.includes('lake wind advisory') ||
-    lowerTitle.includes('short term forecast')
-  ) {
-    return ALERT_SEVERITY.MINOR;
-  }
-
-  // Check for some general indicators
-  if (lowerTitle.includes('warning')) {
-    return ALERT_SEVERITY.SEVERE;  // Any unspecified warning is treated as severe
-  }
-
-  if (lowerTitle.includes('watch')) {
-    return ALERT_SEVERITY.MODERATE;  // Any unspecified watch is treated as moderate
-  }
-
-  if (lowerTitle.includes('advisory') || lowerTitle.includes('statement')) {
-    return ALERT_SEVERITY.MINOR;  // Any unspecified advisory is treated as minor
-  }
-
-  // Default fallback
   return ALERT_SEVERITY.MODERATE;
 }
 

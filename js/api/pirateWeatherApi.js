@@ -923,72 +923,51 @@ function createAlertHeaderText(alert) {
 }
 
 /**
- * Determine severity of a Pirate Weather alert
+ * Determine severity of a Pirate Weather alert.
+ *
+ * Mirrors the five-tier system in nwsAlerts.js. Pirate Weather alerts
+ * carry less structured metadata than NWS, so emergency phrasing is
+ * scanned across title + description.
+ *
  * @param {Object} alert - Pirate Weather alert object
  * @returns {string} Standardized severity
  */
 function determinePirateAlertSeverity(alert) {
-    // First check for explicit severity field
-    if (alert.severity) {
-        const apiSeverity = alert.severity.toLowerCase();
-        if (apiSeverity === 'extreme' || apiSeverity === 'severe') {
-            return apiSeverity;
-        }
+    const title = (alert.title || '').toLowerCase();
+    const description = (alert.description || '').toLowerCase();
+    const combined = `${title} ${description}`;
+
+    // 1. Emergency
+    if (
+        title.includes('extreme wind warning') ||
+        combined.includes('tornado emergency') ||
+        combined.includes('flash flood emergency') ||
+        combined.includes('particularly dangerous situation')
+    ) {
+        return ALERT_SEVERITY.EMERGENCY;
     }
 
-    // Check title for keywords
-    const title = (alert.title || '').toLowerCase();
-
-    // Check for extreme conditions
+    // 2. Extreme – imminent threat warnings.
     if (
         title.includes('tornado warning') ||
-        title.includes('flash flood emergency') ||
-        title.includes('hurricane warning') && title.includes('category 4') ||
-        title.includes('hurricane warning') && title.includes('category 5') ||
+        title.includes('hurricane warning') ||
+        title.includes('flash flood warning') ||
         title.includes('tsunami warning') ||
-        title.includes('extreme wind warning') ||
-        title.includes('particularly dangerous situation')
+        title.includes('storm surge warning')
     ) {
         return ALERT_SEVERITY.EXTREME;
     }
 
-    // Check for severe conditions
-    if (
-        title.includes('severe thunderstorm warning') ||
-        title.includes('tornado watch') ||
-        title.includes('flash flood warning') ||
-        title.includes('hurricane warning') ||
-        title.includes('blizzard warning') ||
-        title.includes('ice storm warning') ||
-        title.includes('winter storm warning') ||
-        title.includes('storm surge warning') ||
-        title.includes('hurricane watch') ||
-        title.includes('avalanche warning') ||
-        title.includes('fire warning') ||
-        title.includes('red flag warning') ||
-        title.includes('excessive heat warning')
-    ) {
-        return ALERT_SEVERITY.SEVERE;
-    }
-
-    // Check for moderate conditions
-    if (
-        title.includes('flood warning') ||
-        title.includes('thunderstorm watch') ||
-        title.includes('winter weather advisory') ||
-        title.includes('wind advisory') ||
-        title.includes('heat advisory') ||
-        title.includes('freeze warning') ||
-        title.includes('dense fog advisory') ||
-        title.includes('flood advisory') ||
-        title.includes('rip current statement') ||
-        title.includes('frost advisory') ||
-        title.includes('small craft advisory')
-    ) {
+    // 3. Moderate (freeze) / Severe (storm surge watch).
+    if (title.includes('freeze warning')) {
         return ALERT_SEVERITY.MODERATE;
     }
 
-    // Check for minor conditions
+    if (title.includes('storm surge watch')) {
+        return ALERT_SEVERITY.SEVERE;
+    }
+
+    // 4. Minor – advisories, statements, outlooks.
     if (
         title.includes('special weather statement') ||
         title.includes('hazardous weather outlook') ||
@@ -997,25 +976,31 @@ function determinePirateAlertSeverity(alert) {
         title.includes('beach hazards statement') ||
         title.includes('urban and small stream') ||
         title.includes('lake wind advisory') ||
-        title.includes('short term forecast')
+        title.includes('short term forecast') ||
+        title.includes('advisory') ||
+        title.includes('statement')
     ) {
         return ALERT_SEVERITY.MINOR;
     }
 
-    // General indicators if we haven't matched specifics
+    // 5. Severe – every other warning.
     if (title.includes('warning')) {
-        return ALERT_SEVERITY.SEVERE;  // Any unspecified warning is treated as severe
+        return ALERT_SEVERITY.SEVERE;
     }
 
+    // 6. Moderate – every other watch.
     if (title.includes('watch')) {
-        return ALERT_SEVERITY.MODERATE;  // Any unspecified watch is treated as moderate
+        return ALERT_SEVERITY.MODERATE;
     }
 
-    if (title.includes('advisory') || title.includes('statement')) {
-        return ALERT_SEVERITY.MINOR;  // Any unspecified advisory is treated as minor
+    // Fallback to API-provided severity if explicit, else moderate.
+    if (alert.severity) {
+        const apiSeverity = alert.severity.toLowerCase();
+        if (apiSeverity === 'extreme' || apiSeverity === 'severe') {
+            return apiSeverity;
+        }
     }
 
-    // Default
     return ALERT_SEVERITY.MODERATE;
 }
 

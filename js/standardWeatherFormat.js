@@ -114,7 +114,7 @@
  *       title: String,                // Alert title/headline
  *       description: String,          // Short description
  *       fullText: String,             // Full alert text
- *       severity: String,             // One of: 'extreme', 'severe', 'moderate', 'minor'
+ *       severity: String,             // One of: 'emergency', 'extreme', 'severe', 'moderate', 'minor'
  *       urgency: String,              // Urgency level if available
  *       expires: String|Number,       // Expiration timestamp
  *       hazardTypes: Array,           // Array of hazard type strings
@@ -259,6 +259,7 @@ export function validateWeatherData(data) {
  * Standard alert severity levels
  */
 export const ALERT_SEVERITY = {
+    EMERGENCY: 'emergency',
     EXTREME: 'extreme',
     SEVERE: 'severe',
     MODERATE: 'moderate',

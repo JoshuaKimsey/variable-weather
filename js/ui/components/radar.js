@@ -483,6 +483,7 @@ class RadarController {
         addAlertAnimationCSS();
 
         const severityZIndex = {
+            'emergency': 1200,
             'extreme': 1000,
             'severe': 800,
             'moderate': 600,
@@ -508,18 +509,24 @@ class RadarController {
                 severity = alert.severity.toLowerCase();
             }
 
+            const isEmergency = severity === 'emergency';
             const isExtreme = severity === 'extreme';
             const isSevere = severity === 'severe';
 
             const alertColor = getAlertTypeColor(alert);
 
+            let polygonClass = '';
+            if (isEmergency) polygonClass = 'emergency-alert-polygon';
+            else if (isExtreme) polygonClass = 'extreme-alert-polygon';
+            else if (isSevere) polygonClass = 'severe-alert-polygon';
+
             const alertStyle = {
                 color: alertColor.color,
-                weight: isExtreme ? 3 : (isSevere ? 2.5 : 2),
+                weight: isEmergency ? 3.5 : (isExtreme ? 3 : (isSevere ? 2.5 : 2)),
                 opacity: alertColor.borderOpacity || 0.9,
                 fillColor: alertColor.color,
                 fillOpacity: alertColor.fillOpacity || 0.2,
-                className: isExtreme ? 'extreme-alert-polygon' : (isSevere ? 'severe-alert-polygon' : '')
+                className: polygonClass
             };
 
             try {
@@ -530,14 +537,20 @@ class RadarController {
                             const title = alert.title || alert.properties.event || 'Weather Alert';
                             const description = alert.description || (alert.properties && alert.properties.headline) || '';
 
+                            const emphasizeTitle = isEmergency || isExtreme;
+                            const titlePulse = isEmergency
+                                ? 'animation: pulse-text 0.9s infinite;'
+                                : (isExtreme ? 'animation: pulse-text 1.5s infinite;' : '');
                             let popupContent = `
                 <div class="alert-popup-content">
-                  <h3 style="margin-top: 0; color: ${alertColor.color}; ${isExtreme ? 'animation: pulse-text 1.5s infinite;' : ''}">
-                    ${isExtreme ? '⚠️ ' : ''}${title}${isExtreme ? ' ⚠️' : ''}
+                  <h3 style="margin-top: 0; color: ${alertColor.color}; ${titlePulse}">
+                    ${emphasizeTitle ? '⚠️ ' : ''}${title}${emphasizeTitle ? ' ⚠️' : ''}
                   </h3>`;
 
                             let severityText = '';
-                            if (isExtreme) {
+                            if (isEmergency) {
+                                severityText = 'EMERGENCY';
+                            } else if (isExtreme) {
                                 severityText = 'EXTREME';
                             } else if (isSevere) {
                                 severityText = 'SEVERE';
@@ -602,7 +615,11 @@ class RadarController {
                                 popupContent += `</div></div>`;
                             }
 
-                            if (isExtreme) {
+                            if (isEmergency) {
+                                popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(123, 31, 162, 0.12); border-left: 3px solid #7B1FA2; font-size: 0.9em; margin: 10px 0;">
+                  <strong>SEEK SHELTER NOW:</strong> This is an EMERGENCY. Take immediate life-saving action and follow official instructions.
+                </p>`;
+                            } else if (isExtreme) {
                                 popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(183, 28, 28, 0.1); border-left: 3px solid #B71C1C; font-size: 0.9em; margin: 10px 0;">
                   <strong>TAKE ACTION NOW:</strong> This is an EXTREME alert. Seek shelter or follow official instructions immediately.
                 </p>`;
@@ -1138,6 +1155,16 @@ function getAlertTypeColor(alert) {
     const eventType = alert.title.toLowerCase();
     const severity = (alert.severity || '').toLowerCase();
 
+    // Emergency overrides hazard-typed coloring with a solid purple to
+    // visually separate it from every other tier.
+    if (severity === 'emergency') {
+        return {
+            color: '#7B1FA2',
+            borderOpacity: 1,
+            fillOpacity: 0.4
+        };
+    }
+
     let intensityLevel = 1;
 
     if (severity === 'extreme') {
@@ -1249,6 +1276,20 @@ function addAlertAnimationCSS() {
     const style = document.createElement('style');
     style.id = 'alert-animation-css';
     style.textContent = `
+        /* Pulsing animation for emergency alert polygons */
+        @keyframes emergency-alert-pulse {
+            0%, 100% {
+                stroke-opacity: 1;
+                fill-opacity: 0.45;
+                stroke-width: 3.5px;
+            }
+            50% {
+                stroke-opacity: 1;
+                fill-opacity: 0.7;
+                stroke-width: 6px;
+            }
+        }
+
         /* Pulsing animation for extreme alert polygons */
         @keyframes extreme-alert-pulse {
             0%, 100% {
@@ -1285,6 +1326,11 @@ function addAlertAnimationCSS() {
             50% {
                 opacity: 0.7;
             }
+        }
+
+        /* Apply animation to emergency alert polygons – fastest cadence */
+        .emergency-alert-polygon {
+            animation: emergency-alert-pulse 1s infinite ease-in-out;
         }
 
         /* Apply animation to extreme alert polygons */
