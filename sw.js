@@ -11,7 +11,8 @@ const API_URLs = [
   'api.weather.gov',
   'api.pirateweather.net',
   'api.open-meteo.com',
-  'nominatim.openstreetmap.org'
+  'nominatim.openstreetmap.org',
+  'api.librewxr.net'
 ]
 
 /* 
