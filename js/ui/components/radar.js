@@ -194,14 +194,7 @@ class RadarController {
             return;
         }
 
-        container.style.position = 'absolute';
-        container.style.top = '0';
-        container.style.left = '0';
-        container.style.right = '0';
-        container.style.bottom = '0';
-        container.style.overflow = 'hidden';
-        container.style.width = '100%';
-        container.style.height = '100%';
+        container.classList.add('modal-radar-view');
 
         if (this.modalMap) {
             log('Map exists, refreshing');
@@ -224,26 +217,26 @@ class RadarController {
         }
 
         container.innerHTML = `
-    <div class="radar-loading" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 1000;">
+    <div class="radar-loading">
         <div class="radar-loading-spinner"><div></div><div></div><div></div></div>
         <div class="radar-loading-text">Loading radar data...</div>
     </div>
-    <div style="width: 100%; height: 100%; position: relative; overflow: hidden;">
+    <div class="modal-radar-wrapper">
         <!-- Map Container -->
-        <div id="modal-map-container" style="width: 100%; height: calc(100% - 60px); position: absolute; top: 0; left: 0;"></div>
+        <div id="modal-map-container" class="modal-map-container"></div>
 
         <!-- Timestamp Display -->
-        <div id="timestamp-display" class="timestamp-display" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 6px 10px; border-radius: 4px; font-size: 14px; z-index: 1000;"></div>
+        <div id="timestamp-display" class="timestamp-display"></div>
 
         <!-- Control Bar -->
-        <div id="radar-controls" class="radar-controls" style="position: absolute; bottom: 0; left: 0; right: 0; height: 60px; padding: 10px 15px; background-color: #222222; border-top: 1px solid rgba(255,255,255,0.2); box-shadow: 0 -2px 10px rgba(0,0,0,0.3); z-index: 1001;">
-            <div class="radar-timeline-wrapper" style="display: flex; align-items: flex-start; gap: 12px; width: 100%;">
-                <button id="radar-play-pause" class="radar-play-pause" style="width: 36px; height: 36px; min-width: 36px; border-radius: 50%; background-color: #1e88e5; color: white; border: none; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
+        <div id="radar-controls" class="radar-controls">
+            <div class="radar-timeline-wrapper">
+                <button id="radar-play-pause" class="radar-play-pause">
                     <i class="bi bi-play-fill"></i>
                 </button>
-                <div class="radar-timeline-controls" style="flex: 1; min-width: 0;">
-                    <div id="radar-timestamps-row" class="radar-timestamps-row" style="position: relative; height: 20px; width: 100%; margin-bottom: 4px;"></div>
-                    <div id="radar-timeline" class="radar-timeline" style="height: 6px; background-color: rgba(0, 0, 0, 0.3); border-radius: 3px; position: relative; overflow: visible; width: 100%; margin: 5px 0;"></div>
+                <div class="radar-timeline-controls">
+                    <div id="radar-timestamps-row" class="radar-timestamps-row"></div>
+                    <div id="radar-timeline" class="radar-timeline"></div>
                 </div>
             </div>
         </div>
@@ -255,12 +248,6 @@ class RadarController {
             logError('Map container element not created');
             return;
         }
-
-        mapContainer.style.width = '100%';
-        mapContainer.style.height = 'calc(100% - 60px)';
-        mapContainer.style.position = 'absolute';
-        mapContainer.style.top = '0';
-        mapContainer.style.left = '0';
 
         const playPauseButton = document.getElementById('radar-play-pause');
 
@@ -286,8 +273,7 @@ class RadarController {
                 try {
                     log('Creating Leaflet map instance');
 
-                    mapContainer.style.width = '100%';
-                    mapContainer.style.height = 'calc(100% - 60px)';
+                    // Map container sizing is handled by .modal-map-container CSS
 
                     this.modalMap = L.map(mapContainer, {
                         zoomControl: true,
@@ -480,8 +466,6 @@ class RadarController {
 
         if (!alerts || alerts.length === 0) return;
 
-        addAlertAnimationCSS();
-
         const severityZIndex = {
             'emergency': 1200,
             'extreme': 1000,
@@ -538,12 +522,12 @@ class RadarController {
                             const description = alert.description || (alert.properties && alert.properties.headline) || '';
 
                             const emphasizeTitle = isEmergency || isExtreme;
-                            const titlePulse = isEmergency
-                                ? 'animation: pulse-text 0.9s infinite;'
-                                : (isExtreme ? 'animation: pulse-text 1.5s infinite;' : '');
+                            const titlePulseClass = isEmergency
+                                ? 'pulse-fast'
+                                : (isExtreme ? 'pulse-slow' : '');
                             let popupContent = `
-                <div class="alert-popup-content">
-                  <h3 style="margin-top: 0; color: ${alertColor.color}; ${titlePulse}">
+                <div class="alert-popup-content" style="--alert-color: ${alertColor.color};">
+                  <h3 class="alert-popup-title ${titlePulseClass}">
                     ${emphasizeTitle ? '⚠️ ' : ''}${title}${emphasizeTitle ? ' ⚠️' : ''}
                   </h3>`;
 
@@ -561,20 +545,20 @@ class RadarController {
                             }
 
                             const urgency = alert.urgency || (alert.properties && alert.properties.urgency) || '';
-                            popupContent += `<div style="display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap;">
-                <span class="alert-severity ${severity}" style="background-color: ${alertColor.color};">
+                            popupContent += `<div class="alert-popup-meta">
+                <span class="alert-severity ${severity}">
                   ${severityText}
                 </span>`;
 
                             if (urgency) {
                                 popupContent += `
-                  <span style="background-color: #424242; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em;">
+                  <span class="alert-popup-urgency">
                     ${urgency.toUpperCase()}
                   </span>`;
                             }
                             popupContent += `</div>`;
 
-                            popupContent += `<p style="margin-bottom: 12px;">${description}</p>`;
+                            popupContent += `<p class="alert-popup-description">${description}</p>`;
 
                             const expires = alert.expires || (alert.properties && alert.properties.expires);
                             if (expires) {
@@ -593,7 +577,7 @@ class RadarController {
                                     minute: '2-digit'
                                 });
 
-                                popupContent += `<p style="margin-bottom: 8px; font-size: 0.9em;"><strong>Expires:</strong> ${expiresFormatted}</p>`;
+                                popupContent += `<p class="alert-popup-expires"><strong>Expires:</strong> ${expiresFormatted}</p>`;
                             }
 
                             const hazardTypes = alert.hazardTypes ||
@@ -601,13 +585,13 @@ class RadarController {
                                 [];
 
                             if (hazardTypes && hazardTypes.length > 0) {
-                                popupContent += `<div style="margin-bottom: 10px;">
-                  <p style="margin-bottom: 5px; font-size: 0.9em;"><strong>Hazards:</strong></p>
-                  <div class="hazard-tags" style="display: flex; flex-wrap: wrap; gap: 5px;">`;
+                                popupContent += `<div class="alert-popup-hazards">
+                  <p class="alert-popup-hazards-label"><strong>Hazards:</strong></p>
+                  <div class="alert-popup-hazard-tags">`;
 
                                 hazardTypes.forEach(hazard => {
                                     const hazardName = hazard.charAt(0).toUpperCase() + hazard.slice(1);
-                                    popupContent += `<span class="hazard-tag" style="background-color: #616161; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em;">
+                                    popupContent += `<span class="alert-popup-hazard-tag">
                     ${hazardName}
                   </span>`;
                                 });
@@ -616,19 +600,19 @@ class RadarController {
                             }
 
                             if (isEmergency) {
-                                popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(123, 31, 162, 0.12); border-left: 3px solid #7B1FA2; font-size: 0.9em; margin: 10px 0;">
+                                popupContent += `<p class="alert-popup-action emergency">
                   <strong>SEEK SHELTER NOW:</strong> This is an EMERGENCY. Take immediate life-saving action and follow official instructions.
                 </p>`;
                             } else if (isExtreme) {
-                                popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(183, 28, 28, 0.1); border-left: 3px solid #B71C1C; font-size: 0.9em; margin: 10px 0;">
+                                popupContent += `<p class="alert-popup-action extreme">
                   <strong>TAKE ACTION NOW:</strong> This is an EXTREME alert. Seek shelter or follow official instructions immediately.
                 </p>`;
                             } else if (isSevere) {
-                                popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(198, 40, 40, 0.1); border-left: 3px solid #C62828; font-size: 0.9em; margin: 10px 0;">
+                                popupContent += `<p class="alert-popup-action severe">
                   <strong>BE PREPARED:</strong> This is a SEVERE alert. Prepare to take action if in the affected area.
                 </p>`;
                             } else if (severity === 'moderate') {
-                                popupContent += `<p class="action-guidance" style="padding: 8px; background-color: rgba(239, 108, 0, 0.1); border-left: 3px solid #EF6C00; font-size: 0.9em; margin: 10px 0;">
+                                popupContent += `<p class="alert-popup-action moderate">
                   <strong>STAY AWARE:</strong> Monitor conditions and follow updates.
                 </p>`;
                             }
@@ -639,10 +623,10 @@ class RadarController {
 
                                 popupContent += `
                   <details>
-                    <summary style="cursor: pointer; background-color: #424242; color: white; padding: 6px; border-radius: 4px; font-size: 0.9em; outline: none;">
+                    <summary class="alert-popup-summary">
                       View Full Alert
                     </summary>
-                    <div class="full-text" style="margin-top: 8px; max-height: 200px; overflow-y: auto; padding: 8px; background-color: #f5f5f5; border-radius: 4px; font-size: 0.85em; line-height: 1.4;">
+                    <div class="alert-popup-fulltext">
                       ${processedText}
                     </div>
                   </details>`;
@@ -695,6 +679,16 @@ class RadarController {
         if (loadingIndicator) {
             loadingIndicator.style.display = 'flex';
         }
+
+        // Clear old radar layers before fetching new data so we don't
+        // accumulate stale tile layers from previous sessions or refreshes.
+        this.preloadedLayers.forEach(layer => {
+            if (layer && this.modalMap && this.modalMap.hasLayer(layer)) {
+                this.modalMap.removeLayer(layer);
+            }
+        });
+        this.preloadedLayers = [];
+        this.currentOverlay = null;
 
         const urlWithTimestamp = `${RAINVIEWER_API_URL}?t=${Date.now()}`;
 
@@ -754,23 +748,22 @@ class RadarController {
             return;
         }
 
-        this.preloadedLayers.forEach(layer => {
-            if (layer && this.modalMap.hasLayer(layer)) {
-                this.modalMap.removeLayer(layer);
-            }
-        });
-        this.preloadedLayers = [];
-
         log(`Preloading ${this.radarFrames.length} radar frames...`);
 
         const loadPromises = this.radarFrames.map((frame, index) => {
+            // Skip frames already created on-demand by showFrame()
+            if (this.preloadedLayers[index]) {
+                return Promise.resolve(this.preloadedLayers[index]);
+            }
+
             return new Promise((resolve) => {
                 const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
 
                 const layer = L.tileLayer(tileUrl, {
                     opacity: 0,
-                    zIndex: 5,
+                    zIndex: 11,
                     tileSize: 256,
+                    className: 'radar-frame-layer'
                 });
 
                 let loadTimeout;
@@ -781,9 +774,7 @@ class RadarController {
                 };
 
                 layer.on('load', onLoad);
-
                 layer.addTo(this.modalMap);
-
                 this.preloadedLayers[index] = layer;
 
                 loadTimeout = setTimeout(() => {
@@ -793,14 +784,6 @@ class RadarController {
         });
 
         await Promise.all(loadPromises);
-
-        this.preloadedLayers.forEach(layer => {
-            if (layer) {
-                layer.setOpacity(0);
-                this.modalMap.removeLayer(layer);
-            }
-        });
-
         log('Radar frame preloading complete');
     }
 
@@ -854,16 +837,6 @@ class RadarController {
 
                 const timeLabel = document.createElement('div');
                 timeLabel.className = 'radar-timestamp';
-                timeLabel.style.position = 'absolute';
-                timeLabel.style.fontSize = '11px';
-                timeLabel.style.color = 'rgba(255, 255, 255, 0.9)';
-                timeLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-                timeLabel.style.padding = '1px 4px';
-                timeLabel.style.borderRadius = '3px';
-                timeLabel.style.whiteSpace = 'nowrap';
-                timeLabel.style.overflow = 'hidden';
-                timeLabel.style.textOverflow = 'ellipsis';
-                timeLabel.style.transform = 'translateX(-50%)';
 
                 const timeString = this.radarFrames[i].timestamp.toLocaleTimeString([], {
                     hour: '2-digit',
@@ -884,17 +857,6 @@ class RadarController {
                 if (lastIndex % step !== 0) {
                     const lastTimeLabel = document.createElement('div');
                     lastTimeLabel.className = 'radar-timestamp';
-                    lastTimeLabel.style.position = 'absolute';
-                    lastTimeLabel.style.fontSize = '11px';
-                    lastTimeLabel.style.color = 'rgba(255, 255, 255, 0.9)';
-                    lastTimeLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-                    lastTimeLabel.style.padding = '1px 4px';
-                    lastTimeLabel.style.borderRadius = '3px';
-                    lastTimeLabel.style.whiteSpace = 'nowrap';
-                    lastTimeLabel.style.overflow = 'hidden';
-                    lastTimeLabel.style.textOverflow = 'ellipsis';
-                    lastTimeLabel.style.right = '0';
-                    lastTimeLabel.style.transform = 'translateX(0)';
 
                     const timeString = this.radarFrames[lastIndex].timestamp.toLocaleTimeString([], {
                         hour: '2-digit',
@@ -913,7 +875,6 @@ class RadarController {
             const nowcastRail = document.createElement('div');
             nowcastRail.className = 'radar-nowcast-rail';
             nowcastRail.style.left = `${boundaryPercent}%`;
-            nowcastRail.style.right = '0';
             timelineContainer.appendChild(nowcastRail);
 
             const boundaryDivider = document.createElement('div');
@@ -928,12 +889,6 @@ class RadarController {
             if (this.isNowcastFrame(index)) {
                 marker.classList.add('nowcast');
             }
-            marker.style.position = 'absolute';
-            marker.style.width = '2px';
-            marker.style.height = '6px';
-            marker.style.top = '0';
-            marker.style.cursor = 'pointer';
-            marker.style.transition = 'background-color 0.2s ease';
             marker.setAttribute('data-index', index);
 
             marker.style.left = `${(index / (this.radarFrames.length - 1)) * 100}%`;
@@ -958,17 +913,6 @@ class RadarController {
         const positionIndicator = document.createElement('div');
         positionIndicator.id = 'radar-position-indicator';
         positionIndicator.className = 'radar-position-indicator';
-        positionIndicator.style.position = 'absolute';
-        positionIndicator.style.width = '12px';
-        positionIndicator.style.height = '12px';
-        positionIndicator.style.backgroundColor = 'white';
-        positionIndicator.style.borderRadius = '50%';
-        positionIndicator.style.top = '50%';
-        positionIndicator.style.transform = 'translate(-50%, -50%)';
-        positionIndicator.style.boxShadow = '0 0 4px rgba(0, 0, 0, 0.5)';
-        positionIndicator.style.zIndex = '10';
-        positionIndicator.style.pointerEvents = 'none';
-        positionIndicator.style.transition = 'left 0.2s ease-out';
         timelineContainer.appendChild(positionIndicator);
 
         if (this.animationPosition === 0 && this.radarFrames.length > 0) {
@@ -1004,32 +948,33 @@ class RadarController {
         }
 
         const frame = this.radarFrames[index];
+        let newOverlay = this.preloadedLayers[index];
+
+        // Create on demand if this frame hasn't been preloaded yet
+        if (!newOverlay) {
+            const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+            newOverlay = L.tileLayer(tileUrl, {
+                opacity: 0,
+                zIndex: 11,
+                tileSize: 256,
+                className: 'radar-frame-layer'
+            });
+            newOverlay.addTo(this.modalMap);
+            this.preloadedLayers[index] = newOverlay;
+        }
 
         const oldOverlay = this.currentOverlay;
 
-        const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
-
-        const newOverlay = L.tileLayer(tileUrl, {
-            opacity: DEFAULT_OPACITY,
-            zIndex: 11,
-            tileSize: 256,
-        });
-
-        newOverlay.addTo(this.modalMap);
-
+        // Crossfade: bring new frame in, fade old frame out.
+        // CSS transition on .radar-frame-layer handles the smooth opacity change.
+        newOverlay.setOpacity(DEFAULT_OPACITY);
         this.currentOverlay = newOverlay;
 
-        // Untracked: short crossfade should run even if controller state shifts
-        if (oldOverlay) {
-            setTimeout(() => {
-                if (this.modalMap && this.modalMap.hasLayer(oldOverlay)) {
-                    this.modalMap.removeLayer(oldOverlay);
-                }
-            }, 50);
+        if (oldOverlay && oldOverlay !== newOverlay) {
+            oldOverlay.setOpacity(0);
         }
 
         this.updateTimestampDisplay(frame.timestamp, this.isNowcastFrame(index));
-
         this.updateTimelineSelection();
     }
 
@@ -1270,120 +1215,21 @@ function getDefaultHazardType(title) {
     return 'unknown';
 }
 
-function addAlertAnimationCSS() {
-    if (document.getElementById('alert-animation-css')) return;
-
-    const style = document.createElement('style');
-    style.id = 'alert-animation-css';
-    style.textContent = `
-        /* Pulsing animation for emergency alert polygons */
-        @keyframes emergency-alert-pulse {
-            0%, 100% {
-                stroke-opacity: 1;
-                fill-opacity: 0.45;
-                stroke-width: 3.5px;
-            }
-            50% {
-                stroke-opacity: 1;
-                fill-opacity: 0.7;
-                stroke-width: 6px;
-            }
-        }
-
-        /* Pulsing animation for extreme alert polygons */
-        @keyframes extreme-alert-pulse {
-            0%, 100% {
-                stroke-opacity: 0.9;
-                fill-opacity: 0.3;
-                stroke-width: 3px;
-            }
-            50% {
-                stroke-opacity: 1;
-                fill-opacity: 0.5;
-                stroke-width: 5px;
-            }
-        }
-
-        /* Pulsing animation for severe alert polygons */
-        @keyframes severe-alert-pulse {
-            0%, 100% {
-                stroke-opacity: 0.8;
-                fill-opacity: 0.25;
-                stroke-width: 2.5px;
-            }
-            50% {
-                stroke-opacity: 0.9;
-                fill-opacity: 0.35;
-                stroke-width: 3.5px;
-            }
-        }
-
-        /* Text pulsing for popups */
-        @keyframes pulse-text {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.7;
-            }
-        }
-
-        /* Apply animation to emergency alert polygons – fastest cadence */
-        .emergency-alert-polygon {
-            animation: emergency-alert-pulse 1s infinite ease-in-out;
-        }
-
-        /* Apply animation to extreme alert polygons */
-        .extreme-alert-polygon {
-            animation: extreme-alert-pulse 2s infinite ease-in-out;
-        }
-
-        /* Apply animation to severe alert polygons */
-        .severe-alert-polygon {
-            animation: severe-alert-pulse 3s infinite ease-in-out;
-        }
-    `;
-
-    document.head.appendChild(style);
-}
-
 function showMapLoadingIndicator(message = 'Loading...') {
     let loadingElement = document.getElementById('map-data-loading');
 
     if (!loadingElement) {
         loadingElement = document.createElement('div');
         loadingElement.id = 'map-data-loading';
-        loadingElement.style.position = 'absolute';
-        loadingElement.style.top = '10px';
-        loadingElement.style.right = '10px';
-        loadingElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        loadingElement.style.color = 'white';
-        loadingElement.style.padding = '8px 12px';
-        loadingElement.style.borderRadius = '4px';
-        loadingElement.style.zIndex = '1000';
-        loadingElement.style.display = 'flex';
-        loadingElement.style.alignItems = 'center';
-        loadingElement.style.fontSize = '12px';
+        loadingElement.className = 'map-data-loading';
         loadingElement.innerHTML = `
-            <div style="display: flex; margin-right: 8px;">
-                <div style="width: 6px; height: 6px; background-color: white; border-radius: 50%; margin: 0 2px; animation: map-loading-bounce 1.4s infinite ease-in-out both; animation-delay: -0.32s;"></div>
-                <div style="width: 6px; height: 6px; background-color: white; border-radius: 50%; margin: 0 2px; animation: map-loading-bounce 1.4s infinite ease-in-out both; animation-delay: -0.16s;"></div>
-                <div style="width: 6px; height: 6px; background-color: white; border-radius: 50%; margin: 0 2px; animation: map-loading-bounce 1.4s infinite ease-in-out both;"></div>
+            <div class="map-loading-spinner">
+                <div></div>
+                <div></div>
+                <div></div>
             </div>
             <div>${message}</div>
         `;
-
-        if (!document.getElementById('map-loading-animation')) {
-            const animStyle = document.createElement('style');
-            animStyle.id = 'map-loading-animation';
-            animStyle.textContent = `
-                @keyframes map-loading-bounce {
-                    0%, 80%, 100% { transform: scale(0); }
-                    40% { transform: scale(1); }
-                }
-            `;
-            document.head.appendChild(animStyle);
-        }
 
         const mapContainer = document.getElementById('modal-map-container');
         if (mapContainer) {
@@ -1412,16 +1258,7 @@ function showMapErrorMessage(message) {
     if (!errorElement) {
         errorElement = document.createElement('div');
         errorElement.id = 'map-data-error';
-        errorElement.style.position = 'absolute';
-        errorElement.style.top = '10px';
-        errorElement.style.right = '10px';
-        errorElement.style.backgroundColor = 'rgba(244, 67, 54, 0.8)';
-        errorElement.style.color = 'white';
-        errorElement.style.padding = '8px 12px';
-        errorElement.style.borderRadius = '4px';
-        errorElement.style.zIndex = '1000';
-        errorElement.style.fontSize = '12px';
-        errorElement.style.maxWidth = '80%';
+        errorElement.className = 'map-data-error';
 
         const mapContainer = document.getElementById('modal-map-container');
         if (mapContainer) {
@@ -1482,21 +1319,10 @@ function showModalMapError(message) {
     const container = document.getElementById('modal-radar-view');
     if (!container) return;
 
-    let errorElement = container.querySelector('.radar-error');
+    let errorElement = container.querySelector('.radar-error-overlay');
     if (!errorElement) {
         errorElement = document.createElement('div');
-        errorElement.className = 'radar-error';
-        errorElement.style.position = 'absolute';
-        errorElement.style.top = '50%';
-        errorElement.style.left = '50%';
-        errorElement.style.transform = 'translate(-50%, -50%)';
-        errorElement.style.background = 'rgba(0, 0, 0, 0.7)';
-        errorElement.style.color = 'white';
-        errorElement.style.padding = '15px 20px';
-        errorElement.style.borderRadius = '8px';
-        errorElement.style.textAlign = 'center';
-        errorElement.style.maxWidth = '80%';
-        errorElement.style.zIndex = '1000';
+        errorElement.className = 'radar-error-overlay';
         container.appendChild(errorElement);
     }
 

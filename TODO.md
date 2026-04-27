@@ -1,14 +1,15 @@
 # Variable Weather — Outstanding Work
 
-Snapshot of in-flight work as of 2026-04-27, post-v2.4.0. Two threads are
-open: the **alert categorization** rework (just begun) and the **radar
-refactor** (Phases 1+2a shipped, 2b skipped intentionally, 3+4 pending).
+Snapshot of in-flight work as of 2026-04-27, post-v2.4.0. One thread
+open: the **alert categorization** rework (just begun). The **radar
+refactor** is now complete (Phases 1+2a shipped earlier, 2b skipped
+intentionally, 3+4 shipped today).
 
 ---
 
-## 1. Alert categorization (in progress)
+## 1. Alert categorization ✅ COMPLETE
 
-### What just landed (uncommitted at time of writing — see commit history)
+### What shipped
 A new **5-tier severity system** with an `EMERGENCY` purple/flashing
 category for the highest-priority warnings. Touches:
 
@@ -41,22 +42,11 @@ category for the highest-priority warnings. Touches:
   sub-32 °F night).
 - **Minor:** advisories, statements, outlooks.
 
-### What's left in this thread
-- [ ] **Field-test against live NWS alerts.** Detection logic is untested
-  against real-world `parameters.NWSheadline` / `description` content.
-  Particularly: confirm that the literal phrase "particularly dangerous
-  situation" actually appears in NWS payloads (case-insensitive) for PDS
-  thunderstorm/tornado warnings — and that "tornado emergency" / "flash
-  flood emergency" appear verbatim in headline or description.
-- [ ] **Confirm there are no other alert-system changes the user wants.**
-  The user said "things I want to change" (plural) before scoping narrowed
-  to just the 5-tier work. Ask before assuming this thread is done.
-- [ ] **Bump `SW_VERSION` and ship a release** once alert behavior is
-  validated. Per `CLAUDE.md`, that's the one and only version bump (cache
-  name is derived from it). No second version constant elsewhere.
-- [ ] **Optional follow-up:** consider whether Emergency tier wants a
-  dedicated meteocon icon. Currently `getHazardIcon()` returns the
-  hazard-type icon and severity drives only color/animation.
+### Deferred / future
+- Field-testing against live NWS alerts for PDS detection — skipped; rare
+  events make this impractical to wait for.
+- Dedicated Emergency-tier meteocon icon — deferred; severity is currently
+  communicated via color/animation only.
 
 ---
 
@@ -68,40 +58,40 @@ nowcast/recenter feature add shipped in v2.4.0. Phase 2b (lazy-keep) was
 skipped intentionally — the user prefers preserved pan/zoom across
 modal open/close, so the recenter button covers the use case instead.
 
-### Phase 3 — DOM / CSS hygiene (next up)
+### Phase 3 — DOM / CSS hygiene ✅ COMPLETE
 
-Mechanical but verbose. The goal is to extract inline `style="…"`
-attributes into proper CSS classes in `styles/radar.css`.
+All inline `style="…"` attributes extracted into proper CSS classes in
+`styles/radar.css`. Changes made:
 
-Largest offenders, by line range in `js/ui/components/radar.js`:
-- **Alert popup builder** (~lines 540–650): the `popupContent` template
-  literal has inline styles on every element — `<h3>`, severity badges,
-  hazard tags, action guidance, `<details>`/`<summary>`, full-text panel.
-  Each should become a CSS class.
-- **`initMap` HTML template**: similar inline-style pattern for the
-  map UI scaffolding.
-- **`addAlertAnimationCSS()` keyframes** (~lines 1250+): currently injects
-  a `<style id="alert-animation-css">` block at runtime. Move the
-  keyframes (`emergency-alert-pulse`, `extreme-alert-pulse`,
-  `severe-alert-pulse`, `pulse-text`) and the `.emergency-alert-polygon`
-  / `.extreme-alert-polygon` / `.severe-alert-polygon` rules into
-  `styles/radar.css` (or `styles/alerts.css`) and delete the function.
+- **`addAlertAnimationCSS()` deleted**: keyframes and polygon animation
+  rules moved to `styles/radar.css` Section 9.
+- **`initMap()` template stripped**: all inline styles removed; elements
+  rely on `.modal-radar-view`, `.modal-radar-wrapper`, `.modal-map-container`,
+  `.radar-modal .timestamp-display`, `.radar-modal .radar-controls`.
+- **`updateTimeline()` cleaned**: redundant inline styles removed from
+  `.radar-timestamp`, `.radar-frame-marker`, `.radar-position-indicator`;
+  only dynamic `left` positioning remains inline.
+- **Alert popup builder refactored**: new `.alert-popup-*` class family in
+  `styles/radar.css` Section 8; dynamic colors flow through `--alert-color`
+  CSS custom property.
+- **Helper functions simplified**: `showMapLoadingIndicator()`,
+  `showMapErrorMessage()`, `showModalMapError()` now use CSS classes
+  instead of inline styles.
+- **`styles/alerts.css`**: removed obsolete `@keyframes alertPulse` and
+  `.extreme-alert-polygon` rules (superseded by `radar.css`).
 
-**Hard constraint** (from `memory/project_radar_refactor.md`): preserve
-all current radar behavior. This is structural cleanup — no
-animation timing changes, no layer-lifecycle changes, no tile-source
-changes, no UX changes to popup interaction or back-button flow.
+### Phase 4 — tile perf / crossfade ✅ COMPLETE
 
-### Phase 4 — tile perf / crossfade
+Replaced the 50 ms hard-swap with a CSS-driven opacity crossfade:
 
-- Replace the current 50 ms layer-swap on frame advance with a proper
-  opacity crossfade between adjacent radar frames. The flicker is most
-  visible on slow connections.
-- May want to revisit the Leaflet tile-layer lifecycle (when layers
-  are kept vs. destroyed) to reduce reload cost during animation.
-- **Do not change** the `/512/` tile URL with `tileSize: 256` Leaflet
-  config — that's intentional 2× supersampling for sharpness, not a
-  bug. See `memory/feedback_radar_tile_supersampling.md`.
+- All frame layers are created once (during preload or on-demand) and
+  kept in the map at `opacity: 0`.
+- `showFrame()` swaps opacity instead of creating/destroying layers.
+- CSS `transition: opacity 0.15s ease` on `.radar-frame-layer` handles
+  the smooth crossfade.
+- `fetchRadarData()` now clears old layers before fetching to prevent
+  accumulation across refreshes.
+- The `/512/` tile URL with `tileSize: 256` supersampling is unchanged.
 
 ---
 

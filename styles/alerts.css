@@ -244,20 +244,6 @@
     }
 }
 
-/* Animation for extreme alerts on the map */
-@keyframes alertPulse {
-    0%, 100% {
-        opacity: 0.2;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-.extreme-alert-polygon {
-    animation: alertPulse 2s infinite;
-}
-
 /*-----------------------------------------------
  * 7. RESPONSIVE ADJUSTMENTS
  *-----------------------------------------------*/
