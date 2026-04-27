@@ -47,7 +47,7 @@
     padding: 6px 8px;
     border-radius: 4px;
     font-size: 12px;
-    line-height: 1.4;
+    line-height: 1.2;
     margin-bottom: 10px !important;
     box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
     text-align: center;
@@ -59,7 +59,7 @@
 .timestamp-display strong {
     font-size: 14px;
     display: block;
-    margin-bottom: 2px;
+    margin-bottom: 0;
 }
 
 /* Leaflet attribution styling overrides */
@@ -233,6 +233,69 @@
     z-index: 10;
     pointer-events: none;
     transition: left 0.2s ease-out;
+}
+
+/* Nowcast (forecast) timeline styling */
+.radar-nowcast-rail {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        135deg,
+        rgba(78, 168, 222, 0.35) 0,
+        rgba(78, 168, 222, 0.35) 4px,
+        rgba(78, 168, 222, 0.15) 4px,
+        rgba(78, 168, 222, 0.15) 8px
+    );
+    border-radius: 0 3px 3px 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.radar-nowcast-boundary {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 2px;
+    background-color: rgba(78, 168, 222, 0.9);
+    transform: translateX(-50%);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.radar-frame-marker.nowcast {
+    background-color: rgba(78, 168, 222, 0.6);
+}
+
+.radar-frame-marker.nowcast:hover {
+    background-color: #6fb8e8;
+}
+
+.radar-frame-marker.nowcast.active {
+    background-color: #4ea8de;
+}
+
+.timestamp-display .date-display {
+    display: block;
+}
+
+.radar-forecast-badge {
+    display: block;
+    visibility: hidden;
+    margin: 3px auto 0;
+    padding: 1px 6px;
+    width: fit-content;
+    background-color: rgba(78, 168, 222, 0.85);
+    color: white;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.timestamp-display.is-forecast .radar-forecast-badge {
+    visibility: visible;
 }
 
 /* Play button loading animation */

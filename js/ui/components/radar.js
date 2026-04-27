@@ -11,8 +11,8 @@ const DEFAULT_COLOR_SCHEME = 7; // Rainbow SELEX-IS
 const SMOOTHING = 1;
 const SNOW_VIEW = 1;
 const DEFAULT_OPACITY = 0.8;
-const FRAMES_TO_KEEP = 11;
-const ANIMATION_SPEED = 1000;
+const ANIMATION_SPEED = 800;
+const NOWCAST_BOUNDARY_PAUSE = 400; // extra delay when crossing past->nowcast boundary
 const ALERT_FETCH_THROTTLE = 3000;
 
 class RadarController {
@@ -37,6 +37,11 @@ class RadarController {
         this.pendingTimers = new Set();
         this.initialCenter = null;
         this.initialZoom = 7;
+        this.nowcastStartIndex = -1;
+    }
+
+    isNowcastFrame(position) {
+        return this.nowcastStartIndex >= 0 && position >= this.nowcastStartIndex;
     }
 
     schedule(fn, delay) {
@@ -151,9 +156,10 @@ class RadarController {
         this.cancelPending();
 
         if (this.animationTimer) {
-            clearInterval(this.animationTimer);
+            clearTimeout(this.animationTimer);
             this.animationTimer = null;
         }
+        this.isPlaying = false;
 
         const radarModal = document.getElementById('radar-modal');
         const radarBackdrop = document.getElementById('radar-modal-backdrop');
@@ -690,7 +696,9 @@ class RadarController {
                 this.processRadarData(data);
 
                 if (this.radarFrames.length > 0) {
-                    this.animationPosition = this.radarFrames.length - 1;
+                    this.animationPosition = this.nowcastStartIndex >= 0
+                        ? this.nowcastStartIndex - 1
+                        : this.radarFrames.length - 1;
 
                     this.showFrame(this.animationPosition);
 
@@ -785,13 +793,15 @@ class RadarController {
             return;
         }
 
-        let frames = [...data.radar.past];
+        const pastFrames = [...data.radar.past];
 
-        if (frames.length > FRAMES_TO_KEEP) {
-            frames = frames.slice(-FRAMES_TO_KEEP);
-        }
+        const nowcastFrames = (data.radar.nowcast && data.radar.nowcast.length > 0)
+            ? [...data.radar.nowcast]
+            : [];
 
-        this.radarFrames = frames.map(frame => ({
+        this.nowcastStartIndex = nowcastFrames.length > 0 ? pastFrames.length : -1;
+
+        this.radarFrames = pastFrames.concat(nowcastFrames).map(frame => ({
             time: frame.time,
             timestamp: new Date(frame.time * 1000)
         }));
@@ -880,13 +890,30 @@ class RadarController {
             }
         }
 
+        if (this.nowcastStartIndex >= 1 && this.radarFrames.length > 1) {
+            const boundaryIndex = this.nowcastStartIndex - 1;
+            const boundaryPercent = (boundaryIndex / (this.radarFrames.length - 1)) * 100;
+            const nowcastRail = document.createElement('div');
+            nowcastRail.className = 'radar-nowcast-rail';
+            nowcastRail.style.left = `${boundaryPercent}%`;
+            nowcastRail.style.right = '0';
+            timelineContainer.appendChild(nowcastRail);
+
+            const boundaryDivider = document.createElement('div');
+            boundaryDivider.className = 'radar-nowcast-boundary';
+            boundaryDivider.style.left = `${boundaryPercent}%`;
+            timelineContainer.appendChild(boundaryDivider);
+        }
+
         this.radarFrames.forEach((frame, index) => {
             const marker = document.createElement('div');
             marker.className = 'radar-frame-marker';
+            if (this.isNowcastFrame(index)) {
+                marker.classList.add('nowcast');
+            }
             marker.style.position = 'absolute';
             marker.style.width = '2px';
             marker.style.height = '6px';
-            marker.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
             marker.style.top = '0';
             marker.style.cursor = 'pointer';
             marker.style.transition = 'background-color 0.2s ease';
@@ -928,7 +955,9 @@ class RadarController {
         timelineContainer.appendChild(positionIndicator);
 
         if (this.animationPosition === 0 && this.radarFrames.length > 0) {
-            this.animationPosition = this.radarFrames.length - 1;
+            this.animationPosition = this.nowcastStartIndex >= 0
+                ? this.nowcastStartIndex - 1
+                : this.radarFrames.length - 1;
         }
 
         this.updateTimelineSelection();
@@ -942,11 +971,7 @@ class RadarController {
         if (!markers.length) return;
 
         markers.forEach((marker, index) => {
-            if (index === this.animationPosition) {
-                marker.style.backgroundColor = 'white';
-            } else {
-                marker.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
-            }
+            marker.classList.toggle('active', index === this.animationPosition);
         });
 
         const positionIndicator = document.getElementById('radar-position-indicator');
@@ -986,12 +1011,12 @@ class RadarController {
             }, 50);
         }
 
-        this.updateTimestampDisplay(frame.timestamp);
+        this.updateTimestampDisplay(frame.timestamp, this.isNowcastFrame(index));
 
         this.updateTimelineSelection();
     }
 
-    updateTimestampDisplay(timestamp) {
+    updateTimestampDisplay(timestamp, isNowcast = false) {
         if (!this.timestampDisplay) return;
 
         try {
@@ -1005,7 +1030,8 @@ class RadarController {
                 day: 'numeric'
             });
 
-            this.timestampDisplay.innerHTML = `<strong>${timeString}</strong><br>${dateString}`;
+            this.timestampDisplay.innerHTML = `<strong>${timeString}</strong><span class="date-display">${dateString}</span><span class="radar-forecast-badge">Forecast</span>`;
+            this.timestampDisplay.classList.toggle('is-forecast', isNowcast);
         } catch (err) {
             logError('Error updating timestamp display:', err);
             this.timestampDisplay.textContent = 'Time data unavailable';
@@ -1026,16 +1052,30 @@ class RadarController {
         }
 
         this.isPlaying = true;
+        this.scheduleNextFrame();
+    }
 
-        this.animationTimer = setInterval(() => {
+    scheduleNextFrame() {
+        const delay = this.getFrameDelay(this.animationPosition);
+        this.animationTimer = setTimeout(() => {
+            if (!this.isPlaying) return;
             this.animationPosition = (this.animationPosition + 1) % this.radarFrames.length;
             this.showFrame(this.animationPosition);
-        }, ANIMATION_SPEED);
+            this.scheduleNextFrame();
+        }, delay);
+    }
+
+    getFrameDelay(position) {
+        // Brief pause when about to cross from last past frame into nowcast
+        if (this.nowcastStartIndex >= 0 && position === this.nowcastStartIndex - 1) {
+            return ANIMATION_SPEED + NOWCAST_BOUNDARY_PAUSE;
+        }
+        return ANIMATION_SPEED;
     }
 
     stopAnimation() {
         if (this.animationTimer) {
-            clearInterval(this.animationTimer);
+            clearTimeout(this.animationTimer);
             this.animationTimer = null;
         }
 
@@ -1047,7 +1087,9 @@ class RadarController {
         this.isPlaying = false;
 
         if (this.radarFrames.length > 0) {
-            this.animationPosition = this.radarFrames.length - 1;
+            this.animationPosition = this.nowcastStartIndex >= 0
+                ? this.nowcastStartIndex - 1
+                : this.radarFrames.length - 1;
 
             this.showFrame(this.animationPosition);
 
