@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '2.5.2';
+const SW_VERSION = '2.5.3';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
@@ -218,7 +218,7 @@ self.addEventListener('fetch', event => {
       const isImage = event.request.destination === 'image' ||
                       event.request.url.match(/\.(png|jpg|jpeg|gif|webp|svg|avif)(\?.*)?$/i);
       if (isImage) {
-        break; // fall through to default pass-through behaviour
+        return; // do not intercept image requests at all — let the browser handle them
       }
 
       // For API requests, use a network-first strategy with timeout
