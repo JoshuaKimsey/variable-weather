@@ -690,9 +690,10 @@ class RadarController {
         this.preloadedLayers = [];
         this.currentOverlay = null;
 
-        const urlWithTimestamp = `${RAINVIEWER_API_URL}?t=${Date.now()}`;
+        this._tileCacheBuster = Date.now();
+        const urlWithTimestamp = `${RAINVIEWER_API_URL}?t=${this._tileCacheBuster}`;
 
-        fetch(urlWithTimestamp)
+        fetch(urlWithTimestamp, { cache: 'no-store' })
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -757,7 +758,8 @@ class RadarController {
             }
 
             return new Promise((resolve) => {
-                const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.webp`;
+                const bustNowcast = this.isNowcastFrame(index) ? `?_=${this._tileCacheBuster}` : '';
+                const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.webp${bustNowcast}`;
 
                 const layer = L.tileLayer(tileUrl, {
                     opacity: 0,
@@ -952,7 +954,8 @@ class RadarController {
 
         // Create on demand if this frame hasn't been preloaded yet
         if (!newOverlay) {
-            const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.webp`;
+            const bustNowcast = this.isNowcastFrame(index) ? `?_=${this._tileCacheBuster}` : '';
+            const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.webp${bustNowcast}`;
             newOverlay = L.tileLayer(tileUrl, {
                 opacity: 0,
                 zIndex: 11,
