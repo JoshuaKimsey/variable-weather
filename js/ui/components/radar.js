@@ -757,7 +757,7 @@ class RadarController {
             }
 
             return new Promise((resolve) => {
-                const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+                const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.webp`;
 
                 const layer = L.tileLayer(tileUrl, {
                     opacity: 0,
@@ -952,7 +952,7 @@ class RadarController {
 
         // Create on demand if this frame hasn't been preloaded yet
         if (!newOverlay) {
-            const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.png`;
+            const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.webp`;
             newOverlay = L.tileLayer(tileUrl, {
                 opacity: 0,
                 zIndex: 11,

@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '2.5.1';
+const SW_VERSION = '2.5.2';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
@@ -213,33 +213,50 @@ self.addEventListener('fetch', event => {
 
   for (let i = 0; i < API_URLs.length; i++) {
     if (event.request.url.includes(API_URLs[i])) {
-      // For API requests, use a network-first strategy with timeout
-    const timeoutPromise = new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(caches.match('/offline.html'));
-      }, 5000); // 5-second timeout
-    });
+      // Skip image/tile requests — the API strategy (cache + timeout)
+      // is inappropriate for radar tiles and causes ERR_FAILED cascades.
+      const isImage = event.request.destination === 'image' ||
+                      event.request.url.match(/\.(png|jpg|jpeg|gif|webp|svg|avif)(\?.*)?$/i);
+      if (isImage) {
+        break; // fall through to default pass-through behaviour
+      }
 
-    const networkPromise = fetch(event.request)
-      .then(response => {
-        // Cache a copy of the response
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseClone);
-        });
-        return response;
-      })
-      .catch(async () => {
-        // If network fails, try from cache
-        const cachedResponse = await caches.match(event.request);
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return caches.match('/offline.html');
+      // For API requests, use a network-first strategy with timeout
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          caches.match('/offline.html').then(cached => {
+            resolve(cached || new Response('Network timeout', {
+              status: 504,
+              headers: { 'Content-Type': 'text/plain' }
+            }));
+          });
+        }, 5000); // 5-second timeout
       });
 
-    event.respondWith(Promise.race([networkPromise, timeoutPromise]));
-    return;
+      const networkPromise = fetch(event.request)
+        .then(response => {
+          // Cache a copy of the response
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
+          });
+          return response;
+        })
+        .catch(async () => {
+          // If network fails, try from cache
+          const cachedResponse = await caches.match(event.request);
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          const offlineResponse = await caches.match('/offline.html');
+          return offlineResponse || new Response('Network error', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        });
+
+      event.respondWith(Promise.race([networkPromise, timeoutPromise]));
+      return;
     }
   }
 
