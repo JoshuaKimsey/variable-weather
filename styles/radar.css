@@ -360,11 +360,6 @@
     min-height: 120px;
 }
 
-.radar-preview:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px var(--shadow-color);
-}
-
 .radar-preview-map {
     height: 300px;
     width: 100%;
