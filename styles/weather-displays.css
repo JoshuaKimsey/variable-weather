@@ -177,42 +177,49 @@
 .weather-details {
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
-    margin-top: 30px;
+    gap: 0;
+    margin-top: 15px;
+    background-color: var(--detail-card-bg);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    justify-content: space-around;
 }
 
 .detail-card {
     flex: 1;
-    min-width: 120px;
-    background-color: var(--detail-card-bg);
-    border-radius: 15px;
-    padding: 15px;
+    min-width: 80px;
     text-align: center;
-    box-shadow: 0 5px 15px var(--shadow-color);
+    background: transparent;
+    padding: 3px 6px;
+    border-radius: 0;
+    box-shadow: none;
 }
 
 .detail-card i {
-    font-size: 1.5rem;
+    font-size: 0.85rem;
     color: var(--primary-color);
-    margin-bottom: 10px;
+    margin-bottom: 1px;
 }
 
 .detail-card .title {
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 5px;
+    font-size: 0.65rem;
+    color: var(--primary-color);
+    margin-bottom: 1px;
+    opacity: 0.85;
 }
 
 .detail-card .value {
-    font-size: 1.2rem;
+    font-size: 0.8rem;
     font-weight: 600;
+    line-height: 1;
 }
 
 .value-container {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 6px;
 }
 
 /* Main wind row container - holds direction and speed side by side */
@@ -220,7 +227,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 4px;
     width: 100%;
 }
 
@@ -228,25 +235,25 @@
 .wind-direction {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
 }
 
 /* Arrow styling */
 #wind-direction-arrow {
     color: var(--primary-color);
-    font-size: 28px;
+    font-size: 16px;
     transition: transform 0.5s ease;
-    display: inline-block;
-    vertical-align: middle;
-    position: relative;
-    top: 5px;
+    display: flex;
+    align-items: center;
+    line-height: 1;
 }
 
 /* Direction label styling */
 .wind-label {
-    font-size: 1.1rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--primary-color);
+    line-height: 1;
 }
 
 /* Hide when no data is available */
@@ -255,22 +262,14 @@
 }
 
 /* Responsive adjustments for different screen sizes */
-@media (max-width: 1200px) {
-    .detail-card {
-        min-width: 110px;
-    }
-}
-
-/* For medium screens, make cards take up ~45% of the space */
 @media (max-width: 768px) {
     .weather-details {
-        gap: 15px;
+        padding: 5px;
     }
-    
+
     .detail-card {
-        flex: 0 0 calc(50% - 10px);
-        min-width: auto;
-        margin-bottom: 5px;
+        flex: 0 0 calc(50%);
+        padding: 4px 6px;
     }
 }
 
@@ -284,11 +283,7 @@
 /*-----------------------------------------------
  * 3. DAILY FORECAST ELEMENTS
  *-----------------------------------------------*/
-.forecast {
-    margin-top: 30px;
-}
-
-.forecast h3 {
+.daily-forecast-section h3 {
     margin-bottom: 20px;
     font-weight: 600;
     color: #ffffff;

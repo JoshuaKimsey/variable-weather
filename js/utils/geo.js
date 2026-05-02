@@ -126,6 +126,8 @@ export function updateURLParameters(lat, lon, locationName) {
         url.searchParams.set('location', locationName);
     }
     window.history.pushState({}, '', url);
+
+    window.dispatchEvent(new CustomEvent('location-changed', { detail: { lat, lon } }));
 }
 
 //==============================================================================

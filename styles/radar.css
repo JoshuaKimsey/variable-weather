@@ -4,10 +4,14 @@
  * Contents:
  * 1. Radar Section & Map
  * 2. Radar Controls & Timeline
- * 3. Radar Floating Button & Modal
- * 4. Modal Content & Controls
+ * 3. Radar Preview Card
+ * 4. Radar Modal
  * 5. Loading & Error States
  * 6. Responsive Adjustments
+ * 7. Alert Popup Styles
+ * 8. Modal Radar Specific Layout
+ * 9. Alert Polygon Animations
+ * 10. Radar Frame Crossfade
  *-----------------------------------------------*/
 
 /*-----------------------------------------------
@@ -317,37 +321,127 @@
 }
 
 /*-----------------------------------------------
- * 3. RADAR FLOATING BUTTON & MODAL
+ * 3. RADAR PREVIEW CARD
  *-----------------------------------------------*/
-/* Radar floating button */
-.radar-button-container {
-    position: fixed;
-    bottom: 75px; /* Position above the settings button */
-    right: 20px; /* Align with the right side */
-    z-index: 100;
-}
-
-#open-radar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.8);
-    color: var(--primary-color);
-    border: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 18px;
+.radar-preview {
+    position: relative;
+    margin-top: 30px;
+    background-color: var(--detail-card-bg);
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px var(--shadow-color);
     cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-height: 120px;
 }
 
-#open-radar:hover {
-    background-color: rgba(255, 255, 255, 0.9);
-    transform: rotate(30deg);
+.radar-preview:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px var(--shadow-color);
 }
 
+.radar-preview-map {
+    height: 300px;
+    width: 100%;
+    border-radius: 15px;
+    background-color: #1a1a2e;
+}
+
+.radar-preview-map .leaflet-container {
+    border-radius: 15px;
+    background-color: #1a1a2e;
+}
+
+.radar-preview-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 15px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+    border-radius: 15px 15px 0 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    pointer-events: none;
+    min-height: 60px;
+}
+
+.radar-preview-label {
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.radar-preview-label i {
+    font-size: 1.1rem;
+}
+
+/* Ensure overlay sits above map tiles */
+.radar-preview-overlay {
+    z-index: 500;
+}
+
+/* Loading state */
+.radar-preview.loading .radar-preview-map {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.radar-preview.loading .radar-preview-map::after {
+    content: '';
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: radar-preview-spin 0.8s linear infinite;
+}
+
+@keyframes radar-preview-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Error state */
+.radar-preview.error .radar-preview-map {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.radar-preview.error .radar-preview-map::before {
+    content: '\F62D';
+    font-family: 'bootstrap-icons';
+    font-size: 1.5rem;
+    color: rgba(255, 255, 255, 0.8);
+    position: relative;
+    z-index: 500;
+}
+
+.radar-preview.error .radar-preview-overlay {
+    background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%);
+}
+
+/* Reduce attribution size in preview */
+.radar-preview-map .leaflet-control-attribution {
+    font-size: 9px !important;
+    padding: 1px 4px !important;
+    background-color: rgba(255, 255, 255, 0.7) !important;
+    border-radius: 2px !important;
+}
+
+/*-----------------------------------------------
+ * 4. RADAR MODAL
+ *-----------------------------------------------*/
 /* Modal backdrop */
 .radar-modal-backdrop {
     position: fixed;
@@ -658,8 +752,13 @@
         border-radius: 10px;
     }
     
-    #open-radar {
-        font-size: 16px;
+    /* Radar preview responsive */
+    .radar-preview-map {
+        height: 250px;
+    }
+
+    .radar-preview-label {
+        font-size: 0.85rem;
     }
 
     /* Add padding to the bottom of the container */
@@ -674,6 +773,11 @@
 
 /* Enhanced mobile experience for radar modal */
 @media (max-width: 480px) {
+    /* Radar preview mobile height */
+    .radar-preview-map {
+        height: 200px;
+    }
+
     /* Make radar modal full screen on mobile like the settings modal */
     .radar-modal {
         position: fixed !important;

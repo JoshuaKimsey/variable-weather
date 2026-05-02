@@ -156,31 +156,6 @@
                         <div class="weather-icon" id="weather-icon"></div>
                     </div>
 
-                    <!-- Nowcast -->
-                    <div id="nowcast-container" class="nowcast-section">
-                        <h3>
-                            <i class="bi bi-umbrella"></i> Precipitation Nowcast
-                        </h3>
-                        <div class="nowcast-description" id="nowcast-description"></div>
-                        <div class="nowcast-chart-container">
-                            <div class="nowcast-chart" id="nowcast-chart"></div>
-                            <div class="nowcast-timeline" id="nowcast-timeline"></div>
-                        </div>
-                        <div class="nowcast-info-panel" id="nowcast-info-panel">
-                            <div class="nowcast-info-content">
-                                <div class="nowcast-selected-time"></div>
-                                <div class="nowcast-details">
-                                    <span class="nowcast-probability"></span>
-                                    <span class="nowcast-intensity"></span>
-                                    <span class="nowcast-type"></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="nowcast-legend">
-                            <!-- Legend items -->
-                        </div>
-                    </div>
-
                     <div class="weather-details">
                         <div class="detail-card">
                             <i class="bi bi-wind"></i>
@@ -213,12 +188,47 @@
                         </div>
                     </div>
 
-                    <div class="forecast">
-                        <h3>Daily Forecast</h3>
-                        <div class="forecast-container" id="forecast-container">
-                            <!-- Forecast cards will be added dynamically -->
+                    <!-- Nowcast -->
+                    <div id="nowcast-container" class="nowcast-section">
+                        <h3>
+                            <i class="bi bi-umbrella"></i> Precipitation Nowcast
+                        </h3>
+                        <div class="nowcast-description" id="nowcast-description"></div>
+                        <div class="nowcast-chart-container">
+                            <div class="nowcast-chart" id="nowcast-chart"></div>
+                            <div class="nowcast-timeline" id="nowcast-timeline"></div>
+                        </div>
+                        <div class="nowcast-info-panel" id="nowcast-info-panel">
+                            <div class="nowcast-info-content">
+                                <div class="nowcast-selected-time"></div>
+                                <div class="nowcast-details">
+                                    <span class="nowcast-probability"></span>
+                                    <span class="nowcast-intensity"></span>
+                                    <span class="nowcast-type"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="nowcast-legend">
+                            <!-- Legend items -->
                         </div>
                     </div>
+
+                    <div id="radar-preview" class="radar-preview">
+                        <div id="radar-preview-map" class="radar-preview-map"></div>
+                        <div class="radar-preview-overlay">
+                            <span class="radar-preview-label"><i class="bi bi-radar"></i> Open Full Radar</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Daily Forecast Card -->
+        <div id="daily-forecast-container" class="weather-card">
+            <div class="daily-forecast-section">
+                <h3>Daily Forecast</h3>
+                <div class="forecast-container" id="forecast-container">
+                    <!-- Forecast cards will be added dynamically -->
                 </div>
             </div>
         </div>
@@ -348,12 +358,6 @@
         </button>
     </div>
 
-    <!-- Add this right after the settings button container -->
-    <div class="radar-button-container">
-        <button id="open-radar" title="Open Radar">
-            <i class="bi bi-radar"></i>
-        </button>
-    </div>
     <div id="radar-modal-backdrop" class="radar-modal-backdrop" style="display: none;"></div>
     <div id="radar-modal" class="radar-modal" style="display: none;">
         <div class="radar-modal-header">

@@ -31,6 +31,7 @@ import { initBackgrounds } from './ui/visuals/dynamicBackgrounds.js';
 import { initApiSettings } from './ui/controls/settings.js';
 import { initUnits } from './utils/units.js';
 import { initModalController } from './ui/components/radar.js';
+import { initRadarPreview } from './ui/components/radarPreview.js';
 import { initAstro, updateAstroInfo, refreshAstroDisplay } from './ui/components/astronomical.js';
 import { searchLocation } from './ui/controls/searchBar.js';
 
@@ -98,6 +99,9 @@ function initApp() {
 
     // Initialize the modal controller
     initModalController();
+
+    // Initialize the front-page radar preview
+    initRadarPreview();
 }
 
 //==============================================================================

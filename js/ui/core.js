@@ -198,6 +198,9 @@ export function displayWeatherData(data, locationName) {
         // Hide error message
         hideError();
 
+        // Notify listeners that fresh weather data has been displayed
+        window.dispatchEvent(new CustomEvent('weather-data-updated'));
+
     } catch (error) {
         console.error('Error displaying weather data:', error);
         showError('Error displaying weather data: ' + error.message);

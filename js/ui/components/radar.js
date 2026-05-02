@@ -5,12 +5,12 @@ import { log, warn, error as logError } from '../../utils/logger.js';
 
 const MODAL_STATE_ID = 'weather_radar_modal_open';
 
-const RADAR_API_URL = 'api.librewxr.net';
-const RAINVIEWER_API_URL = 'https://' + RADAR_API_URL + '/public/weather-maps.json';
-const DEFAULT_COLOR_SCHEME = 7; // Rainbow SELEX-IS
-const SMOOTHING = 1;
-const SNOW_VIEW = 1;
-const DEFAULT_OPACITY = 0.8;
+export const RADAR_API_URL = 'api.librewxr.net';
+export const RAINVIEWER_API_URL = 'https://' + RADAR_API_URL + '/public/weather-maps.json';
+export const DEFAULT_COLOR_SCHEME = 7; // Rainbow SELEX-IS
+export const SMOOTHING = 1;
+export const SNOW_VIEW = 1;
+export const DEFAULT_OPACITY = 0.8;
 const ANIMATION_SPEED = 800;
 const NOWCAST_BOUNDARY_PAUSE = 400; // extra delay when crossing past->nowcast boundary
 const ALERT_FETCH_THROTTLE = 3000;
@@ -61,35 +61,33 @@ class RadarController {
     init() {
         loadComponentCSS('./styles/radar.css').catch(err => warn('Failed to load radar styles:', err));
 
-        const openRadarBtn = document.getElementById('open-radar');
         const backRadarBtn = document.getElementById('radar-back-button');
         const radarModal = document.getElementById('radar-modal');
         const radarBackdrop = document.getElementById('radar-modal-backdrop');
 
-        if (openRadarBtn && radarModal && radarBackdrop) {
-            openRadarBtn.addEventListener('click', () => this.open());
-
-            if (backRadarBtn) {
-                backRadarBtn.addEventListener('click', () => this.close());
-            }
-
-            radarBackdrop.addEventListener('click', () => this.close());
-
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape' && this.radarModalOpen) {
-                    this.close();
-                }
-            });
-
-            window.addEventListener('popstate', (event) => {
-                log('History navigation detected', event.state);
-                if (this.radarModalOpen) {
-                    this.close(true);
-                }
-            });
-        } else {
+        if (!radarModal || !radarBackdrop) {
             logError('Could not find radar modal elements');
+            return;
         }
+
+        if (backRadarBtn) {
+            backRadarBtn.addEventListener('click', () => this.close());
+        }
+
+        radarBackdrop.addEventListener('click', () => this.close());
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.radarModalOpen) {
+                this.close();
+            }
+        });
+
+        window.addEventListener('popstate', (event) => {
+            log('History navigation detected', event.state);
+            if (this.radarModalOpen) {
+                this.close(true);
+            }
+        });
     }
 
     open() {
@@ -184,6 +182,8 @@ class RadarController {
             radarBackdrop.style.zIndex = '-1';
 
             hideWeatherElements(false);
+
+            window.dispatchEvent(new CustomEvent('radar-modal-closed'));
         }, 300);
     }
 
@@ -790,24 +790,13 @@ class RadarController {
     }
 
     processRadarData(data) {
-        if (!data || !data.radar || !data.radar.past) {
+        const result = processRadarApiResponse(data);
+        if (!result) {
             logError('Invalid radar data format');
             return;
         }
-
-        const pastFrames = [...data.radar.past];
-
-        const nowcastFrames = (data.radar.nowcast && data.radar.nowcast.length > 0)
-            ? [...data.radar.nowcast]
-            : [];
-
-        this.nowcastStartIndex = nowcastFrames.length > 0 ? pastFrames.length : -1;
-
-        this.radarFrames = pastFrames.concat(nowcastFrames).map(frame => ({
-            time: frame.time,
-            timestamp: new Date(frame.time * 1000)
-        }));
-
+        this.nowcastStartIndex = result.nowcastStartIndex;
+        this.radarFrames = result.radarFrames;
         this.updateTimeline();
     }
 
@@ -1278,7 +1267,27 @@ function showMapErrorMessage(message) {
     }, 5000);
 }
 
-function ensureLeafletCSS() {
+export function processRadarApiResponse(data) {
+    if (!data || !data.radar || !data.radar.past) {
+        return null;
+    }
+
+    const pastFrames = [...data.radar.past];
+    const nowcastFrames = (data.radar.nowcast && data.radar.nowcast.length > 0)
+        ? [...data.radar.nowcast]
+        : [];
+
+    const nowcastStartIndex = nowcastFrames.length > 0 ? pastFrames.length : -1;
+
+    const radarFrames = pastFrames.concat(nowcastFrames).map(frame => ({
+        time: frame.time,
+        timestamp: new Date(frame.time * 1000)
+    }));
+
+    return { radarFrames, nowcastStartIndex };
+}
+
+export function ensureLeafletCSS() {
     if (!document.querySelector('link[href*="leaflet.css"]')) {
         const link = document.createElement('link');
         link.rel = 'stylesheet';
@@ -1287,7 +1296,7 @@ function ensureLeafletCSS() {
     }
 }
 
-function loadLeafletScript() {
+export function loadLeafletScript() {
     return new Promise((resolve, reject) => {
         if (window.L) {
             log('Leaflet already loaded');
@@ -1347,4 +1356,8 @@ const controller = new RadarController();
 
 export function initModalController() {
     controller.init();
+}
+
+export function openRadarModal() {
+    controller.open();
 }

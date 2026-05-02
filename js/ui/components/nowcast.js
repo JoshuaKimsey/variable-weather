@@ -38,11 +38,8 @@ export function displayNowcast(nowcastData) {
         return;
     }
 
-    // Always show the container
+    // Always show the container initially; will hide below if no precip
     nowcastContainer.style.display = 'block';
-    
-    // Remove any previous collapsed state
-    nowcastContainer.classList.remove('nowcast-collapsed');
 
     // Get the nowcast elements
     const nowcastDescription = document.getElementById('nowcast-description');
@@ -51,22 +48,7 @@ export function displayNowcast(nowcastData) {
 
     // Handle case when no data is available
     if (!nowcastData || !nowcastData.data || nowcastData.data.length === 0) {
-        if (nowcastDescription) {
-            nowcastDescription.textContent = nowcastData?.description || 'No precipitation forecast available';
-        }
-
-        // Clear previous chart and timeline
-        if (nowcastChart) {
-            nowcastChart.innerHTML = '<div class="nowcast-no-data">No precipitation data available</div>';
-        }
-
-        if (nowcastTimeline) {
-            nowcastTimeline.innerHTML = '';
-        }
-
-        // Set generic attribution
-        updateNowcastAttribution(nowcastData);
-
+        nowcastContainer.style.display = 'none';
         return;
     }
 
@@ -75,8 +57,7 @@ export function displayNowcast(nowcastData) {
     const hasPrecipData = nowcastData.data.some(point => point.precipProbability > 0.10);
 
     if (!hasPrecipData) {
-        // No precipitation expected - use collapsed view
-        renderCollapsedNowcast(nowcastData);
+        nowcastContainer.style.display = 'none';
         return;
     }
 
@@ -103,125 +84,6 @@ export function displayNowcast(nowcastData) {
 
 //==============================================================================
 // 3. PRIVATE FUNCTIONS
-//==============================================================================
-
-/**
- * Render an empty timeline with just time markers
- * @param {Object} nowcastData - Nowcast data
- * @param {HTMLElement} timelineElement - The timeline container
- */
-function renderEmptyTimeline(nowcastData, timelineElement) {
-    if (!nowcastData.data || nowcastData.data.length === 0 || !timelineElement) {
-        return;
-    }
-
-    const data = nowcastData.data;
-    const source = nowcastData.source;
-
-    // Create the timeline
-    const timeMarkers = document.createElement('div');
-    timeMarkers.className = 'nowcast-time-markers';
-
-    // Determine how many points to display based on data source
-    // Show fewer markers to prevent crowding
-    const skipFactor = source === 'pirate' ? 15 : 2; // Show fewer markers for pirate (1-min data)
-    const totalMarkers = Math.min(5, Math.floor(data.length / skipFactor)); // Limit to max 5 markers
-
-    // Calculate positions to spread markers evenly
-    const positions = [];
-    if (totalMarkers > 1) {
-        for (let i = 0; i <= totalMarkers; i++) {
-            positions.push(Math.floor(i * (data.length - 1) / totalMarkers));
-        }
-    } else {
-        // If only one marker, show first and last
-        positions.push(0);
-        positions.push(data.length - 1);
-    }
-
-    // Add time markers at calculated positions
-    positions.forEach((index) => {
-        if (index < data.length) {
-            const marker = document.createElement('div');
-            marker.className = 'nowcast-time-marker';
-            marker.setAttribute('data-index', index);
-            marker.textContent = data[index].formattedTime;
-
-            // Position marker relative to chart
-            marker.style.left = `${(index / (data.length - 1)) * 100}%`;
-
-            timeMarkers.appendChild(marker);
-        }
-    });
-
-    // Add to DOM
-    timelineElement.appendChild(timeMarkers);
-
-    // Add the current time indicator
-    addCurrentTimeIndicator(timelineElement.parentNode, data);
-}
-
-// Add this improved function to nowcast.js
-function renderCollapsedNowcast(nowcastData) {
-    const nowcastContainer = document.getElementById('nowcast-container');
-    const nowcastDescription = document.getElementById('nowcast-description');
-    const nowcastChart = document.getElementById('nowcast-chart');
-    const nowcastTimeline = document.getElementById('nowcast-timeline');
-    
-    // Ensure container is visible and add collapsed class
-    nowcastContainer.style.display = 'block';
-    nowcastContainer.classList.add('nowcast-collapsed');
-    
-    // Clear previous content
-    if (nowcastChart) nowcastChart.innerHTML = '';
-    if (nowcastTimeline) nowcastTimeline.innerHTML = '';
-    
-    // Update the description
-    if (nowcastDescription) {
-        nowcastDescription.innerHTML = `
-            <div class="nowcast-no-precip">
-                <span>No precipitation expected in the near-future</span>
-                <button id="nowcast-toggle-btn" class="nowcast-expand-btn" aria-label="Show details">
-                    <i class="bi bi-chevron-down"></i>
-                </button>
-            </div>`;
-        
-        // Add event listener to toggle button using a better approach
-        const toggleBtn = document.getElementById('nowcast-toggle-btn');
-        if (toggleBtn) {
-            // Remove any existing listeners (important for re-rendering)
-            const newToggleBtn = toggleBtn.cloneNode(true);
-            toggleBtn.parentNode.replaceChild(newToggleBtn, toggleBtn);
-            
-            // Add toggle functionality
-            newToggleBtn.addEventListener('click', function toggleNowcast(e) {
-                e.preventDefault();
-                
-                const isCollapsed = nowcastContainer.classList.contains('nowcast-collapsed');
-                
-                if (isCollapsed) {
-                    // Expand
-                    nowcastContainer.classList.remove('nowcast-collapsed');
-                    // Render empty timeline only when expanding
-                    if (nowcastTimeline.innerHTML === '') {
-                        renderEmptyTimeline(nowcastData, nowcastTimeline);
-                    }
-                    this.innerHTML = '<i class="bi bi-chevron-up"></i>';
-                    this.setAttribute('aria-label', 'Hide details');
-                } else {
-                    // Collapse
-                    nowcastContainer.classList.add('nowcast-collapsed');
-                    this.innerHTML = '<i class="bi bi-chevron-down"></i>';
-                    this.setAttribute('aria-label', 'Show details');
-                }
-            });
-        }
-    }
-    
-    // Update attribution
-    updateNowcastAttribution(nowcastData);
-}
-
 /**
  * Render the nowcast chart with special handling for probability-based bars
  * @param {Object} nowcastData - Nowcast data from the standardized weather data format
