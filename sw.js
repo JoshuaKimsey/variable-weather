@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '2.6.0';
+const SW_VERSION = '2.6.1';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
@@ -94,6 +94,9 @@ const ASSETS = [
   './resources/bootstrap/icons/fonts/bootstrap-icons.woff2',
   './resources/leaflet/leaflet.css',
   './resources/leaflet/leaflet.js',
+  './resources/maplibre/maplibre-gl.css',
+  './resources/maplibre/maplibre-gl.js',
+  './resources/maplibre/leaflet-maplibre-gl.js',
   './resources/leaflet/images/layers-2x.png',
   './resources/leaflet/images/marker-icon-2x.png',
   './resources/leaflet/images/marker-shadow.png',

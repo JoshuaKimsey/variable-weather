@@ -12,6 +12,8 @@ import {
     DEFAULT_OPACITY,
     ensureLeafletCSS,
     loadLeafletScript,
+    loadMapLibreGL,
+    fetchLabelOnlyStyle,
     processRadarApiResponse,
     openRadarModal
 } from './radar.js';
@@ -20,6 +22,7 @@ let previewMap = null;
 let previewOverlay = null;
 let previewRadarData = null;
 let previewMarker = null;
+let previewLabelsOverlay = null;
 
 /**
  * Initialize the radar preview card.
@@ -62,6 +65,7 @@ function observeVisibilityAndInit(previewEl, mapEl) {
             .then(() => {
                 if (!window.L) throw new Error('Leaflet not available');
                 createPreviewMap(mapEl);
+                addPreviewLabels(); // non-blocking
                 return fetchPreviewRadarData();
             })
             .then(() => {
@@ -131,10 +135,10 @@ function createPreviewMap(container) {
         keyboard: false
     });
 
-    previewMap.setView([lat, lon], 7);
+    previewMap.setView([lat, lon], 8);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | &copy; <a href="https://carto.com/">CARTO</a> | Radar: <a href="https://librewxr.net">LibreWXR</a>',
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+        attribution: '<span class="attr-full">&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | &copy; <a href="https://carto.com/">CARTO</a> | &copy; <a href="https://openmaptiles.org">OpenMapTiles</a> | Labels: <a href="https://openfreemap.org">OpenFreeMap</a> | Radar: <a href="https://librewxr.net">LibreWXR</a></span><span class="attr-abbrev">&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> | <a href="https://carto.com/">CARTO</a> | <a href="https://openmaptiles.org">OMT</a> | <a href="https://openfreemap.org">OFM</a> | Radar: <a href="https://librewxr.net">LibreWXR</a></span>',
         subdomains: 'abcd',
         maxZoom: 19,
         opacity: 0.8
@@ -143,6 +147,30 @@ function createPreviewMap(container) {
     previewMarker = L.marker([lat, lon]).addTo(previewMap);
 
     return previewMap;
+}
+
+async function addPreviewLabels() {
+    if (!previewMap || previewLabelsOverlay) return;
+
+    try {
+        await loadMapLibreGL();
+
+        const pane = previewMap.createPane('labelsPane');
+        pane.style.zIndex = 450;
+        pane.style.pointerEvents = 'none';
+
+        const labelStyle = await fetchLabelOnlyStyle();
+
+        previewLabelsOverlay = L.maplibreGL({
+            style: labelStyle,
+            pane: 'labelsPane',
+            attributionControl: false
+        }).addTo(previewMap);
+
+        previewMap.invalidateSize(true);
+    } catch (err) {
+        warn('Failed to add preview labels overlay (non-fatal):', err);
+    }
 }
 
 async function fetchPreviewRadarData() {
@@ -203,7 +231,7 @@ function recenterPreview(lat, lon) {
     }
     previewMarker = L.marker([lat, lon]).addTo(previewMap);
 
-    previewMap.flyTo([lat, lon], 7, { animate: true, duration: 0.8 });
+    previewMap.flyTo([lat, lon], 8, { animate: true, duration: 0.8 });
 
     fetchPreviewRadarData();
 }

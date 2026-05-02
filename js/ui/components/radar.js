@@ -15,6 +15,8 @@ const ANIMATION_SPEED = 800;
 const NOWCAST_BOUNDARY_PAUSE = 400; // extra delay when crossing past->nowcast boundary
 const ALERT_FETCH_THROTTLE = 3000;
 
+let cachedLabelStyle = null;
+
 class RadarController {
     constructor() {
         this.modalMap = null;
@@ -36,8 +38,9 @@ class RadarController {
         this.preloadedLayers = [];
         this.pendingTimers = new Set();
         this.initialCenter = null;
-        this.initialZoom = 7;
+        this.initialZoom = 8;
         this.nowcastStartIndex = -1;
+        this.labelsOverlay = null;
     }
 
     isNowcastFrame(position) {
@@ -159,6 +162,17 @@ class RadarController {
         }
         this.isPlaying = false;
 
+        if (this.labelsOverlay && this.modalMap) {
+            this.modalMap.removeLayer(this.labelsOverlay);
+            this.labelsOverlay = null;
+        }
+        if (this.modalMap) {
+            const labelsPane = this.modalMap.getPane('labelsPane');
+            if (labelsPane) {
+                labelsPane.remove();
+            }
+        }
+
         const radarModal = document.getElementById('radar-modal');
         const radarBackdrop = document.getElementById('radar-modal-backdrop');
 
@@ -212,6 +226,9 @@ class RadarController {
 
             this.fetchRadarData();
             this.fetchAlerts(true);
+
+            // Labels overlay may have been cleaned up on close; re-add if needed
+            this.addLabelsOverlay();
 
             return;
         }
@@ -282,16 +299,16 @@ class RadarController {
                         preferCanvas: true
                     });
 
-                    this.modalMap.setView([lat, lon], 7);
+                    this.modalMap.setView([lat, lon], 8);
                     log('Map view set');
 
-                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | &copy; <a href="https://carto.com/">CARTO</a> | Radar: <a href="https://librewxr.net">LibreWXR</a>',
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+                        attribution: '<span class="attr-full">&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | &copy; <a href="https://carto.com/">CARTO</a> | &copy; <a href="https://openmaptiles.org">OpenMapTiles</a> | Labels: <a href="https://openfreemap.org">OpenFreeMap</a> | Radar: <a href="https://librewxr.net">LibreWXR</a></span><span class="attr-abbrev">&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> | <a href="https://carto.com/">CARTO</a> | <a href="https://openmaptiles.org">OMT</a> | <a href="https://openfreemap.org">OFM</a> | Radar: <a href="https://librewxr.net">LibreWXR</a></span>',
                         subdomains: 'abcd',
                         maxZoom: 19,
                         opacity: 0.8
                     }).addTo(this.modalMap);
-                    log('Tile layer added');
+                    log('Base tile layer added');
 
                     L.marker([lat, lon]).addTo(this.modalMap);
                     log('Marker added');
@@ -309,6 +326,9 @@ class RadarController {
                     });
 
                     this.fetchRadarData();
+
+                    // Labels overlay loads asynchronously — non-blocking
+                    this.addLabelsOverlay();
 
                     this.schedule(() => {
                         this.fetchAlerts(true);
@@ -374,6 +394,33 @@ class RadarController {
         });
 
         new RecenterControl().addTo(this.modalMap);
+    }
+
+    async addLabelsOverlay() {
+        if (!this.modalMap || this.labelsOverlay) return;
+
+        try {
+            await loadMapLibreGL();
+
+            const pane = this.modalMap.createPane('labelsPane');
+            pane.style.zIndex = 450;
+            pane.style.pointerEvents = 'none';
+
+            const labelStyle = await fetchLabelOnlyStyle();
+
+            this.labelsOverlay = L.maplibreGL({
+                style: labelStyle,
+                pane: 'labelsPane',
+                attributionControl: false
+            }).addTo(this.modalMap);
+
+            log('Labels overlay added');
+
+            // Ensure the map resizes now that the overlay canvas is in the DOM
+            this.modalMap.invalidateSize(true);
+        } catch (err) {
+            warn('Failed to add labels overlay (non-fatal):', err);
+        }
     }
 
     async fetchAlerts(forceRefresh = false) {
@@ -1325,6 +1372,84 @@ export function loadLeafletScript() {
             reject(err);
         }
     });
+}
+
+export function ensureMapLibreCSS() {
+    if (!document.querySelector('link[href*="maplibre-gl.css"]')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'resources/maplibre/maplibre-gl.css';
+        document.head.appendChild(link);
+    }
+}
+
+export function loadMapLibreGL() {
+    return new Promise((resolve, reject) => {
+        if (window.maplibregl && L.maplibreGL) {
+            log('MapLibre GL already loaded');
+            resolve();
+            return;
+        }
+
+        ensureMapLibreCSS();
+
+        try {
+            const loadScript = (src) => new Promise((res, rej) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+                script.onload = () => res();
+                script.onerror = (e) => rej(new Error(`Failed to load ${src}`));
+                document.head.appendChild(script);
+            });
+
+            loadScript('./resources/maplibre/maplibre-gl.js')
+                .then(() => loadScript('./resources/maplibre/leaflet-maplibre-gl.js'))
+                .then(() => {
+                    log('MapLibre GL and Leaflet bridge loaded');
+                    resolve();
+                })
+                .catch(err => {
+                    logError('Failed to load MapLibre GL:', err);
+                    reject(err);
+                });
+        } catch (err) {
+            logError('Error setting up MapLibre GL scripts:', err);
+            reject(err);
+        }
+    });
+}
+
+export async function fetchLabelOnlyStyle() {
+    if (cachedLabelStyle) return cachedLabelStyle;
+
+    const response = await fetch('https://tiles.openfreemap.org/styles/liberty');
+    if (!response.ok) throw new Error(`Failed to fetch Liberty style: ${response.status}`);
+    const fullStyle = await response.json();
+
+    const overlayLayers = fullStyle.layers.filter(l => {
+        if (l.type === 'symbol') return true;
+        if (l.type === 'line') {
+            const id = l.id;
+            if (/(?:path_pedestrian|service_track)/.test(id)) return false;
+            if (/^(?:road_|tunnel_|bridge_|waterway_|boundary_|aeroway_)/.test(id)) return true;
+            if (id === 'park_outline') return true;
+        }
+        return false;
+    });
+
+    cachedLabelStyle = {
+        version: fullStyle.version,
+        name: 'liberty-labels',
+        sources: {
+            openmaptiles: fullStyle.sources.openmaptiles
+        },
+        glyphs: fullStyle.glyphs,
+        sprite: fullStyle.sprite,
+        layers: overlayLayers
+    };
+
+    return cachedLabelStyle;
 }
 
 function showModalMapError(message) {

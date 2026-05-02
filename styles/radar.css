@@ -74,6 +74,31 @@
     margin-bottom: 0 !important;
 }
 
+/* Default: show full attribution, hide abbreviated */
+.attr-full {
+    display: inline;
+}
+
+.attr-abbrev {
+    display: none;
+}
+
+/* Invert labels overlay so dark text becomes light on the dark base map.
+   Targets only the MapLibre canvas inside the labels pane. */
+.leaflet-labels-pane .maplibregl-map {
+    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+}
+
+/* Ensure label overlay has transparent background (no opaque fill) */
+.leaflet-labels-pane .maplibregl-canvas {
+    background: transparent !important;
+}
+
+/* Ensure the labels pane itself doesn't block map interaction */
+.leaflet-labels-pane {
+    pointer-events: none;
+}
+
 /*-----------------------------------------------
  * 2. RADAR CONTROLS & TIMELINE
  *-----------------------------------------------*/
@@ -887,6 +912,15 @@
     .leaflet-bottom.leaflet-right {
         bottom: 10px !important;
         right: 5px !important;
+    }
+
+    /* Mobile preview: show abbreviated attribution, hide full */
+    .radar-preview-map .attr-full {
+        display: none;
+    }
+
+    .radar-preview-map .attr-abbrev {
+        display: inline;
     }
     
     /* Radar timestamp optimization */
