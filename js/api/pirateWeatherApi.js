@@ -498,13 +498,16 @@ function processMinutelyForecast(weatherData, minutelyData) {
                 }
             }
 
-            // Calculate precipitation intensity label
-            const intensityLabel = getPrecipIntensityLabel(precipIntensityMM);
+            // Calculate precipitation intensity label with snow/mix multiplier
+            const displayIntensity = precipType === 'snow' ? precipIntensityMM * 10
+                : (precipType === 'sleet' || precipType === 'mix') ? precipIntensityMM * 5
+                : precipIntensityMM;
+            const intensityLabel = getPrecipIntensityLabel(displayIntensity);
 
             data.push({
                 time: minute.time,
                 formattedTime: formattedTime,
-                precipIntensity: precipIntensityMM, // Store as mm/h for consistency
+                precipIntensity: displayIntensity,
                 precipProbability: precipProbability,
                 precipType: precipType,
                 intensityLabel: intensityLabel
@@ -668,13 +671,16 @@ function processPirateWeatherNowcastData(nowcastData, minutelyData, apiData) {
                 }
             }
 
-            // Calculate precipitation intensity label
-            const intensityLabel = getPrecipIntensityLabel(precipIntensityMM);
+            // Calculate precipitation intensity label with snow/mix multiplier
+            const displayIntensity = precipType === 'snow' ? precipIntensityMM * 10
+                : (precipType === 'sleet' || precipType === 'mix') ? precipIntensityMM * 5
+                : precipIntensityMM;
+            const intensityLabel = getPrecipIntensityLabel(displayIntensity);
 
             data.push({
                 time: minute.time,
                 formattedTime: formattedTime,
-                precipIntensity: precipIntensityMM,
+                precipIntensity: displayIntensity,
                 precipProbability: precipProbability,
                 precipType: precipType,
                 intensityLabel: intensityLabel

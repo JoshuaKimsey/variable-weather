@@ -78,8 +78,21 @@ export function displayNowcast(nowcastData) {
     // Build the chart and timeline with precipitation data
     renderNowcastChart(nowcastData, nowcastChart, nowcastTimeline);
 
-    // Add data attribution
-    updateNowcastAttribution(nowcastData);
+    // Show attribution when main provider is Pirate Weather and nowcast may differ
+    const mainSource = window.currentWeatherData?.source;
+    if (nowcastData.source === 'combined' || nowcastData.source === 'pirate') {
+        if (mainSource === 'pirate') {
+            const el = document.getElementById('nowcast-attribution');
+            if (el) el.style.display = '';
+            updateNowcastAttribution(nowcastData);
+        } else {
+            const el = document.getElementById('nowcast-attribution');
+            if (el) el.style.display = 'none';
+        }
+    } else {
+        const el = document.getElementById('nowcast-attribution');
+        if (el) el.style.display = 'none';
+    }
 }
 
 //==============================================================================
@@ -164,46 +177,22 @@ function renderNowcastChart(nowcastData, chartElement, timelineElement) {
         const heightPercent = calculateBarHeight(point.precipProbability);
         bar.style.height = `${heightPercent}%`;
 
-        // Set color based on intensity and precipitation type
-        // Default to light colors if there's probability but no intensity yet
+        // Set color based on intensity only — type is indicated by icon
         let color;
         if (point.precipIntensity <= 0 && point.precipProbability > 0.1) {
             // For probability-only cases (no intensity yet)
-            color = point.precipType === 'snow' ?
-                'rgba(225, 225, 251, 0.9)' :
-                'rgba(197, 232, 255, 0.9)';
+            color = 'rgba(255, 255, 255, 0.85)';
         } else {
-            // For cases with both probability and intensity
-            const colors = {
-                'snow': {
-                    [PRECIP_INTENSITY.NONE]: '#E1E1FB',
-                    [PRECIP_INTENSITY.VERY_LIGHT]: '#E1E1FB',
-                    [PRECIP_INTENSITY.LIGHT]: '#C5C6E8',
-                    [PRECIP_INTENSITY.MODERATE]: '#9FA8DA',
-                    [PRECIP_INTENSITY.HEAVY]: '#7986CB',
-                    [PRECIP_INTENSITY.VIOLENT]: '#3F51B5'
-                },
-                'rain': {
-                    [PRECIP_INTENSITY.NONE]: '#C5E8FF',
-                    [PRECIP_INTENSITY.VERY_LIGHT]: '#C5E8FF',
-                    [PRECIP_INTENSITY.LIGHT]: '#81D4FA',
-                    [PRECIP_INTENSITY.MODERATE]: '#29B6F6',
-                    [PRECIP_INTENSITY.HEAVY]: '#0288D1',
-                    [PRECIP_INTENSITY.VIOLENT]: '#01579B'
-                },
-                'mix': {
-                    [PRECIP_INTENSITY.NONE]: '#E0F2F7',
-                    [PRECIP_INTENSITY.VERY_LIGHT]: '#E0F2F7',
-                    [PRECIP_INTENSITY.LIGHT]: '#B2E5F8',
-                    [PRECIP_INTENSITY.MODERATE]: '#8BC9F0',
-                    [PRECIP_INTENSITY.HEAVY]: '#5E97F6',
-                    [PRECIP_INTENSITY.VIOLENT]: '#3367D6'
-                }
+            // Unified green → yellow → red gradient by intensity
+            const intensityColors = {
+                [PRECIP_INTENSITY.NONE]: '#E8F5E9',
+                [PRECIP_INTENSITY.VERY_LIGHT]: '#A5D6A7',
+                [PRECIP_INTENSITY.LIGHT]: '#66BB6A',
+                [PRECIP_INTENSITY.MODERATE]: '#FFCA28',
+                [PRECIP_INTENSITY.HEAVY]: '#EF5350',
+                [PRECIP_INTENSITY.VIOLENT]: '#B71C1C'
             };
-
-            // Get the appropriate color map based on precipitation type
-            const colorMap = colors[point.precipType] || colors['rain'];
-            color = colorMap[point.intensityLabel] || colorMap[PRECIP_INTENSITY.NONE];
+            color = intensityColors[point.intensityLabel] || intensityColors[PRECIP_INTENSITY.NONE];
         }
 
         bar.style.backgroundColor = color;
@@ -217,6 +206,14 @@ function renderNowcastChart(nowcastData, chartElement, timelineElement) {
         // Add class based on precipitation type for additional styling
         if (point.precipType) {
             bar.classList.add(`precip-type-${point.precipType}`);
+        }
+
+        // Add type icon for snow and sleet bars
+        if (point.precipType === 'snow' || point.precipType === 'sleet' || point.precipType === 'mix') {
+            const icon = document.createElement('i');
+            icon.className = 'bi ' + (point.precipType === 'snow' ? 'bi-snow' : 'bi-cloud-sleet-fill');
+            icon.setAttribute('aria-hidden', 'true');
+            bar.appendChild(icon);
         }
 
         // Add tooltip with details including precipitation probability and intensity
@@ -252,8 +249,11 @@ function renderNowcastChart(nowcastData, chartElement, timelineElement) {
 
         // Add source info to tooltip for combined data
         const sourceInfo = isCombinedData && point.source ? 
-            ` (${point.source === 'pirate' ? 'detailed' : 'extended'})` : '';
-        const tooltipText = `${point.formattedTime}: ${probPercent}% chance${intensityDisplay}${sourceInfo}`;
+            (point.source === 'open-meteo' ? ' (extended)' : ' (detailed)') : '';
+        const intensityLabelText = intensityDisplay && point.intensityLabel && point.intensityLabel !== 'none'
+            ? `${point.intensityLabel.charAt(0).toUpperCase() + point.intensityLabel.slice(1)} `
+            : '';
+        const tooltipText = `${point.formattedTime}: ${probPercent}% chance${intensityDisplay ? ` - ${intensityLabelText}${intensityDisplay.replace(', ', '')}` : ''}${sourceInfo}`;
         bar.title = tooltipText;
 
         // Add click/tap event to show selected precipitation data
@@ -319,24 +319,16 @@ function updateNowcastInfoPanel(point, index, isInitialSelection = false, isComb
     const typeEl = infoPanel.querySelector('.nowcast-type');
 
     // Source indicator for combined data
-    const sourceLabel = isCombinedData && point.source ? 
-        (point.source === 'pirate' ? ' <span class="nowcast-source-tag detailed">detailed</span>' : 
-         ' <span class="nowcast-source-tag extended">extended</span>') : '';
+    const sourceLabel = isCombinedData && point.source ?
+        (point.source === 'open-meteo'
+            ? ' <span class="nowcast-source-tag extended">extended</span>'
+            : ' <span class="nowcast-source-tag detailed">detailed</span>')
+        : '';
 
-    // Update the time with special messaging for initial selection
-    if (isInitialSelection) {
-        // For the automatic selection, show a more explanatory message
-        if (point.precipIntensity > 0) {
-            selectedTime.innerHTML = `<strong>Peak precipitation at ${point.formattedTime}</strong>${sourceLabel} <span class="tap-hint">(tap bars for details)</span>`;
-        } else if (point.precipProbability > 0.2) {
-            selectedTime.innerHTML = `<strong>Highest chance at ${point.formattedTime}</strong>${sourceLabel} <span class="tap-hint">(tap bars for details)</span>`;
-        } else {
-            selectedTime.innerHTML = `<strong>${point.formattedTime}</strong>${sourceLabel} <span class="tap-hint">(tap any bar for details)</span>`;
-        }
-    } else {
-        // For user selections, show the time with source indicator
-        selectedTime.innerHTML = `${point.formattedTime}${sourceLabel}`;
-    }
+    // Show the time with source indicator
+    selectedTime.innerHTML = isInitialSelection
+        ? `<strong>Heaviest precipitation at ${point.formattedTime}</strong>${sourceLabel}`
+        : `${point.formattedTime}${sourceLabel}`;
 
     // Update probability
     const probPercent = Math.round(point.precipProbability * 100);
@@ -352,10 +344,14 @@ function updateNowcastInfoPanel(point, index, isInitialSelection = false, isComb
             const inchesPerHour = point.precipIntensity / 25.4;
             intensityText = `${inchesPerHour.toFixed(2)} in/h`;
         }
-        intensityEl.innerHTML = `<i class="bi bi-droplet-fill"></i> ${intensityText}`;
+        const labelWord = point.intensityLabel && point.intensityLabel !== 'none'
+            ? `${point.intensityLabel.charAt(0).toUpperCase() + point.intensityLabel.slice(1)} `
+            : '';
+        intensityEl.innerHTML = `<i class="bi bi-droplet-fill"></i> ${labelWord}${intensityText}`;
         intensityEl.style.display = 'flex';
     } else {
-        intensityEl.style.display = 'none';
+        intensityEl.innerHTML = `<i class="bi bi-droplet-fill"></i> No precipitation`;
+        intensityEl.style.display = 'flex';
     }
 
     // Update precipitation type if available
@@ -486,40 +482,16 @@ function updatePrecipitationLegend(nowcastData) {
     // Clear the existing legend
     legendContainer.innerHTML = '';
 
-    // Check if we have any snow in the forecast
-    const hasSnow = nowcastData.data.some(point => point.precipType === 'snow' && point.precipIntensity > 0);
-    const hasMix = nowcastData.data.some(point =>
-        (point.precipType === 'mix' || point.precipType === 'sleet') && point.precipIntensity > 0);
-
-    // Always add the intensity legend items
+    // Unified intensity legend using the green → yellow → red gradient
     const intensityItems = [
-        { label: 'Very Light', color: '#C5E8FF', type: 'rain' },
-        { label: 'Light', color: '#81D4FA', type: 'rain' },
-        { label: 'Moderate', color: '#29B6F6', type: 'rain' },
-        { label: 'Heavy', color: '#0288D1', type: 'rain' }
+        { label: 'Very Light', color: '#A5D6A7' },
+        { label: 'Light', color: '#66BB6A' },
+        { label: 'Moderate', color: '#FFCA28' },
+        { label: 'Heavy', color: '#EF5350' }
     ];
 
-    // If we have snow, add snow items
-    if (hasSnow) {
-        intensityItems.push(
-            { label: 'Light Snow', color: '#C5C6E8', type: 'snow' },
-            { label: 'Heavy Snow', color: '#7986CB', type: 'snow' }
-        );
-    }
-
-    // If we have mixed precipitation, add that too
-    if (hasMix) {
-        intensityItems.push(
-            { label: 'Mixed', color: '#8BC9F0', type: 'mix' }
-        );
-    }
-
-    // Limit the number of legend items based on available space
-    const maxItems = hasSnow || hasMix ? 4 : 5;
-    const legendItems = intensityItems.slice(0, maxItems);
-
     // Add the legend items
-    legendItems.forEach(item => {
+    intensityItems.forEach(item => {
         const legendItem = document.createElement('div');
         legendItem.className = 'nowcast-legend-item';
 
@@ -534,6 +506,17 @@ function updatePrecipitationLegend(nowcastData) {
         legendItem.appendChild(label);
         legendContainer.appendChild(legendItem);
     });
+
+    // Show type icon indicator if snow or sleet is present
+    const hasSnowOrSleet = nowcastData && nowcastData.data &&
+        nowcastData.data.some(p => p.precipType === 'snow' || p.precipType === 'sleet' || p.precipType === 'mix');
+
+    if (hasSnowOrSleet) {
+        const typeIndicator = document.createElement('div');
+        typeIndicator.className = 'nowcast-legend-type-indicator';
+        typeIndicator.innerHTML = '<i class="bi bi-snow"></i> Snow / <i class="bi bi-cloud-sleet-fill"></i> Sleet';
+        legendContainer.appendChild(typeIndicator);
+    }
 }
 
 /**

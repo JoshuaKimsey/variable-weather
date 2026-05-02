@@ -325,6 +325,18 @@
                     </div>
                 </div>
 
+                <div class="settings-section">
+                    <h4>Precipitation Nowcast</h4>
+                    <div class="settings-section-item">
+                        <label for="nowcast-mode-select" class="settings-label">Nowcast source</label>
+                        <select id="nowcast-mode-select" class="settings-select">
+                            <option value="auto">Automatic (follow weather provider)</option>
+                            <option value="derived">Derived from Open-Meteo (1-min)</option>
+                        </select>
+                        <div class="settings-help-text">Derived mode interpolates 15-minute Open-Meteo data to 1-minute resolution for the next hour.</div>
+                    </div>
+                </div>
+
                 <div class="settings-divider"></div>
 
                 <!-- Dynamic API Key Section -->

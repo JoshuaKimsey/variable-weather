@@ -31,6 +31,7 @@ let dataSourcesContainer;
 const UNITS_STORAGE = 'weather_app_units';
 const ACTIVE_SETTINGS_TAB = 'weather_app_settings_tab';
 const GLOBAL_PROVIDER_STORAGE = 'weather_app_weather_provider';
+const NOWCAST_MODE_STORAGE = 'weather_app_nowcast_mode';
 
 /**
  * Initialize API settings functionality
@@ -57,6 +58,9 @@ export function initApiSettings() {
     imperialUnitsRadio = document.getElementById('imperial-units');
     metricUnitsRadio = document.getElementById('metric-units');
 
+    // Nowcast mode setting
+    const nowcastModeSelect = document.getElementById('nowcast-mode-select');
+
     // Get tab elements
     settingsTabButtons = document.querySelectorAll('.settings-tab-btn');
     settingsTabContents = document.querySelectorAll('.settings-tab-content');
@@ -73,6 +77,11 @@ export function initApiSettings() {
     imperialUnitsRadio.addEventListener('change', updateUnits);
     metricUnitsRadio.addEventListener('change', updateUnits);
 
+    // Nowcast mode setting
+    if (nowcastModeSelect) {
+        nowcastModeSelect.addEventListener('change', updateNowcastMode);
+    }
+
     // Tab event listeners
     settingsTabButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -84,8 +93,9 @@ export function initApiSettings() {
     // Initialize history API listener
     initHistoryListener();
 
-    // Load saved units
+    // Load saved preferences
     loadSavedUnits();
+    loadSavedNowcastMode();
 }
 
 /**
@@ -707,20 +717,62 @@ function updateWeatherProvider() {
 export function getNowcastSource() {
     // Get the current weather provider
     const weatherProvider = getWeatherProvider();
-    
+
     // If automatic or not set, use open-meteo for nowcast
     if (weatherProvider === 'automatic' || !weatherProvider) {
         return 'open-meteo';
     }
-    
+
     // Check if the selected weather provider supports nowcast
     const provider = getProviderById(weatherProvider);
     if (provider && typeof provider.supportsNowcast === 'function' && provider.supportsNowcast()) {
         return weatherProvider;
     }
-    
+
     // Fall back to open-meteo if the provider doesn't support nowcast
     return 'open-meteo';
+}
+
+/**
+ * Get the user's preferred nowcast mode
+ * @returns {string} - 'auto' or 'derived'
+ */
+export function getNowcastMode() {
+    return localStorage.getItem(NOWCAST_MODE_STORAGE) || 'auto';
+}
+
+/**
+ * Update the nowcast mode preference
+ */
+function updateNowcastMode() {
+    const nowcastModeSelect = document.getElementById('nowcast-mode-select');
+    if (!nowcastModeSelect) return;
+
+    const mode = nowcastModeSelect.value;
+    localStorage.setItem(NOWCAST_MODE_STORAGE, mode);
+
+    showApiKeyStatus(
+        mode === 'derived'
+            ? 'Nowcast set to 1-minute derived mode'
+            : 'Nowcast set to automatic mode',
+        'status-success'
+    );
+
+    // Refresh weather display if data is already shown
+    if (document.getElementById('weather-data').style.display !== 'none') {
+        refreshWeatherData();
+    }
+}
+
+/**
+ * Load saved nowcast mode preference
+ */
+function loadSavedNowcastMode() {
+    const nowcastModeSelect = document.getElementById('nowcast-mode-select');
+    if (!nowcastModeSelect) return;
+
+    const savedMode = localStorage.getItem(NOWCAST_MODE_STORAGE) || 'auto';
+    nowcastModeSelect.value = savedMode;
 }
 
 /**

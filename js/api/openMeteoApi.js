@@ -446,13 +446,17 @@ function processOpenMeteoNowcast(minutely15Data, targetObject = {}) {
                 precipType = 'rain';
             }
 
-            // Calculate precipitation intensity label
-            const intensityLabel = getPrecipIntensityLabel(precipIntensity);
+            // Calculate precipitation intensity label with snow/mix multiplier
+            const snowFraction = precipIntensity > 0 ? Math.min(1, (snowfall || 0) / precipIntensity) : 0;
+            const displayIntensity = precipType === 'snow' ? precipIntensity * 10
+                : precipType === 'mix' ? precipIntensity * (1 + snowFraction * 9)
+                : precipIntensity;
+            const intensityLabel = getPrecipIntensityLabel(displayIntensity);
 
             data.push({
                 time: timestamp.getTime() / 1000,
                 formattedTime: formattedTime,
-                precipIntensity: precipIntensity,
+                precipIntensity: displayIntensity,
                 precipProbability: precipProbability,
                 snowfall: snowfall,
                 precipType: precipType,
@@ -704,4 +708,228 @@ function getWeatherDescription(code) {
         case 99: return 'Thunderstorm with heavy hail';
         default: return 'Unknown weather';
     }
+}
+
+// ==============================================================================
+// 6. DERIVED 1-MINUTE NOWCAST FUNCTIONS
+// ==============================================================================
+
+/**
+ * Fetch a 1-minute interpolated nowcast derived from Open-Meteo's 15-minute data.
+ * This replicates Pirate Weather's minutely approach by linearly interpolating
+ * 15-minute HRRR model output down to 60 one-minute points for the next hour.
+ *
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @returns {Promise<Object>} - Promise resolving to a standard nowcast object
+ */
+export function fetchOpenMeteoDerivedNowcast(lat, lon) {
+    return new Promise((resolve, reject) => {
+        const formattedLat = parseFloat(lat).toFixed(4);
+        const formattedLon = parseFloat(lon).toFixed(4);
+
+        const url = `${OPEN_METEO_ENDPOINT}?` +
+            `latitude=${formattedLat}&` +
+            `longitude=${formattedLon}&` +
+            `minutely_15=temperature_2m,precipitation,precipitation_probability,snowfall,rain,showers,weather_code&` +
+            `forecast_minutely_15=4&past_minutely_15=1&` +
+            `timezone=auto`;
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Open-Meteo API error: ${response.status} ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data.minutely_15) {
+                    throw new Error('No minutely_15 data available for interpolation');
+                }
+                const timezone = data.timezone || 'auto';
+                const derived = interpolateOpenMeteoNowcast(data.minutely_15, timezone);
+                resolve(derived);
+            })
+            .catch(error => {
+                console.error('Error fetching derived nowcast data:', error);
+                reject(error);
+            });
+    });
+}
+
+/**
+ * Interpolate Open-Meteo 15-minute data to 1-minute resolution.
+ *
+ * @param {Object} minutely15Data - Open-Meteo minutely_15 response object
+ * @returns {Object} - Standard nowcast object with 60 one-minute data points
+ */
+function interpolateOpenMeteoNowcast(minutely15Data, timezone) {
+    const now = Date.now();
+    const nowSec = Math.floor(now / 1000);
+
+    // Build array of known 15-minute data points with numeric timestamps
+    const points = [];
+    for (let i = 0; i < minutely15Data.time.length; i++) {
+        points.push({
+            time: new Date(minutely15Data.time[i]).getTime() / 1000,
+            precip: ((minutely15Data.precipitation && minutely15Data.precipitation[i]) || 0) * 4,
+            prob: ((minutely15Data.precipitation_probability && minutely15Data.precipitation_probability[i]) || 0) / 100,
+            snowfall: ((minutely15Data.snowfall && minutely15Data.snowfall[i]) || 0) * 4,
+            temp: (minutely15Data.temperature_2m && minutely15Data.temperature_2m[i]) || 0,
+            wmoCode: (minutely15Data.weather_code && minutely15Data.weather_code[i]) ?? null
+        });
+    }
+
+    if (points.length < 2) {
+        return {
+            available: false,
+            source: 'open-meteo-derived',
+            interval: 1,
+            startTime: null,
+            endTime: null,
+            description: 'Insufficient data for derived nowcast',
+            data: []
+        };
+    }
+
+    // Generate 60 one-minute points starting from the next whole minute
+    const firstMinute = Math.ceil(nowSec / 60) * 60;
+    const data = [];
+
+    const timeFormatter = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: timezone
+    });
+
+    for (let m = 0; m < 60; m++) {
+        const t = firstMinute + m * 60;
+
+        const precip = linearInterpolate(t, points, 'precip');
+        const prob = Math.max(0, Math.min(1, linearInterpolate(t, points, 'prob')));
+        const temp = linearInterpolate(t, points, 'temp');
+        const snowfall = linearInterpolate(t, points, 'snowfall');
+        const wmoCode = nearestWeatherCode(t, points);
+
+        // Determine precipitation type: snowfall ratio first, then WMO code, then temperature fallback
+        let precipType = wmoCodeToPrecipType(wmoCode);
+
+        if (snowfall > 0) {
+            if (precip > 0 && precip > snowfall) {
+                precipType = 'mix';
+            } else {
+                precipType = 'snow';
+            }
+        } else if (precip > 0 && precipType === 'none') {
+            if (temp >= 2) precipType = 'rain';
+            else if (temp <= 0) precipType = 'snow';
+            else precipType = 'sleet';
+        }
+
+        // Convert liquid-equivalent to accumulation rate for snow/mix
+        const snowFraction = precip > 0 ? Math.min(1, snowfall / precip) : 0;
+        const displayIntensity = precipType === 'snow' ? precip * 10
+            : precipType === 'mix' ? precip * (1 + snowFraction * 9)
+            : precip;
+
+        const intensityLabel = getPrecipIntensityLabel(displayIntensity);
+
+        // Format time string in the location's timezone
+        const formattedTime = timeFormatter.format(new Date(t * 1000));
+
+        data.push({
+            time: t,
+            formattedTime: formattedTime,
+            precipIntensity: displayIntensity,
+            precipProbability: prob,
+            precipType: precipType,
+            intensityLabel: intensityLabel,
+            source: 'open-meteo-derived'
+        });
+    }
+
+    // Generate description
+    const maxProb = Math.max(...data.map(p => p.precipProbability));
+    const hasPrecip = data.some(p => p.precipIntensity > 0 || p.precipProbability > 0.1);
+    const description = hasPrecip
+        ? `Precipitation likely (${Math.round(maxProb * 100)}% chance)`
+        : 'No significant precipitation expected';
+
+    return {
+        available: true,
+        source: 'open-meteo-derived',
+        interval: 1,
+        startTime: firstMinute,
+        endTime: firstMinute + 59 * 60,
+        description: description,
+        data: data,
+        attribution: {
+            name: 'Open-Meteo (Derived)',
+            url: 'https://open-meteo.com/',
+            license: 'CC BY 4.0'
+        }
+    };
+}
+
+/**
+ * Linearly interpolate a field value at a target time between known points.
+ *
+ * @param {number} targetTime - Unix timestamp (seconds)
+ * @param {Array<Object>} points - Sorted array of points with .time and .[field]
+ * @param {string} field - Name of the field to interpolate
+ * @returns {number} - Interpolated value
+ */
+function linearInterpolate(targetTime, points, field) {
+    // Find the two bracketing points
+    for (let i = 0; i < points.length - 1; i++) {
+        const t0 = points[i].time;
+        const t1 = points[i + 1].time;
+        if (targetTime >= t0 && targetTime <= t1) {
+            const ratio = (targetTime - t0) / (t1 - t0);
+            return points[i][field] + ratio * (points[i + 1][field] - points[i][field]);
+        }
+    }
+    // Extrapolate: before first point -> first value, after last -> last value
+    if (targetTime <= points[0].time) return points[0][field];
+    return points[points.length - 1][field];
+}
+
+/**
+ * Find the nearest weather code (categorical) to a target time.
+ *
+ * @param {number} targetTime - Unix timestamp (seconds)
+ * @param {Array<Object>} points - Sorted array of points with .time and .wmoCode
+ * @returns {number|null} - Nearest WMO weather code
+ */
+function nearestWeatherCode(targetTime, points) {
+    let nearest = points[0];
+    let minDist = Math.abs(targetTime - points[0].time);
+    for (let i = 1; i < points.length; i++) {
+        const dist = Math.abs(targetTime - points[i].time);
+        if (dist < minDist) {
+            minDist = dist;
+            nearest = points[i];
+        }
+    }
+    return nearest.wmoCode;
+}
+
+/**
+ * Map a WMO weather code to a precipitation type.
+ *
+ * @param {number|null} code - WMO weather code
+ * @returns {string} - 'rain', 'snow', 'sleet', or 'none'
+ */
+function wmoCodeToPrecipType(code) {
+    if (code === null || code === undefined) return 'none';
+    // Clear / cloudy / fog
+    if (code === 0 || (code >= 1 && code <= 3) || code === 45 || code === 48) return 'none';
+    // Rain: drizzle, rain, rain showers, thunderstorm
+    if ((code >= 51 && code <= 55) || (code >= 61 && code <= 65) || (code >= 80 && code <= 82) || (code >= 95 && code <= 99)) return 'rain';
+    // Snow: snow fall, snow grains, snow showers
+    if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return 'snow';
+    // Sleet: freezing drizzle, freezing rain, rain and snow showers
+    if (code === 56 || code === 57 || code === 66 || code === 67 || code === 83 || code === 84) return 'sleet';
+    return 'none';
 }

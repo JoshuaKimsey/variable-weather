@@ -15,7 +15,7 @@ import { resetLastUpdateTime } from './utils/autoUpdate.js';
 import { saveLocationToCache } from './utils/geo.js';
 import { locationChanged } from './ui/components/astronomical.js';
 import { showLoading, hideLoading, hideError, displayWeatherWithAlerts, showError } from './ui/core.js';
-import { getNowcastSource, getWeatherProvider } from './ui/controls/settings.js';
+import { getNowcastSource, getNowcastMode, getWeatherProvider } from './ui/controls/settings.js';
 import { log, warn } from './utils/logger.js';
 
 //==============================================================================
@@ -24,7 +24,7 @@ import { log, warn } from './utils/logger.js';
 //==============================================================================
 
 // Open-Meteo API
-import { API_METADATA as openMeteoMetadata, fetchOpenMeteoWeather, fetchOpenMeteoNowcastOnly } from './api/openMeteoApi.js';
+import { API_METADATA as openMeteoMetadata, fetchOpenMeteoWeather, fetchOpenMeteoNowcastOnly, fetchOpenMeteoDerivedNowcast } from './api/openMeteoApi.js';
 
 // Pirate Weather API
 import { API_METADATA as pirateMetadata, fetchPirateWeather, fetchPirateWeatherNowcastOnly } from './api/pirateWeatherApi.js';
@@ -437,71 +437,141 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
             // Continue without alerts if there's an error
         }
 
-        // Always get nowcast data from the user's selected nowcast provider
-        // regardless of which provider gave us the main weather data
-        const nowcastProvider = getProviderById(nowcastProviderId);
+        // Determine nowcast mode: derived (1-min interpolated) or provider-based
+        const nowcastMode = getNowcastMode();
 
-        if (nowcastProvider) {
-            // Only fetch nowcast if the provider supports it and has required API keys
-            if (nowcastProvider.supportsNowcast &&
-                (!nowcastProvider.requiresApiKey || nowcastProvider.hasApiKey())) {
+        if (nowcastMode === 'derived') {
+            // Use Open-Meteo 15-minute data interpolated to 1-minute resolution
+            try {
+                const derivedNowcast = await fetchOpenMeteoDerivedNowcast(lat, lon);
 
-                try {
-                    // Check if the provider has a fetchNowcast method
-                    if (typeof nowcastProvider.fetchNowcast === 'function') {
-                        const nowcastData = await nowcastProvider.fetchNowcast(lat, lon, weatherData.timezone);
+                // Also fetch standard 15-min nowcast for extended coverage beyond 1 hour
+                const openMeteoProvider = getProviderById('open-meteo');
+                if (openMeteoProvider && typeof openMeteoProvider.fetchNowcast === 'function') {
+                    try {
+                        const extendedData = await openMeteoProvider.fetchNowcast(lat, lon, weatherData.timezone);
 
-                        // If using Pirate Weather, also fetch Open-Meteo for extended forecast
-                        // and merge the two datasets into a unified timeline
-                        if (nowcastProviderId === 'pirate') {
-                            const openMeteoProvider = getProviderById('open-meteo');
-                            if (openMeteoProvider && typeof openMeteoProvider.fetchNowcast === 'function') {
-                                try {
-                                    const extendedData = await openMeteoProvider.fetchNowcast(lat, lon, weatherData.timezone);
-                                    weatherData.nowcast = mergeNowcastData(nowcastData, extendedData);
-                                } catch (extendedError) {
-                                    warn('Failed to fetch extended forecast from Open-Meteo:', extendedError);
-                                    // Use just Pirate Weather data if Open-Meteo fails
+                        // Merge: keep all 60 derived points, append extended 15-min after
+                        if (derivedNowcast && derivedNowcast.data && derivedNowcast.data.length > 0
+                            && extendedData && extendedData.data && extendedData.data.length > 0) {
+
+                            const derivedEndTime = derivedNowcast.data[derivedNowcast.data.length - 1].time;
+
+                            // Sample every 2nd point to match Pirate Weather merge behavior
+                            const sampledDerived = [];
+                            for (let i = 0; i < derivedNowcast.data.length; i += 2) {
+                                sampledDerived.push({
+                                    ...derivedNowcast.data[i],
+                                    source: 'open-meteo-derived'
+                                });
+                            }
+
+                            // Filter extended to start after the 1-hour derived window
+                            const derivedWindowEnd = derivedNowcast.startTime + 3600;
+                            const extended = extendedData.data
+                                .filter(p => p.time >= derivedWindowEnd)
+                                .map(p => ({ ...p, source: 'open-meteo' }));
+
+                            weatherData.nowcast = {
+                                available: true,
+                                source: 'combined',
+                                sources: ['open-meteo-derived', 'open-meteo'],
+                                interval: 'variable',
+                                startTime: derivedNowcast.startTime,
+                                endTime: extended.length > 0
+                                    ? extended[extended.length - 1].time
+                                    : derivedNowcast.endTime,
+                                description: generateCombinedDescription(sampledDerived, extended),
+                                transitionIndex: sampledDerived.length,
+                                transitionTime: derivedEndTime,
+                                data: [...sampledDerived, ...extended],
+                                attribution: {
+                                    name: 'Open-Meteo',
+                                    url: 'https://open-meteo.com/',
+                                    license: 'CC BY 4.0'
+                                }
+                            };
+                        } else {
+                            weatherData.nowcast = derivedNowcast;
+                        }
+                    } catch (extendedError) {
+                        warn('Failed to fetch extended forecast from Open-Meteo:', extendedError);
+                        weatherData.nowcast = derivedNowcast;
+                    }
+                } else {
+                    weatherData.nowcast = derivedNowcast;
+                }
+            } catch (error) {
+                warn('Failed to fetch derived nowcast from Open-Meteo:', error);
+                ensureDefaultNowcast(weatherData);
+            }
+        } else {
+            // Always get nowcast data from the user's selected nowcast provider
+            // regardless of which provider gave us the main weather data
+            const nowcastProvider = getProviderById(nowcastProviderId);
+
+            if (nowcastProvider) {
+                // Only fetch nowcast if the provider supports it and has required API keys
+                if (nowcastProvider.supportsNowcast &&
+                    (!nowcastProvider.requiresApiKey || nowcastProvider.hasApiKey())) {
+
+                    try {
+                        // Check if the provider has a fetchNowcast method
+                        if (typeof nowcastProvider.fetchNowcast === 'function') {
+                            const nowcastData = await nowcastProvider.fetchNowcast(lat, lon, weatherData.timezone);
+
+                            // If using Pirate Weather, also fetch Open-Meteo for extended forecast
+                            // and merge the two datasets into a unified timeline
+                            if (nowcastProviderId === 'pirate') {
+                                const openMeteoProvider = getProviderById('open-meteo');
+                                if (openMeteoProvider && typeof openMeteoProvider.fetchNowcast === 'function') {
+                                    try {
+                                        const extendedData = await openMeteoProvider.fetchNowcast(lat, lon, weatherData.timezone);
+                                        weatherData.nowcast = mergeNowcastData(nowcastData, extendedData);
+                                    } catch (extendedError) {
+                                        warn('Failed to fetch extended forecast from Open-Meteo:', extendedError);
+                                        // Use just Pirate Weather data if Open-Meteo fails
+                                        weatherData.nowcast = nowcastData;
+                                    }
+                                } else {
                                     weatherData.nowcast = nowcastData;
                                 }
                             } else {
                                 weatherData.nowcast = nowcastData;
                             }
-                        } else {
-                            weatherData.nowcast = nowcastData;
-                        }
 
-                        // Ensure the attribution is set correctly for the nowcast
-                        if (weatherData.nowcast && !weatherData.nowcast.attribution) {
-                            weatherData.nowcast.attribution = nowcastProvider.attribution || {
-                                name: nowcastProvider.name,
-                                url: nowcastProvider.apiKeyUrl || '#'
-                            };
+                            // Ensure the attribution is set correctly for the nowcast
+                            if (weatherData.nowcast && !weatherData.nowcast.attribution) {
+                                weatherData.nowcast.attribution = nowcastProvider.attribution || {
+                                    name: nowcastProvider.name,
+                                    url: nowcastProvider.apiKeyUrl || '#'
+                                };
+                            }
+                        } else {
+                            warn(`Provider ${nowcastProvider.name} doesn't have a fetchNowcast method`);
                         }
-                    } else {
-                        warn(`Provider ${nowcastProvider.name} doesn't have a fetchNowcast method`);
+                    } catch (error) {
+                        console.error(`Failed to fetch nowcast from ${nowcastProvider.name}:`, error);
+                        ensureDefaultNowcast(weatherData, nowcastProvider);
                     }
-                } catch (error) {
-                    console.error(`Failed to fetch nowcast from ${nowcastProvider.name}:`, error);
+                } else {
                     ensureDefaultNowcast(weatherData, nowcastProvider);
                 }
             } else {
-                ensureDefaultNowcast(weatherData, nowcastProvider);
-            }
-        } else {
-            warn(`Nowcast provider ${nowcastProviderId} not found, using Open-Meteo as fallback`);
-            const openMeteoProvider = getProviderById('open-meteo');
-            if (openMeteoProvider && typeof openMeteoProvider.fetchNowcast === 'function') {
-                try {
-                    const nowcastData = await openMeteoProvider.fetchNowcast(lat, lon, weatherData.timezone);
-                    weatherData.nowcast = nowcastData;
-                } catch (err) {
-                    console.error('Failed to fetch nowcast from Open-Meteo fallback:', err);
-                    ensureDefaultNowcast(weatherData, openMeteoProvider);
+                warn(`Nowcast provider ${nowcastProviderId} not found, using Open-Meteo as fallback`);
+                const openMeteoProvider = getProviderById('open-meteo');
+                if (openMeteoProvider && typeof openMeteoProvider.fetchNowcast === 'function') {
+                    try {
+                        const nowcastData = await openMeteoProvider.fetchNowcast(lat, lon, weatherData.timezone);
+                        weatherData.nowcast = nowcastData;
+                    } catch (err) {
+                        console.error('Failed to fetch nowcast from Open-Meteo fallback:', err);
+                        ensureDefaultNowcast(weatherData, openMeteoProvider);
+                    }
+                } else {
+                    warn('Open-Meteo fallback not available for nowcast');
+                    ensureDefaultNowcast(weatherData);
                 }
-            } else {
-                warn('Open-Meteo fallback not available for nowcast');
-                ensureDefaultNowcast(weatherData);
             }
         }
 
@@ -577,10 +647,10 @@ function mergeNowcastData(pirateData, openMeteoData) {
         sampledPirateData.push(point);
     }
 
-    // Filter Open-Meteo data to only include points AFTER Pirate Weather ends
-    // Add a small buffer (2 minutes) to avoid overlap
+    // Filter Open-Meteo data to start after the 1-hour detailed window
+    const detailedWindowEnd = (pirateData.startTime || pirateData.data[0].time) + 3600;
     const extendedData = openMeteoData.data
-        .filter(point => point.time > pirateEndTime + 120)
+        .filter(point => point.time >= detailedWindowEnd)
         .map(point => ({
             ...point,
             source: 'open-meteo' // Mark the source
