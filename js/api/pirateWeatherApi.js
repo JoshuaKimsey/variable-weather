@@ -796,7 +796,7 @@ function processPirateWeatherAlerts(alerts) {
             title: alert.title || 'Weather Alert',
             description: headerText || shortDescription,
             fullText: alert.description || '',
-            severity: alert.severity ? alert.severity.toLowerCase() : determinePirateAlertSeverity(alert),
+            severity: determinePirateAlertSeverity(alert),
             urgency: urgency,
             expires: expiresTime,
             time: startTime,
