@@ -41,6 +41,8 @@ class RadarController {
         this.initialZoom = 8;
         this.nowcastStartIndex = -1;
         this.labelsOverlay = null;
+        this.cachedGlobalAlerts = null;
+        this.alertRefreshTimer = null;
     }
 
     isNowcastFrame(position) {
@@ -161,6 +163,8 @@ class RadarController {
             this.animationTimer = null;
         }
         this.isPlaying = false;
+
+        this.stopAlertRefreshTimer();
 
         if (this.labelsOverlay && this.modalMap) {
             this.modalMap.removeLayer(this.labelsOverlay);
@@ -331,7 +335,7 @@ class RadarController {
                     this.addLabelsOverlay();
 
                     this.schedule(() => {
-                        this.fetchAlerts(true);
+                        this.fetchAlerts();
                     }, 1000);
 
                     this.modalMap.on('moveend', debounce(() => {
@@ -439,48 +443,45 @@ class RadarController {
             return false;
         }
 
-        if (!forceRefresh && now - this.lastAlertFetchTime < ALERT_FETCH_THROTTLE) {
-            if (this.lastSuccessfulAlerts.length > 0) {
-                this.updateAlertPolygons(this.lastSuccessfulAlerts);
+        // If we have cached alerts and this is a normal pan/zoom (not a force
+        // refresh), filter the cache client-side — no API call needed.
+        if (!forceRefresh && this.cachedGlobalAlerts && this.cachedGlobalAlerts.length > 0) {
+            if (now - this.lastAlertFetchTime < ALERT_FETCH_THROTTLE) {
+                return false;
             }
-            return false;
+
+            this.lastAlertFetchTime = now;
+
+            return this.filterAndDisplayCachedAlerts();
         }
 
+        // Force refresh with a recently-populated cache — just filter.
+        if (forceRefresh && this.cachedGlobalAlerts && this.cachedGlobalAlerts.length > 0
+            && now - this.lastAlertFetchTime < ALERT_FETCH_THROTTLE) {
+            return this.filterAndDisplayCachedAlerts();
+        }
+
+        // No cache yet, or force refresh — fetch all alerts from the API.
         this.lastAlertFetchTime = now;
         this.alertFetchInProgress = true;
 
         showMapLoadingIndicator('Fetching alerts...');
 
-        const bounds = this.modalMap.getBounds();
-        const mapBounds = {
-            north: bounds.getNorth(),
-            south: bounds.getSouth(),
-            east: bounds.getEast(),
-            west: bounds.getWest()
-        };
-
         try {
-            const { fetchMapAreaAlerts } = await import('../../api/alerts/alertsApi.js');
-            const alerts = await fetchMapAreaAlerts(mapBounds);
+            const { fetchAllAlerts } = await import('../../api/alerts/alertsApi.js');
+            const alerts = await fetchAllAlerts();
 
             if (!alerts || !Array.isArray(alerts)) {
                 warn('Invalid response from alert API');
                 throw new Error('Invalid alert API response');
             }
 
-            const alertsWithGeometry = alerts.filter(alert => alert.geometry);
+            this.cachedGlobalAlerts = alerts;
 
-            if (alertsWithGeometry.length > 0) {
-                this.lastSuccessfulAlerts = [...alertsWithGeometry];
-                this.updateAlertPolygons(alertsWithGeometry);
-                return true;
-            } else if (this.lastSuccessfulAlerts.length > 0) {
-                this.updateAlertPolygons(this.lastSuccessfulAlerts);
-                return false;
-            } else {
-                this.clearAlertLayers();
-                return false;
-            }
+            // Start periodic refresh if not already running
+            this.startAlertRefreshTimer();
+
+            return this.filterAndDisplayCachedAlerts();
         } catch (err) {
             logError('Error fetching alerts:', err);
             showMapErrorMessage('Failed to load alerts');
@@ -492,6 +493,49 @@ class RadarController {
         } finally {
             this.alertFetchInProgress = false;
             hideMapLoadingIndicator();
+        }
+    }
+
+    filterAndDisplayCachedAlerts() {
+        const mapBounds = {
+            north: this.modalMap.getBounds().getNorth(),
+            south: this.modalMap.getBounds().getSouth(),
+            east: this.modalMap.getBounds().getEast(),
+            west: this.modalMap.getBounds().getWest()
+        };
+
+        const filtered = filterAlertsByBounds(this.cachedGlobalAlerts, mapBounds);
+
+        const alertsWithGeometry = filtered.filter(alert => alert.geometry);
+
+        if (alertsWithGeometry.length > 0) {
+            this.lastSuccessfulAlerts = [...alertsWithGeometry];
+            this.updateAlertPolygons(alertsWithGeometry);
+            return true;
+        } else if (this.lastSuccessfulAlerts.length > 0) {
+            this.updateAlertPolygons(this.lastSuccessfulAlerts);
+            return false;
+        } else {
+            this.clearAlertLayers();
+            return false;
+        }
+    }
+
+    startAlertRefreshTimer() {
+        if (this.alertRefreshTimer) return;
+        this.alertRefreshTimer = setInterval(() => {
+            if (this.radarModalOpen) {
+                this.fetchAlerts(true);
+            } else {
+                this.stopAlertRefreshTimer();
+            }
+        }, 5 * 60 * 1000); // 5 minutes
+    }
+
+    stopAlertRefreshTimer() {
+        if (this.alertRefreshTimer) {
+            clearInterval(this.alertRefreshTimer);
+            this.alertRefreshTimer = null;
         }
     }
 
@@ -1108,6 +1152,46 @@ class RadarController {
 }
 
 // ---- Module-level helpers (no controller state) ----
+
+/**
+ * Filter alerts to those whose polygon bounding box intersects the map viewport.
+ *
+ * @param {Array} alerts - Standardized alert objects with .geometry
+ * @param {{north, south, east, west}} viewport - Map bounds
+ * @returns {Array} Alerts whose geometry bbox overlaps the viewport
+ */
+function filterAlertsByBounds(alerts, viewport) {
+    return alerts.filter(alert => {
+        if (!alert.geometry) return false;
+
+        let coords;
+
+        if (alert.geometry.type === 'Polygon') {
+            coords = alert.geometry.coordinates[0];
+        } else if (alert.geometry.type === 'MultiPolygon') {
+            // Flatten all rings
+            coords = alert.geometry.coordinates.flatMap(ring => ring[0]);
+        } else {
+            return false;
+        }
+
+        if (!coords || coords.length === 0) return false;
+
+        let minLon = Infinity, maxLon = -Infinity;
+        let minLat = Infinity, maxLat = -Infinity;
+
+        for (const [lon, lat] of coords) {
+            if (lon < minLon) minLon = lon;
+            if (lon > maxLon) maxLon = lon;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+        }
+
+        // Bounding-box intersection test
+        return !(maxLon < viewport.west || minLon > viewport.east ||
+                 maxLat < viewport.south || minLat > viewport.north);
+    });
+}
 
 function hideWeatherElements(hide) {
     const weatherIcon = document.getElementById('weather-icon');

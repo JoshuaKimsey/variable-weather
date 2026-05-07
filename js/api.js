@@ -420,20 +420,16 @@ async function processWeatherData(weatherPromise, nowcastProviderId, lat, lon, l
 
         const countryCode = metadata.countryCode || null;
 
-        // Process alerts using the dedicated alerts system
+        // Fetch alerts from the unified alert system
         try {
-            // Only import and use the alerts system if the weather data doesn't already have alerts
-            // This allows API-specific alert handling to still work if needed
-            if (!weatherData.alerts || !weatherData.alerts.length) {
-                const { fetchAlerts } = await import('./api/alerts/alertsApi.js');
-                const alerts = await fetchAlerts(lat, lon, { countryCode });
+            const { fetchAlerts } = await import('./api/alerts/alertsApi.js');
+            const alerts = await fetchAlerts(lat, lon, { countryCode });
 
-                if (alerts && Array.isArray(alerts)) {
-                    weatherData.alerts = alerts;
-                }
+            if (alerts && Array.isArray(alerts)) {
+                weatherData.alerts = alerts;
             }
         } catch (error) {
-            warn('Error fetching alerts from alerts system:', error);
+            warn('Error fetching alerts:', error);
             // Continue without alerts if there's an error
         }
 

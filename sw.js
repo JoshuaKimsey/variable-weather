@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '2.7.1';
+const SW_VERSION = '2.8.0';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
@@ -79,9 +79,8 @@ const ASSETS = [
   './js/api/openMeteoApi.js',
   './js/api/pirateWeatherApi.js',
 
-  // Alert API modules
+  // Alert API module
   './js/api/alerts/alertsApi.js',
-  './js/api/alerts/nwsAlerts.js',
   
   // Resources - keep only essential ones that are needed for offline functionality
   './icons/icon-192x192.png',
