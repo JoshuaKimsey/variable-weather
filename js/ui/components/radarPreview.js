@@ -209,7 +209,7 @@ function showPreviewFrame(index) {
         previewMap.removeLayer(previewOverlay);
     }
 
-    const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.webp`;
+    const tileUrl = `https://${RADAR_API_URL}/v2/radar/${frame.time}/512/{z}/{x}/{y}/${DEFAULT_COLOR_SCHEME}/${SMOOTHING}_${SNOW_VIEW}.webp?arrows=dark`;
 
     previewOverlay = L.tileLayer(tileUrl, {
         opacity: DEFAULT_OPACITY,
