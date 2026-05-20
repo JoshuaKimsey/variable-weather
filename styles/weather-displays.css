@@ -309,6 +309,18 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.forecast-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px var(--shadow-color);
+}
+
+.forecast-card:focus-visible {
+    outline: 2px solid var(--primary-color, #29b6f6);
+    outline-offset: 2px;
 }
 
 .forecast-card .day {
@@ -550,6 +562,247 @@
 }
 
 /*-----------------------------------------------
+ * 4b. HOURLY FORECAST CURVE (temperature curve view)
+ *-----------------------------------------------*/
+/* When the container holds a curve, drop the flex/scroll legacy behavior. */
+.hourly-forecast-container:has(.hourly-curve) {
+    display: block;
+    overflow: visible;
+    padding: 6px 0 0;
+}
+
+.hourly-curve {
+    position: relative;
+    width: 100%;
+    background-color: var(--detail-card-bg);
+    border-radius: 15px;
+    box-shadow: 0 5px 15px var(--shadow-color);
+    padding: 14px 14px 12px;
+    box-sizing: border-box;
+}
+
+.hourly-curve-chart {
+    position: relative;
+    width: 100%;
+    height: 160px;
+    margin-bottom: 10px;
+}
+
+/* Gridlines span the chart's data area (the 10% gutters on each side hold
+   axis labels on the left and breathing room for the last hour on the right). */
+.hourly-curve-gridline {
+    position: absolute;
+    left: max(44px, 10%);
+    right: 10%;
+    height: 0;
+    border-top: 1px dashed rgba(20, 30, 45, 0.18);
+    pointer-events: none;
+}
+
+.hourly-curve-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+}
+
+/* Y-axis labels — anchored to actual visible min/max of the curve */
+.hourly-curve-axis {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    font-size: 0.72rem;
+    color: rgba(20, 30, 45, 0.55);
+    letter-spacing: 0.02em;
+    font-weight: 600;
+}
+
+.hourly-curve-axis-label {
+    position: absolute;
+    left: 8px;
+    transform: translateY(-50%);
+}
+
+/* Vertical precipitation bars: height = % chance, color alpha = intensity */
+.hourly-curve-precip-bars {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.hourly-curve-precip-bar {
+    position: absolute;
+    bottom: 0;
+    width: 5%;
+    max-width: 14px;
+    transform: translateX(-50%);
+    border-radius: 4px 4px 0 0;
+}
+
+/* Permanent dots marking each hour on the curve */
+.hourly-curve-points {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.hourly-curve-point {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #ffa726;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+}
+
+/* Active-hour marker: dot at curve point + tooltip floating above */
+.hourly-curve-marker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.hourly-curve-marker[hidden] {
+    display: none;
+}
+
+.hourly-curve-marker-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffa726;
+    box-shadow: 0 0 0 3px rgba(255, 167, 38, 0.25);
+}
+
+.hourly-curve-tooltip {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 10px);
+    transform: translateX(-50%);
+    background: rgba(20, 30, 45, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    text-align: center;
+}
+
+.hourly-curve-marker.flip-left .hourly-curve-tooltip {
+    left: auto;
+    right: 0;
+    transform: none;
+}
+
+.hourly-curve-marker.flip-right .hourly-curve-tooltip {
+    left: 0;
+    right: auto;
+    transform: none;
+}
+
+.hourly-curve-tooltip-time {
+    font-weight: 600;
+    color: #ffc857;
+}
+
+.hourly-curve-tooltip-temp {
+    font-weight: 500;
+}
+
+.hourly-curve-tooltip-precip {
+    color: #29b6f6;
+    font-size: 0.72rem;
+}
+
+/* Columns row: icon + hour label. The renderer sets grid-template-columns,
+   gap, and padding-inline inline (so it can vary per chart, and so it can't
+   be defeated by a stale CSS cache from an earlier deploy). */
+.hourly-curve-columns {
+    display: grid;
+}
+
+.hourly-curve-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.hourly-curve-col:hover,
+.hourly-curve-col:focus-visible {
+    background-color: rgba(255, 255, 255, 0.06);
+    outline: none;
+}
+
+.hourly-curve-icon {
+    width: 36px;
+    height: 36px;
+    position: relative;
+}
+
+.hourly-curve-icon > div {
+    position: absolute;
+    inset: 0;
+    /* Cancel the global .weather-icon-wrapper min-width:150px (mobile rule for the
+       big current-conditions icon) — it shifts the flex-centered hourly img right. */
+    min-width: 0;
+}
+
+/* createMeteoconIcon() sets a 60px inline size on the <img>; clamp it to
+   the (smaller) container so hourly icons don't overflow on narrow screens. */
+.hourly-curve-icon img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.hourly-curve-time {
+    font-size: 0.75rem;
+    color: rgba(20, 30, 45, 0.85);
+    text-align: center;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+@media (max-width: 600px) {
+    .hourly-curve-chart {
+        height: 130px;
+    }
+    .hourly-curve-icon {
+        width: 28px;
+        height: 28px;
+    }
+    .hourly-curve-time {
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .hourly-curve-chart {
+        height: 110px;
+    }
+    .hourly-curve-icon {
+        width: 22px;
+        height: 22px;
+    }
+    .hourly-curve-time {
+        font-size: 0.6rem;
+    }
+}
+
+/*-----------------------------------------------
  * 5. RESPONSIVE ADJUSTMENTS
  *-----------------------------------------------*/
 @media (max-width: 768px) {
@@ -615,5 +868,61 @@
 
     .forecast-card, .hourly-forecast-card {
         min-width: 80px;
+    }
+}
+
+/* Mobile: switch the 7-day forecast from a horizontal-scrolling row of cards
+   to a vertical list so all days fit on screen without scrolling. */
+@media (max-width: 600px) {
+    .forecast-container {
+        flex-direction: column;
+        overflow-x: visible;
+        gap: 8px;
+        padding: 0;
+    }
+
+    /* Grid layout gives fixed slots for day + icon, then a flexible region
+       for temp (centered) and precip (right-aligned). Cleaner balance than
+       flex with margin: auto. */
+    .forecast-card {
+        display: grid;
+        grid-template-columns: 38px 40px 1fr;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 16px;
+        min-width: 0;
+    }
+
+    .forecast-card .day {
+        width: auto;
+        min-width: 0;
+        margin-bottom: 0;
+        text-align: left;
+        font-size: 0.95rem;
+    }
+
+    .forecast-card .forecast-icon {
+        width: 40px;
+        height: 40px;
+        margin: 0;
+    }
+
+    .forecast-card .forecast-details {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 14px;
+        margin-top: 0;
+    }
+
+    .forecast-card .temp {
+        font-size: 1.05rem;
+        margin-bottom: 0;
+        justify-self: center;
+        text-align: center;
+    }
+
+    .forecast-card .precip-chance {
+        font-size: 0.85rem;
     }
 }

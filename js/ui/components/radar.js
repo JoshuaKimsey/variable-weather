@@ -13,6 +13,7 @@ export const SNOW_VIEW = 1;
 export const DEFAULT_OPACITY = 0.8;
 const ANIMATION_SPEED = 800;
 const NOWCAST_BOUNDARY_PAUSE = 400; // extra delay when crossing past->nowcast boundary
+const FRAME_LOAD_MAX_WAIT = 5000; // safety cap so a stalled frame doesn't freeze the animation
 const ALERT_FETCH_THROTTLE = 3000;
 
 let cachedLabelStyle = null;
@@ -25,6 +26,7 @@ class RadarController {
         this.animationPosition = 0;
         this.currentOverlay = null;
         this.animationTimer = null;
+        this.cancelFrameWait = null;
         this.isPlaying = false;
         this.lastSuccessfulAlerts = [];
         this.alertLayers = [];
@@ -859,9 +861,13 @@ class RadarController {
                     className: 'radar-frame-layer'
                 });
 
+                layer._isLoaded = false;
+                layer.on('loading', () => { layer._isLoaded = false; });
+
                 let loadTimeout;
 
                 const onLoad = () => {
+                    layer._isLoaded = true;
                     clearTimeout(loadTimeout);
                     resolve(layer);
                 };
@@ -1042,6 +1048,9 @@ class RadarController {
                 tileSize: 256,
                 className: 'radar-frame-layer'
             });
+            newOverlay._isLoaded = false;
+            newOverlay.on('loading', () => { newOverlay._isLoaded = false; });
+            newOverlay.on('load', () => { newOverlay._isLoaded = true; });
             newOverlay.addTo(this.modalMap);
             this.preloadedLayers[index] = newOverlay;
         }
@@ -1104,10 +1113,47 @@ class RadarController {
         const delay = this.getFrameDelay(this.animationPosition);
         this.animationTimer = setTimeout(() => {
             if (!this.isPlaying) return;
+            this.advanceWhenCurrentFrameLoaded();
+        }, delay);
+    }
+
+    // Wait for the current frame's tiles to finish loading before advancing,
+    // so we never leave a half-loaded frame on screen that has to keep loading
+    // on the next animation pass.
+    advanceWhenCurrentFrameLoaded() {
+        if (!this.isPlaying) return;
+
+        const currentLayer = this.preloadedLayers[this.animationPosition];
+        const advance = () => {
+            this.cancelFrameWait = null;
+            if (!this.isPlaying) return;
             this.animationPosition = (this.animationPosition + 1) % this.radarFrames.length;
             this.showFrame(this.animationPosition);
             this.scheduleNextFrame();
-        }, delay);
+        };
+
+        if (!currentLayer || currentLayer._isLoaded) {
+            advance();
+            return;
+        }
+
+        const onLoad = () => {
+            currentLayer.off('load', onLoad);
+            clearTimeout(safetyTimer);
+            advance();
+        };
+        const safetyTimer = setTimeout(() => {
+            currentLayer.off('load', onLoad);
+            advance();
+        }, FRAME_LOAD_MAX_WAIT);
+
+        currentLayer.on('load', onLoad);
+
+        this.cancelFrameWait = () => {
+            currentLayer.off('load', onLoad);
+            clearTimeout(safetyTimer);
+            this.cancelFrameWait = null;
+        };
     }
 
     getFrameDelay(position) {
@@ -1122,6 +1168,9 @@ class RadarController {
         if (this.animationTimer) {
             clearTimeout(this.animationTimer);
             this.animationTimer = null;
+        }
+        if (this.cancelFrameWait) {
+            this.cancelFrameWait();
         }
 
         const playPauseButton = document.getElementById('radar-play-pause');

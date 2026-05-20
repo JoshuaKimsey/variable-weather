@@ -147,7 +147,9 @@ export function fetchPirateWeather(lat, lon, locationName = null, returnData = f
         return;
     }
 
-    const url = `${PIRATE_WEATHER_ENDPOINT}/${apiKey}/${lat},${lon}`;
+    // extend=hourly bumps hourly coverage from 48 to 168 hours so we have
+    // a full week of hour-by-hour data for the per-day modal charts.
+    const url = `${PIRATE_WEATHER_ENDPOINT}/${apiKey}/${lat},${lon}?extend=hourly`;
 
     if (returnData) {
         return new Promise((resolve, reject) => {
@@ -309,21 +311,39 @@ function processPirateWeatherData(data, lat, lon) {
     // Process daily forecast
     if (data.daily && data.daily.data && Array.isArray(data.daily.data)) {
         data.daily.data.forEach(day => {
+            const accumIn = day.precipAccumulation;
+            const isSnow = day.precipType === 'snow';
+
             weatherData.daily.data.push({
                 time: day.time,
                 icon: day.icon,
                 temperatureHigh: day.temperatureHigh,
                 temperatureLow: day.temperatureLow,
                 summary: day.summary,
-                precipChance: day.precipProbability ? Math.round(day.precipProbability * 100) : 0
+                precipChance: day.precipProbability ? Math.round(day.precipProbability * 100) : 0,
+                apparentTemperatureHigh: day.apparentTemperatureHigh ?? null,
+                apparentTemperatureLow: day.apparentTemperatureLow ?? null,
+                sunrise: day.sunriseTime ?? null,
+                sunset: day.sunsetTime ?? null,
+                // Pirate returns accumulation in inches; normalize to mm/cm to match Open-Meteo
+                precipSum: accumIn != null ? accumIn * 25.4 : null,
+                snowfallSum: isSnow && accumIn != null ? accumIn * 2.54 : null,
+                windMax: day.windSpeed ?? null, // already mph
+                windGustsMax: day.windGust ?? null,
+                windDirection: day.windBearing ?? null,
+                uvIndex: day.uvIndex ?? null,
+                cloudCover: day.cloudCover != null ? day.cloudCover * 100 : null, // 0-1 → 0-100
+                humidity: day.humidity ?? null, // already 0-1
+                dewPoint: day.dewPoint ?? null, // already °F
+                visibility: day.visibility ?? null // already mi
             });
         });
     }
 
-    // Process hourly forecast
+    // Process hourly forecast — push all hours (~168 with extend=hourly).
+    // Renderers slice the window they need.
     if (data.hourly && data.hourly.data && Array.isArray(data.hourly.data)) {
-        // Only take 12 hours
-        const hoursToInclude = Math.min(12, data.hourly.data.length);
+        const hoursToInclude = data.hourly.data.length;
 
         for (let i = 0; i < hoursToInclude; i++) {
             const hour = data.hourly.data[i];
@@ -345,6 +365,8 @@ function processPirateWeatherData(data, lat, lon) {
                 icon: hour.icon,
                 summary: hour.summary,
                 precipChance: hour.precipProbability ? Math.round(hour.precipProbability * 100) : 0,
+                // Pirate returns precipIntensity in inches/hour; normalize to mm/h to match Open-Meteo
+                precipIntensity: hour.precipIntensity != null ? hour.precipIntensity * 25.4 : null,
                 isDaytime: hourIsDaytime
             });
         }

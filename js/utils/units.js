@@ -178,32 +178,14 @@ function updateForecastUnits(forecastData) {
 }
 
 /**
- * Updates the hourly forecast cards with the appropriate units
+ * Re-render the hourly forecast curve with the current units.
+ * Per-element mutation no longer works because the curve's geometry
+ * (path, axis labels, tooltip) all depend on the unit scale — easier
+ * to just regenerate it from the cached weather data.
  */
 function updateHourlyForecastUnits(hourlyData) {
     if (!hourlyData) return;
-
-    const hourlyForecastContainer = document.getElementById('hourly-forecast-items');
-    if (!hourlyForecastContainer) return;
-
-    const hourlyCards = hourlyForecastContainer.querySelectorAll('.hourly-forecast-card');
-
-    hourlyCards.forEach((card, index) => {
-        if (index < hourlyData.length) {
-            const tempElement = card.querySelector('.temp');
-            if (tempElement) {
-                const temp = hourlyData[index].temperature;
-
-                if (currentDisplayUnits === 'metric') {
-                    const tempC = (temp - 32) * (5 / 9);
-                    tempElement.textContent = `${Math.round(tempC)}°`;
-                } else {
-                    tempElement.textContent = `${Math.round(temp)}°`;
-                }
-            }
-            
-            // Precipitation chance doesn't need to be updated since it's a percentage
-            // and the same in both unit systems
-        }
-    });
+    if (typeof window.handleHourlyForecastDisplay !== 'function') return;
+    if (!window.currentWeatherData) return;
+    window.handleHourlyForecastDisplay(window.currentWeatherData);
 }

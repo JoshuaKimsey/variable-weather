@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '2.8.1';
+const SW_VERSION = '2.9.0';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
@@ -29,6 +29,7 @@ const ASSETS = [
   './styles/animations.css',
   './styles/astronomical.css',
   './styles/base-layout.css',
+  './styles/dailyDetail.css',
   './styles/modals.css',
   './styles/nowcast.css',
   './styles/radar.css',
@@ -48,7 +49,9 @@ const ASSETS = [
   './js/ui/components/alertsDisplay.js',
   './js/ui/components/astronomical.js',
   './js/ui/components/currentWeather.js',
+  './js/ui/components/dailyDetail.js',
   './js/ui/components/forecasts.js',
+  './js/ui/components/hourlyCurve.js',
   './js/ui/components/nowcast.js',
   './js/ui/components/radar.js',
   './js/ui/components/radarPreview.js',

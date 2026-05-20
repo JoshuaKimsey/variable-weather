@@ -10,6 +10,7 @@
 
 import { initCurrentWeather } from './components/currentWeather.js';
 import { initForecasts } from './components/forecasts.js';
+import { initDailyDetail } from './components/dailyDetail.js';
 import { displayNowcast } from './components/nowcast.js';
 import { initAlertsDisplay } from './components/alertsDisplay.js';
 import { initSearchBar } from './controls/searchBar.js';
@@ -33,6 +34,7 @@ export function initUI() {
     // Initialize UI components
     initCurrentWeather();
     initForecasts();
+    initDailyDetail();
     initAlertsDisplay();
     initLoading();
     initErrors();

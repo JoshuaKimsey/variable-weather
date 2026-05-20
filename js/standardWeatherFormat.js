@@ -89,7 +89,24 @@
  *         temperatureHigh: Number,    // High temperature in Fahrenheit
  *         temperatureLow: Number,     // Low temperature in Fahrenheit
  *         summary: String,            // Day forecast summary
- *         precipChance: Number        // Precipitation chance (0-100)
+ *         precipChance: Number,       // Precipitation chance (0-100)
+ *         // Optional detail fields (populated when available, otherwise null):
+ *         apparentTemperatureHigh: Number, // Feels-like high (°F)
+ *         apparentTemperatureLow: Number,  // Feels-like low (°F)
+ *         sunrise: Number,            // Sunrise (Unix timestamp)
+ *         sunset: Number,             // Sunset (Unix timestamp)
+ *         precipSum: Number,          // Total precipitation (mm)
+ *         snowfallSum: Number,        // Total snowfall (cm)
+ *         precipHours: Number,        // Hours with precipitation
+ *         precipProbabilityMean: Number, // Mean precip probability (0-100)
+ *         windMax: Number,            // Max wind speed (mph)
+ *         windGustsMax: Number,       // Max wind gust (mph)
+ *         windDirection: Number,      // Dominant wind direction (degrees)
+ *         uvIndex: Number,            // Max UV index
+ *         cloudCover: Number,         // Mean cloud cover (0-100)
+ *         humidity: Number,           // Mean relative humidity (0-1)
+ *         dewPoint: Number,           // Mean dew point (°F)
+ *         visibility: Number          // Mean visibility (miles)
  *       },
  *       // Additional days...
  *     ]
@@ -172,6 +189,11 @@ export function createEmptyWeatherData() {
         daily: {
             data: []
             // Each item should have: time, icon, temperatureHigh, temperatureLow, summary, precipChance
+            // Optional detail fields (null when unavailable): apparentTemperatureHigh,
+            // apparentTemperatureLow, sunrise, sunset, precipSum (mm), snowfallSum (cm),
+            // precipHours, precipProbabilityMean, windMax (mph), windGustsMax (mph),
+            // windDirection, uvIndex, cloudCover (0-100), humidity (0-1), dewPoint (°F),
+            // visibility (mi)
         },
 
         // Hourly forecast

@@ -1,0 +1,280 @@
+/*-----------------------------------------------
+ * DAILY FORECAST DETAIL MODAL
+ *-----------------------------------------------*/
+
+.daily-detail-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.96);
+    z-index: 1001;
+
+    width: 92%;
+    max-width: 520px;
+    max-height: 90vh;
+
+    overflow-y: auto;
+
+    background-color: #1e2633;
+    color: #e0e0e0;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.daily-detail-modal.open {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+#daily-detail-backdrop {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+#daily-detail-backdrop.open {
+    opacity: 1;
+}
+
+.daily-detail-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 20px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px 12px 0 0;
+}
+
+.daily-detail-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: #fff;
+}
+
+.daily-detail-back-button {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease;
+}
+
+.daily-detail-back-button:hover {
+    background-color: rgba(255, 255, 255, 0.28);
+}
+
+.daily-detail-content {
+    padding: 18px 20px 22px;
+}
+
+/* Hero (icon + summary) */
+.daily-detail-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.daily-detail-icon {
+    width: 96px;
+    height: 96px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.daily-detail-icon > div {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.daily-detail-summary {
+    font-size: 1rem;
+    color: #d0d0d0;
+    text-align: center;
+}
+
+/* Temperatures */
+.daily-detail-temps {
+    text-align: center;
+    margin-bottom: 18px;
+}
+
+.daily-detail-temp-main {
+    font-size: 2.1rem;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.daily-detail-temp-main .temp-sep {
+    margin: 0 6px;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 400;
+}
+
+.daily-detail-temp-main .temp-low {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.daily-detail-feels {
+    margin-top: 4px;
+    font-size: 0.9rem;
+    color: #a0a0a0;
+}
+
+/* Detail grid */
+.daily-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.daily-detail-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+}
+
+.daily-detail-cell > i {
+    font-size: 1.2rem;
+    color: #29b6f6;
+    flex-shrink: 0;
+}
+
+.daily-detail-cell-text {
+    min-width: 0;
+}
+
+.daily-detail-cell-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #909090;
+    margin-bottom: 2px;
+}
+
+.daily-detail-cell-value {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Hourly chart inside the modal — tighter padding/height + smaller icons
+   because the modal is narrower than the main page card. */
+.daily-detail-chart-slot {
+    margin-bottom: 18px;
+}
+
+.daily-detail-chart-slot .hourly-curve {
+    padding: 10px 10px 8px;
+}
+
+.daily-detail-chart-slot .hourly-curve-chart {
+    height: 140px;
+    margin-bottom: 8px;
+}
+
+.daily-detail-chart-slot .hourly-curve-icon {
+    width: 28px;
+    height: 28px;
+}
+
+@media (max-width: 480px) {
+    .daily-detail-chart-slot .hourly-curve-icon {
+        width: 22px;
+        height: 22px;
+    }
+    .daily-detail-chart-slot .hourly-curve-chart {
+        height: 120px;
+    }
+}
+
+/* Sun row */
+.daily-detail-sun {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.daily-detail-sun-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background-color: rgba(255, 200, 80, 0.08);
+    border: 1px solid rgba(255, 200, 80, 0.18);
+    border-radius: 10px;
+}
+
+.daily-detail-sun-item > i {
+    font-size: 1.4rem;
+    color: #ffc857;
+}
+
+.daily-detail-sun-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #b8a570;
+    margin-bottom: 2px;
+}
+
+.daily-detail-sun-value {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #fff;
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .daily-detail-modal {
+        width: 100%;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        top: 0;
+        left: 0;
+        transform: none;
+    }
+
+    .daily-detail-modal.open {
+        transform: none;
+    }
+
+    .daily-detail-header {
+        border-radius: 0;
+    }
+
+    .daily-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -10,6 +10,8 @@
 
 import { getDisplayUnits, formatTemperature } from '../../utils/units.js';
 import { setForecastIcon } from '../visuals/dynamicIcons.js';
+import { openDailyDetail } from './dailyDetail.js';
+import { renderHourlyCurve } from './hourlyCurve.js';
 
 //==============================================================================
 // 2. DOM REFERENCES
@@ -17,6 +19,13 @@ import { setForecastIcon } from '../visuals/dynamicIcons.js';
 
 // DOM elements
 let forecastContainer, hourlyForecastContainer;
+
+// Use the same compact layout (every 3rd hour) on mobile so 12 hours don't
+// crowd the icons + labels. Above 600px we keep all 12 icons visible.
+const mobileChartMatcher = typeof window !== 'undefined' && window.matchMedia
+    ? window.matchMedia('(max-width: 600px)')
+    : null;
+let mobileChartListenerAttached = false;
 
 //==============================================================================
 // 3. INITIALIZATION
@@ -68,9 +77,17 @@ export function handleForecastDisplay(data) {
 
             const forecastCard = document.createElement('div');
             forecastCard.className = 'forecast-card';
+            forecastCard.dataset.dayIndex = i;
+            forecastCard.setAttribute('role', 'button');
+            forecastCard.setAttribute('tabindex', '0');
+            forecastCard.setAttribute('aria-label', 'Open day detail');
 
-            // Day name (e.g., "Mon", "Tue")
-            const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+            // Day name in the location's timezone (e.g., "Mon", "Tue"). Falls
+            // back to user-local if data.timezone is missing or 'auto'.
+            const tz = (data.timezone && data.timezone !== 'auto') ? data.timezone : undefined;
+            const dayNameOpts = { weekday: 'short' };
+            if (tz) dayNameOpts.timeZone = tz;
+            const dayName = date.toLocaleDateString('en-US', dayNameOpts);
             
             // Get temperatures
             const highTemp = day.temperatureHigh;
@@ -107,6 +124,15 @@ export function handleForecastDisplay(data) {
             if (forecastIconElement) {
                 setForecastIcon(day.icon || 'cloudy', forecastIconElement, true);
             }
+
+            const dayIndex = i;
+            forecastCard.addEventListener('click', () => openDailyDetail(dayIndex));
+            forecastCard.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openDailyDetail(dayIndex);
+                }
+            });
         }
     } catch (error) {
         console.error('Error displaying forecast:', error);
@@ -119,93 +145,53 @@ export function handleForecastDisplay(data) {
 //==============================================================================
 
 /**
- * Process and display hourly forecast data
+ * Render the main "next 12 hours" temperature curve.
+ * Delegates to the shared renderer after slicing 12 hours from the current hour.
  * @param {Object} data - Weather data object
  */
 export function handleHourlyForecastDisplay(data) {
     try {
-        // Check if container exists
         if (!hourlyForecastContainer) {
             console.error('Hourly forecast container not found in DOM');
             return;
         }
 
-        // Clear previous forecast
-        hourlyForecastContainer.innerHTML = '';
-
-        // Get hourly forecast data
-        const hourlyForecastData = data.hourly.data;
-
-        // Handle empty data
-        if (!hourlyForecastData || hourlyForecastData.length === 0) {
+        const all = data.hourly?.data;
+        if (!all || all.length === 0) {
             hourlyForecastContainer.innerHTML = '<div class="no-forecast">No hourly forecast data available</div>';
             return;
         }
 
-        // Display forecast for 12 hours or less if there's not enough data
-        const hours = Math.min(12, hourlyForecastData.length);
+        // Pirate Weather's array starts at the current hour; Open-Meteo's starts at
+        // the location's midnight. Pick the first hour >= now to handle both.
+        const nowSec = Date.now() / 1000;
+        let startIndex = all.findIndex(h => h.time >= nowSec - 1800); // include the just-passed hour
+        if (startIndex < 0) startIndex = 0;
+        // 13 hours so a "12-hour forecast" reads inclusively (e.g. 7 AM → 7 PM)
+        // and the start/end labels are both anchored to round times.
+        const hours = all.slice(startIndex, startIndex + 13);
 
-        for (let i = 0; i < hours; i++) {
-            const hour = hourlyForecastData[i];
-            if (!hour) continue;
+        const iconStride = mobileChartMatcher && mobileChartMatcher.matches ? 3 : 1;
+        renderHourlyCurve(hourlyForecastContainer, hours, {
+            iconStride,
+            idPrefix: 'hourly-curve',
+            timezone: data.timezone
+        });
 
-            // Use pre-formatted time from the standardized format
-            const timeString = hour.formattedTime || formatSimpleTime(hour.time);
-
-            const hourlyForecastCard = document.createElement('div');
-            hourlyForecastCard.className = 'hourly-forecast-card';
-
-            // Get temperature
-            const temp = hour.temperature;
-
-            // Format temperature according to current units
-            let tempDisplay;
-            if (getDisplayUnits() === 'metric') {
-                const tempC = (temp - 32) * (5 / 9);
-                tempDisplay = `${Math.round(tempC)}°`;
-            } else {
-                tempDisplay = `${Math.round(temp)}°`;
-            }
-
-            // Get precipitation chance
-            const precipChance = hour.precipChance !== undefined ? hour.precipChance : 0;
-
-            hourlyForecastCard.innerHTML = `
-                <div class="time">${timeString}</div>
-                <div class="forecast-icon" id="hourly-forecast-icon-${i}"></div>
-                <div class="forecast-details">
-                    <div class="temp">${tempDisplay}</div>
-                    ${precipChance >= 5 ? 
-                        `<div class="precip-chance"><i class="bi bi-droplet-fill"></i> ${precipChance}%</div>` : 
-                        ''}
-                </div>
-            `;
-
-            hourlyForecastContainer.appendChild(hourlyForecastCard);
-
-            // Set forecast icon using the isDaytime flag from hourly data
-            const forecastIconElement = document.getElementById(`hourly-forecast-icon-${i}`);
-            if (forecastIconElement) {
-                setForecastIcon(hour.icon || 'cloudy', forecastIconElement, hour.isDaytime);
-            }
+        // Re-render once on a viewport-crossing so stride switches between
+        // mobile and desktop without needing a manual refresh.
+        if (mobileChartMatcher && !mobileChartListenerAttached) {
+            mobileChartMatcher.addEventListener('change', () => {
+                if (window.currentWeatherData) {
+                    handleHourlyForecastDisplay(window.currentWeatherData);
+                }
+            });
+            mobileChartListenerAttached = true;
         }
     } catch (error) {
         console.error('Error displaying hourly forecast:', error);
         hourlyForecastContainer.innerHTML = '<div class="forecast-error">Error displaying hourly forecast</div>';
     }
-}
-
-/**
- * Format simple time for hourly display
- * @param {number} timestamp - Unix timestamp
- * @returns {string} - Formatted time string (e.g. "2 PM")
- */
-function formatSimpleTime(timestamp) {
-    const date = new Date(timestamp * 1000);
-    const hours = date.getHours();
-    const hour12 = hours % 12 || 12;
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    return `${hour12} ${ampm}`;
 }
 
 // Make the handler functions available globally

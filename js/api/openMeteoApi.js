@@ -112,9 +112,16 @@ export function fetchOpenMeteoWeather(lat, lon, locationName = null, returnData 
         'precipitation_sum',
         'precipitation_hours',
         'precipitation_probability_max',
+        'precipitation_probability_mean',
         'wind_speed_10m_max',
         'wind_gusts_10m_max',
-        'wind_direction_10m_dominant'
+        'wind_direction_10m_dominant',
+        'uv_index_max',
+        'snowfall_sum',
+        'cloud_cover_mean',
+        'dew_point_2m_mean',
+        'relative_humidity_2m_mean',
+        'visibility_mean'
     ];
 
     // Always include 15-minute data for nowcasting
@@ -286,7 +293,7 @@ function processOpenMeteoData(data, lat, lon, locationName) {
 
     // Process daily forecast
     if (data.daily) {
-        processDailyForecast(weatherData, data.daily);
+        processDailyForecast(weatherData, data.daily, data.utc_offset_seconds);
     }
 
     // Process hourly forecast
@@ -509,29 +516,62 @@ function getPrecipIntensityLabel(intensity) {
  * Process daily forecast data from Open-Meteo with proper timezone handling
  * @param {Object} weatherData - Weather data object to update
  * @param {Object} dailyData - Daily forecast data from Open-Meteo
+ * @param {number} utcOffset - utc_offset_seconds from the API response
  */
-function processDailyForecast(weatherData, dailyData) {
+function processDailyForecast(weatherData, dailyData, utcOffset = 0) {
     // Get the number of days in the forecast
     const days = dailyData.time.length;
 
     for (let i = 0; i < days; i++) {
-        // Get the date string from the API (format: "2025-03-19")
-        const dateStr = dailyData.time[i];
+        const dateStr = dailyData.time[i]; // "2026-05-19" — location's local date
 
-        // Parse the date without timezone conversion by creating a local date
-        // This approach prevents the timezone shift issue
-        const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
-        const date = new Date(year, month - 1, day); // Month is 0-indexed in JavaScript
+        const apparentMax = dailyData.apparent_temperature_max?.[i];
+        const apparentMin = dailyData.apparent_temperature_min?.[i];
+        const sunriseIso = dailyData.sunrise?.[i];
+        const sunsetIso = dailyData.sunset?.[i];
+        const windMaxKmh = dailyData.wind_speed_10m_max?.[i];
+        const windGustsMaxKmh = dailyData.wind_gusts_10m_max?.[i];
+        const humidityPct = dailyData.relative_humidity_2m_mean?.[i];
+        const dewPointC = dailyData.dew_point_2m_mean?.[i];
+        const visibilityM = dailyData.visibility_mean?.[i];
 
         weatherData.daily.data.push({
-            time: date.getTime() / 1000, // Convert to Unix timestamp
+            // Real UTC instant of midnight in the location's timezone
+            time: locationIsoToUtcSeconds(`${dateStr}T00:00`, utcOffset),
             icon: mapOpenMeteoCodeToIcon(dailyData.weather_code[i], true), // Always use daytime icons for daily forecast
             temperatureHigh: (dailyData.temperature_2m_max[i] * 9 / 5) + 32, // Convert from C to F
             temperatureLow: (dailyData.temperature_2m_min[i] * 9 / 5) + 32, // Convert from C to F
             summary: getWeatherDescription(dailyData.weather_code[i]),
-            precipChance: dailyData.precipitation_probability_max[i] || 0
+            precipChance: dailyData.precipitation_probability_max?.[i] || 0,
+            apparentTemperatureHigh: apparentMax != null ? (apparentMax * 9 / 5) + 32 : null,
+            apparentTemperatureLow: apparentMin != null ? (apparentMin * 9 / 5) + 32 : null,
+            sunrise: sunriseIso ? locationIsoToUtcSeconds(sunriseIso, utcOffset) : null,
+            sunset: sunsetIso ? locationIsoToUtcSeconds(sunsetIso, utcOffset) : null,
+            precipSum: dailyData.precipitation_sum?.[i] ?? null, // mm
+            snowfallSum: dailyData.snowfall_sum?.[i] ?? null, // cm
+            precipHours: dailyData.precipitation_hours?.[i] ?? null,
+            precipProbabilityMean: dailyData.precipitation_probability_mean?.[i] ?? null,
+            windMax: windMaxKmh != null ? windMaxKmh * 0.621371 : null, // km/h → mph
+            windGustsMax: windGustsMaxKmh != null ? windGustsMaxKmh * 0.621371 : null,
+            windDirection: dailyData.wind_direction_10m_dominant?.[i] ?? null,
+            uvIndex: dailyData.uv_index_max?.[i] ?? null,
+            cloudCover: dailyData.cloud_cover_mean?.[i] ?? null, // 0-100
+            humidity: humidityPct != null ? humidityPct / 100 : null, // 0-1
+            dewPoint: dewPointC != null ? (dewPointC * 9 / 5) + 32 : null,
+            visibility: visibilityM != null ? visibilityM * 0.000621371 : null // m → mi
         });
     }
+}
+
+/**
+ * Convert a naked ISO string from Open-Meteo (location-local, no TZ suffix) to
+ * a real UTC Unix timestamp by applying the response's utc_offset_seconds.
+ * Parsing the string as if UTC, then subtracting the offset, recovers the
+ * real UTC instant regardless of the user's browser timezone.
+ */
+function locationIsoToUtcSeconds(iso, utcOffset) {
+    const asUtc = new Date(iso + 'Z').getTime() / 1000;
+    return asUtc - (utcOffset || 0);
 }
 
 /**
@@ -543,32 +583,24 @@ function processDailyForecast(weatherData, dailyData) {
 function processHourlyForecast(weatherData, data, current) {
     const hourly = data.hourly;
 
-    // Important: Use the location's current time from the API response
-    // This ensures we're working in the location's timezone
-    const currentTimeStr = data.current.time;
+    // Push all hours from the API response (typically 168 = 24h × 7 days starting
+    // at the location's midnight). Renderers slice the window they need.
+    const hoursToInclude = hourly.time.length;
 
-    let startIndex = 0;
-
-    // Find matching hour in hourly forecast that matches or is after current time
-    for (let i = 0; i < hourly.time.length; i++) {
-        if (hourly.time[i] > currentTimeStr) {
-            startIndex = i;
-            break;
-        }
-    }
-
-    // Take 12 hours starting from the current hour
-    const hoursToInclude = Math.min(12, hourly.time.length - startIndex);
+    // Open-Meteo returns naked ISO strings (e.g. "2026-05-19T09:00") that
+    // represent the *location's* local time. JS would parse them as the user's
+    // local time, so apply utc_offset_seconds to recover the real UTC instant.
+    const utcOffset = typeof data.utc_offset_seconds === 'number' ? data.utc_offset_seconds : 0;
 
     for (let i = 0; i < hoursToInclude; i++) {
-        const dataIndex = startIndex + i;
+        const dataIndex = i;
 
-        // Use the time directly from the API without any timezone conversion
-        // This ensures we display the time in the location's timezone
-        const hourTimestamp = new Date(hourly.time[dataIndex]).getTime() / 1000;
+        const hourTimestamp = locationIsoToUtcSeconds(hourly.time[dataIndex], utcOffset);
 
-        // Format time string (e.g., "2 PM")
-        const hourDate = new Date(hourly.time[dataIndex]);
+        // Pre-format hour label for any caller that still uses formattedTime.
+        // The hourly chart re-formats using the location timezone, but
+        // legacy callers fall back to this string.
+        const hourDate = new Date(hourTimestamp * 1000);
         const hour = hourDate.getHours();
         const hour12 = hour % 12 || 12;
         const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -586,6 +618,7 @@ function processHourlyForecast(weatherData, data, current) {
             summary: getWeatherDescription(hourly.weather_code[dataIndex]),
             precipChance: hourly.precipitation_probability ?
                 (hourly.precipitation_probability[dataIndex] || 0) : 0,
+            precipIntensity: hourly.precipitation?.[dataIndex] ?? null, // mm/h
             isDaytime: hourIsDay
         });
     }
