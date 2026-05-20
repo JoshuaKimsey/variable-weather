@@ -7,7 +7,7 @@ Animated PWA weather app, plain-JS, served from GitHub Pages at
 
 - Plain HTML/CSS/JS (ES2015+), Bootstrap for styling/icons, native ES modules.
 - **No build step. No bundler. No transpilation. No React/Vue.** Don't introduce them.
-- Vendored libs under `resources/`: leaflet, suncalc3, tz-lookup, meteocons, font-awesome, bootstrap.
+- Vendored libs under `resources/`: leaflet, maplibre, suncalc3, tz-lookup, meteocons, font-awesome, bootstrap.
 - `@meteocons/svg` is pulled as a one-shot tarball into `resources/meteocons/fill/` — it is **not** a build dependency. Same applies if you ever pull other meteocon styles (flat/line/monochrome).
 
 ## Version is the service worker
@@ -31,13 +31,13 @@ When you add a new JS/CSS/icon/etc. that needs to work offline, add its path to 
 - API requests (matched against `API_URLs`): network-first with 5s timeout fallback to cached / `offline.html`.
 - Static assets: cache-first, then network with cache-write.
 
-## Alerts: hazard detection lives in two places
+## Alerts come from LibreWXR
 
-`identifyAlertHazards()` and `getPrimaryHazardType()` are **duplicated** in:
-- `js/api/alerts/nwsAlerts.js` (NWS source)
-- `js/api/pirateWeatherApi.js` (Pirate Weather source)
+Weather alerts are pulled from a single unified source — LibreWXR's `/v2/alerts` endpoint (`https://api.librewxr.net/v2/alerts`) — which combines the WMO CAP feed and NOAA NWS public API into one GeoJSON FeatureCollection.
 
-If you add or change a hazard category, update **both**. The icon mapping is centralized in `getHazardIcon()` in `js/ui/components/alertsDisplay.js`. Icon paths point into `resources/meteocons/fill/`.
+- `js/api/alerts/alertsApi.js` is the sole alerts module. It exports `fetchAlerts(lat, lon, options)` (used by `js/api.js` in the main weather flow) and `fetchAllAlerts` (used by `js/ui/components/radar.js` for the radar overlay).
+- Hazard detection — `identifyAlertHazards()` and `getPrimaryHazardType()` — lives inline in `alertsApi.js`. Don't reintroduce per-provider duplication.
+- Icon mapping is centralized in `getHazardIcon()` in `js/ui/components/alertsDisplay.js`. Icon paths point into `resources/meteocons/fill/`.
 
 ## Local dev
 
@@ -55,13 +55,11 @@ When iterating: a service worker change leaves the old SW active until the user 
 
 `warn` and `error` always pass through. Don't reintroduce raw `console.log` — route through the logger.
 
-## NWS user-agent
+## Hourly curve is a shared renderer
 
-`NWS_USER_AGENT` in `js/api/alerts/nwsAlerts.js` and `js/config.js` should stay as-is for the canonical deployment. Forks should change it for their own deployment.
+`js/ui/components/hourlyCurve.js` exports `renderHourlyCurve(container, hours, options)` and is used by **both** the main page's "next 12 hours" chart (`forecasts.js`) and the per-day chart inside the daily detail modal (`dailyDetail.js`). When tweaking the curve, precipitation bars, axis labels, gridlines, or hover tooltip, do it in `hourlyCurve.js` once — don't duplicate the logic in either caller.
 
-## radar.js is bounded scope
-
-`js/ui/components/radar.js` is intentionally out of scope for general efficiency or cleanup tasks. A dedicated refactor is planned as its own project. If a task incidentally touches radar code, surface that and ask before editing.
+The two callers differ only in what they pass: `iconStride` (1 for main page desktop, 3 for mobile + modal), `idPrefix` (so SVG gradient/icon IDs don't collide), and `timezone` (location's IANA TZ for hour labels).
 
 ## Commit / release style
 
