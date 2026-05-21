@@ -28,7 +28,7 @@ When you add a new JS/CSS/icon/etc. that needs to work offline, add its path to 
 ## Service worker fetch handler
 
 - Skips non-GET requests and non-http(s) schemes (extensions, blob:, data:) — Cache API can't store those.
-- API requests (matched against `API_URLs`): network-first with 5s timeout fallback to cached / `offline.html`.
+- API requests (matched against `API_URLs`): network-first with a 10s `AbortController` timeout. On timeout or network failure, falls back to the cached response if one exists; otherwise returns a JSON `504` so callers' `response.json()` doesn't choke on HTML. **Never return `offline.html` for API requests** — callers parse the body as JSON.
 - Static assets: cache-first, then network with cache-write.
 
 ## Alerts come from LibreWXR

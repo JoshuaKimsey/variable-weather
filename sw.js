@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '2.9.4';
+const SW_VERSION = '2.9.5';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
@@ -227,41 +227,38 @@ self.addEventListener('fetch', event => {
         return; // do not intercept image requests at all — let the browser handle them
       }
 
-      // For API requests, use a network-first strategy with timeout
-      const timeoutPromise = new Promise((resolve) => {
-        setTimeout(() => {
-          caches.match('/offline.html').then(cached => {
-            resolve(cached || new Response('Network timeout', {
-              status: 504,
-              headers: { 'Content-Type': 'text/plain' }
-            }));
-          });
-        }, 5000); // 5-second timeout
-      });
+      // For API requests, use a network-first strategy with timeout.
+      // The timeout aborts the in-flight fetch and falls back to cache;
+      // if cache misses, we return a JSON 504 so callers' response.json()
+      // doesn't choke on offline.html and produce "Unexpected token '<'".
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const networkPromise = fetch(event.request, { cache: 'no-store' })
-        .then(response => {
-          // Cache a copy of the response
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseClone);
-          });
-          return response;
-        })
-        .catch(async () => {
-          // If network fails, try from cache
-          const cachedResponse = await caches.match(event.request);
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          const offlineResponse = await caches.match('/offline.html');
-          return offlineResponse || new Response('Network error', {
-            status: 503,
-            headers: { 'Content-Type': 'text/plain' }
-          });
-        });
-
-      event.respondWith(Promise.race([networkPromise, timeoutPromise]));
+      event.respondWith(
+        fetch(event.request, { cache: 'no-store', signal: controller.signal })
+          .then(response => {
+            clearTimeout(timeoutId);
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseClone);
+            });
+            return response;
+          })
+          .catch(async () => {
+            clearTimeout(timeoutId);
+            const cachedResponse = await caches.match(event.request);
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            return new Response(
+              JSON.stringify({ error: 'network_unavailable' }),
+              {
+                status: 504,
+                headers: { 'Content-Type': 'application/json' }
+              }
+            );
+          })
+      );
       return;
     }
   }
