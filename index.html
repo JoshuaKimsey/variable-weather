@@ -55,6 +55,15 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="./manifest.json">
 
+    <!-- Eager service-worker registration. pwa.js also registers (idempotent),
+         but doing it inline here ensures static PWA analyzers (PWABuilder,
+         Lighthouse) detect the SW without waiting for module evaluation. -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(() => { /* pwa.js will log */ });
+        }
+    </script>
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="./icons/favicon-32x32.png">
 

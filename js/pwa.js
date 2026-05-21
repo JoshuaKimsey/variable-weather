@@ -9,15 +9,17 @@ import { initUpdateSystem } from './pwaUpdates.js';
 import { log, warn } from './utils/logger.js';
 
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(registration => {
-                log('ServiceWorker registration successful with scope:', registration.scope);
-            })
-            .catch(error => {
-                warn('ServiceWorker registration failed:', error);
-            });
-    });
+    // Registering immediately (not on window 'load') so static PWA analyzers
+    // like PWABuilder see the SW without waiting for full page load. The
+    // inline <script> in index.html also calls register() as a belt-and-
+    // suspenders measure; duplicate register() calls are idempotent.
+    navigator.serviceWorker.register('./sw.js')
+        .then(registration => {
+            log('ServiceWorker registration successful with scope:', registration.scope);
+        })
+        .catch(error => {
+            warn('ServiceWorker registration failed:', error);
+        });
 }
 
 let deferredPrompt;
