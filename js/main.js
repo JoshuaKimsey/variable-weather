@@ -25,8 +25,10 @@ import {
     updateURLParameters,
     getCachedLocation,
     saveLocationToCache,
-    hasLocationChangedSignificantly
+    hasLocationChangedSignificantly,
+    calculateDistance
 } from './utils/geo.js';
+import { setLocationName } from './ui/components/currentWeather.js';
 import { initBackgrounds } from './ui/visuals/dynamicBackgrounds.js';
 import { initApiSettings } from './ui/controls/settings.js';
 import { initUnits } from './utils/units.js';
@@ -82,10 +84,13 @@ function initApp() {
         const urlParams = new URLSearchParams(window.location.search);
         const lat = urlParams.get('lat');
         const lon = urlParams.get('lon');
-        const locationName = urlParams.get('location');
 
         if (lat && lon) {
-            fetchWeather(lat, lon, locationName);
+            const cached = getCachedLocation();
+            const cachedName = (cached && cached.locationName &&
+                calculateDistance(parseFloat(lat), parseFloat(lon), cached.lat, cached.lon) < 1)
+                ? cached.locationName : null;
+            fetchWeather(lat, lon, cachedName);
         } else {
             fetchWeather(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lon);
         }
@@ -117,20 +122,41 @@ function determineInitialLocation() {
     const urlParams = new URLSearchParams(window.location.search);
     const lat = urlParams.get('lat');
     const lon = urlParams.get('lon');
-    const locationName = urlParams.get('location');
 
     if (lat && lon) {
         log('Using location from URL parameters');
+        const latNum = parseFloat(lat);
+        const lonNum = parseFloat(lon);
 
-        // Even if we have URL params, we need to fetch location metadata for API selection.
-        // Fire-and-forget so the UI stays responsive.
-        fetchLocationData(lat, lon).then(() => {
-            log('Location metadata updated in background');
+        // Clean up legacy `location` URL parameter from shared/bookmarked
+        // URLs — it's no longer used and just clutters the address bar.
+        if (urlParams.has('location')) {
+            updateURLParameters(latNum, lonNum);
+        }
+
+        // If the cache holds a name for (effectively) these coords, use it
+        // immediately so the label populates without a flash. Otherwise the
+        // label stays at its "Loading location..." placeholder until the
+        // Nominatim reverse-geocode below resolves.
+        const cachedLocation = getCachedLocation();
+        const cachedName = (cachedLocation && cachedLocation.locationName &&
+            calculateDistance(latNum, lonNum, cachedLocation.lat, cachedLocation.lon) < 1)
+            ? cachedLocation.locationName : null;
+
+        // Reverse-geocode in the background to fill in the label (and store
+        // metadata used for API/provider region selection). When it returns,
+        // push the display name into the UI and refresh the cache so the
+        // next visit is instant.
+        fetchLocationData(latNum, lonNum).then(({ displayName }) => {
+            if (displayName) {
+                setLocationName(displayName);
+                saveLocationToCache(latNum, lonNum, displayName);
+            }
         }).catch(err => {
             warn('Failed to update location metadata:', err);
         });
 
-        fetchWeather(lat, lon, locationName);
+        fetchWeather(latNum, lonNum, cachedName);
         return;
     }
 
@@ -144,7 +170,7 @@ function determineInitialLocation() {
         fetchWeather(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
 
         // Update URL with cached location
-        updateURLParameters(cachedLocation.lat, cachedLocation.lon, cachedLocation.locationName);
+        updateURLParameters(cachedLocation.lat, cachedLocation.lon);
 
         // Check if we should get current location in the background
         const cacheAge = Date.now() - cachedLocation.timestamp;
@@ -260,8 +286,8 @@ function getUserLocation() {
             // Get location name + metadata via Nominatim
             fetchLocationData(lat, lon)
                 .then(({ displayName }) => {
-                    // Update URL with new coordinates and location name
-                    updateURLParameters(lat, lon, displayName);
+                    // Update URL with new coordinates
+                    updateURLParameters(lat, lon);
 
                     // Fetch weather for the location
                     fetchWeather(lat, lon, displayName);
@@ -339,7 +365,7 @@ function checkLocationChange() {
                     fetchLocationData(currentLat, currentLon)
                         .then(({ displayName }) => {
                             // Update URL and fetch new weather
-                            updateURLParameters(currentLat, currentLon, displayName);
+                            updateURLParameters(currentLat, currentLon);
                             fetchWeather(currentLat, currentLon, displayName);
 
                             // Update the cache

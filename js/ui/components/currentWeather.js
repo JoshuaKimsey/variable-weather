@@ -21,6 +21,12 @@ import { formatDate, updatePageTitle, getLocalTimeForLocation } from '../../util
 let locationElement, dateElement, temperatureElement, weatherDescriptionElement, weatherIconElement,
     windSpeedElement, humidityElement, pressureElement, visibilityElement, stationInfoElement;
 
+// Cached values so the location label and title can be updated asynchronously
+// (e.g. once Nominatim reverse-geocoding returns) without re-rendering all
+// the weather data.
+let lastTemperature = null;
+let lastLocationName = null;
+
 //==============================================================================
 // 3. INITIALIZATION
 //==============================================================================
@@ -55,12 +61,17 @@ export function updateCurrentWeather(data, locationName) {
     // Get current weather data
     const current = data.currently;
 
-    // Set location name
+    lastTemperature = current.temperature;
+
+    // Update location label + page title. If no name was passed, fall back
+    // to the previously-resolved name (so a weather refresh doesn't blank
+    // the label); if there's never been one, leave the label as-is — the
+    // initial "Loading location..." placeholder is fine while Nominatim
+    // reverse-geocoding is in flight.
     if (locationName) {
-        locationElement.textContent = formatLocationName(locationName);
-    } else {
-        locationElement.textContent = data.timezone ? data.timezone.replace('/', ', ').replace('_', ' ') : 'Unknown Location';
+        lastLocationName = locationName;
     }
+    renderLocationDisplay();
 
     // Set date
     dateElement.textContent = formatDate(new Date());
@@ -73,7 +84,7 @@ export function updateCurrentWeather(data, locationName) {
 
     // Set other weather details
     windSpeedElement.textContent = formatWindSpeed(current.windSpeed || 0);
-    
+
     // Set wind direction arrow
     if (current.windDirection !== undefined) {
         setWindDirection(current.windDirection);
@@ -82,7 +93,7 @@ export function updateCurrentWeather(data, locationName) {
         const container = document.querySelector('.wind-direction-container');
         if (container) container.classList.add('no-data');
     }
-    
+
     humidityElement.textContent = current.humidity !== undefined ? `${Math.round(current.humidity * 100)}%` : 'N/A';
     pressureElement.textContent = formatPressure(current.pressure || 1015);
     visibilityElement.textContent = formatVisibility(current.visibility || 10);
@@ -96,11 +107,30 @@ export function updateCurrentWeather(data, locationName) {
     // Update station info display
     updateStationInfo(data);
 
-    // Update page title with location and temperature
-    updatePageTitle(current.temperature, locationName ? formatLocationName(locationName) : (data.timezone ? data.timezone.replace('/', ', ').replace('_', ' ') : 'Unknown Location'));
-
     // Update local time display
     updateLocalTimeDisplay(data);
+}
+
+/**
+ * Update the displayed location once an async reverse-geocode resolves.
+ * Called from main.js when Nominatim returns a display name.
+ */
+export function setLocationName(locationName) {
+    if (!locationName) return;
+    lastLocationName = locationName;
+    renderLocationDisplay();
+}
+
+function renderLocationDisplay() {
+    if (lastLocationName) {
+        const formatted = formatLocationName(lastLocationName);
+        if (locationElement) locationElement.textContent = formatted;
+        if (lastTemperature !== null) updatePageTitle(lastTemperature, formatted);
+    } else if (lastTemperature !== null) {
+        // We have weather but no resolved name yet — keep the placeholder
+        // label and use a neutral title.
+        updatePageTitle(lastTemperature, 'Variable Weather');
+    }
 }
 
 // Format location name for display
@@ -108,19 +138,22 @@ function formatLocationName(locationName) {
     if (!locationName) return 'Unknown Location';
 
     try {
-        // Shorten location name to just city, state/province, country
-        const parts = locationName.split(', ');
-        let formatted = parts[0]; // City
+        const parts = locationName.split(', ').map(p => p.trim()).filter(Boolean);
+        if (parts.length === 0) return locationName;
 
-        if (parts.length > 2) {
-            // Add state/province if available
-            formatted += ', ' + parts[1];
-        }
+        const city = parts[0];
 
-        return formatted;
+        // Walk the remaining parts looking for the first segment that
+        // looks like a state/region. Skip ZIP codes (any digits),
+        // county-like administrative units, and city-of wrappers that
+        // Nominatim sometimes inserts (e.g. "City of New York").
+        const skip = /(^\d|\bcounty$|\bparish$|\bborough$|\bcensus area$|\bmunicipality$|^city of\b)/i;
+        const region = parts.slice(1).find(p => !skip.test(p));
+
+        return region ? `${city}, ${region}` : city;
     } catch (error) {
         console.error('Error formatting location name:', error);
-        return locationName; // Return original if error
+        return locationName;
     }
 }
 

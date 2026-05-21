@@ -63,8 +63,8 @@ export function searchLocation() {
 
             const { lat, lon, display_name } = data[0];
 
-            // Update URL with new coordinates and location name
-            updateURLParameters(lat, lon, display_name);
+            // Update URL with new coordinates (name stays out of URL)
+            updateURLParameters(lat, lon);
 
             // Fetch weather for the location
             if (typeof window.fetchWeather === 'function') {
@@ -85,18 +85,18 @@ export function searchLocation() {
 //==============================================================================
 
 /**
- * Update URL parameters with location information
+ * Update URL parameters with lat/lon. See geo.js for the canonical version;
+ * this duplicate exists because searchBar.js is loaded before the geo module
+ * is initialized in the import graph and historically kept its own copy.
+ *
  * @param {number} lat - Latitude
  * @param {number} lon - Longitude
- * @param {string} locationName - Location name
  */
-function updateURLParameters(lat, lon, locationName) {
+function updateURLParameters(lat, lon) {
     const url = new URL(window.location);
     url.searchParams.set('lat', lat);
     url.searchParams.set('lon', lon);
-    if (locationName) {
-        url.searchParams.set('location', locationName);
-    }
+    url.searchParams.delete('location');
     window.history.pushState({}, '', url);
 
     window.dispatchEvent(new CustomEvent('location-changed', { detail: { lat, lon } }));

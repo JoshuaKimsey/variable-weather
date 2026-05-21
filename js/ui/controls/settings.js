@@ -830,7 +830,23 @@ function refreshWeatherData() {
     const urlParams = new URLSearchParams(window.location.search);
     const lat = urlParams.get('lat');
     const lon = urlParams.get('lon');
-    const locationName = urlParams.get('location');
+
+    // Resolve location name from cache (it's no longer stored in the URL)
+    let locationName = null;
+    try {
+        const cached = JSON.parse(localStorage.getItem('cached_location') || 'null');
+        if (cached && cached.locationName && lat && lon) {
+            const dLat = parseFloat(lat) - cached.lat;
+            const dLon = parseFloat(lon) - cached.lon;
+            // Rough proximity check (~0.01° ≈ 1km) — avoids reusing a stale
+            // name if the URL coords were swapped to a different place.
+            if (Math.abs(dLat) < 0.01 && Math.abs(dLon) < 0.01) {
+                locationName = cached.locationName;
+            }
+        }
+    } catch (e) {
+        // Fall through with null locationName
+    }
 
     // Only proceed if we have coordinates
     if (lat && lon) {

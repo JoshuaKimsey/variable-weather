@@ -49,16 +49,28 @@ function deg2rad(deg) {
 //==============================================================================
 
 /**
- * Save the user's location to localStorage
+ * Save the user's location to localStorage.
+ * If locationName is null but a name is already cached for nearby coords,
+ * preserve it — callers can update lat/lon without clobbering a known name
+ * while Nominatim reverse-geocoding is still pending.
+ *
  * @param {number} lat - Latitude
  * @param {number} lon - Longitude
  * @param {string} locationName - Optional location name
  */
 export function saveLocationToCache(lat, lon, locationName = null) {
+    let nameToSave = locationName;
+    if (nameToSave == null) {
+        const existing = getCachedLocation();
+        if (existing && existing.locationName &&
+            calculateDistance(lat, lon, existing.lat, existing.lon) < 1) {
+            nameToSave = existing.locationName;
+        }
+    }
     const locationData = {
         lat: lat,
         lon: lon,
-        locationName: locationName,
+        locationName: nameToSave,
         timestamp: Date.now()
     };
     localStorage.setItem('cached_location', JSON.stringify(locationData));
@@ -111,20 +123,20 @@ export function hasLocationChangedSignificantly(currentLat, currentLon, cachedLa
     return distance > 10;
 }
 
-// Add to utils/geo.js
 /**
- * Update URL parameters with location information
+ * Update URL parameters with lat/lon. The human-readable location name is
+ * deliberately not written to the URL — it's purely a display concern, and
+ * the verbose Nominatim display_name made shared links unsightly. The name
+ * is resolved from cache (instant) or via background reverse-geocoding.
+ *
  * @param {number} lat - Latitude
  * @param {number} lon - Longitude
- * @param {string} locationName - Optional location name
  */
-export function updateURLParameters(lat, lon, locationName) {
+export function updateURLParameters(lat, lon) {
     const url = new URL(window.location);
     url.searchParams.set('lat', lat);
     url.searchParams.set('lon', lon);
-    if (locationName) {
-        url.searchParams.set('location', locationName);
-    }
+    url.searchParams.delete('location');
     window.history.pushState({}, '', url);
 
     window.dispatchEvent(new CustomEvent('location-changed', { detail: { lat, lon } }));
