@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '2.9.1';
+const SW_VERSION = '2.9.2';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
@@ -265,6 +265,12 @@ self.addEventListener('fetch', event => {
       return;
     }
   }
+
+  // Don't intercept third-party requests (Cloudflare Analytics beacon,
+  // external scripts, etc.). Caching them by accident produces noisy
+  // "Fetch failed" errors and doesn't help offline behavior anyway —
+  // the app shell is what we care about.
+  if (requestUrl.origin !== self.location.origin) return;
 
   // For static assets (app shell), use cache-first strategy
   event.respondWith(
