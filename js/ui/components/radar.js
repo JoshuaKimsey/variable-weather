@@ -7,7 +7,7 @@ const MODAL_STATE_ID = 'weather_radar_modal_open';
 
 export const RADAR_API_URL = 'api.librewxr.net';
 export const RAINVIEWER_API_URL = 'https://' + RADAR_API_URL + '/public/weather-maps.json';
-export const DEFAULT_COLOR_SCHEME = 7; // Rainbow SELEX-IS
+export const DEFAULT_COLOR_SCHEME = 10; // Viper HD
 export const SMOOTHING = 1;
 export const SNOW_VIEW = 1;
 export const DEFAULT_OPACITY = 0.8;
