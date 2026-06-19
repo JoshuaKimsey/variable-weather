@@ -393,8 +393,8 @@
 /* Settings button */
 .settings-button-container {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    right: calc(20px + env(safe-area-inset-right));
     z-index: 100;
 }
 
@@ -456,7 +456,7 @@
 /* Styles for the install button */
 #install-container {
     position: fixed;
-    bottom: 20px;
+    bottom: calc(20px + env(safe-area-inset-bottom));
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
@@ -492,7 +492,7 @@
 
 @media (max-width: 480px) {
     #install-container {
-        bottom: 70px; /* Position above the floating action buttons */
+        bottom: calc(70px + env(safe-area-inset-bottom)); /* Position above the floating action buttons */
     }
     
     #install-button {
@@ -550,6 +550,7 @@
         align-items: center !important;
         justify-content: center !important;
         position: relative !important;
+        padding-top: calc(15px + env(safe-area-inset-top)) !important;
     }
     
     /* Make sure the title is centered */
