@@ -156,6 +156,62 @@ const ASSETS = [
   './resources/meteocons/fill/flag-small-craft-advisory.svg',
 ];
 
+/*
+* IndexedDB key-value store (used by the periodic background sync).
+* The SW can't read localStorage, so we record the API URLs the page
+* fetches here, then replay them from the periodicsync handler to keep
+* the weather cache fresh when the app is closed.
+*/
+const IDB_NAME = 'variable-weather';
+const IDB_STORE = 'kv';
+const BG_SYNC_KEY = 'bg-sync-urls';
+const BG_SYNC_MAX_URLS = 12;
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbSet(key, value) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Record an API URL for later replay by the periodic background sync.
+ * Deduped and capped at BG_SYNC_MAX_URLS (oldest evicted first).
+ */
+async function recordBgSyncUrl(url) {
+  try {
+    const urls = (await idbGet(BG_SYNC_KEY)) || [];
+    if (urls.includes(url)) return;
+    urls.push(url);
+    while (urls.length > BG_SYNC_MAX_URLS) urls.shift();
+    await idbSet(BG_SYNC_KEY, urls);
+  } catch (e) {
+    console.warn('[Service Worker] Failed to record bg-sync URL:', e);
+  }
+}
+
 // Install event - cache the app shell
 self.addEventListener('install', event => {
   console.log('[Service Worker] Installing new version:', SW_VERSION);
@@ -253,6 +309,9 @@ self.addEventListener('fetch', event => {
             caches.open(CACHE_NAME).then(cache => {
               cache.put(event.request, responseClone);
             });
+            // Record the URL so the periodic background sync can replay it
+            // to keep the weather cache fresh when the app is closed.
+            recordBgSyncUrl(event.request.url);
             return response;
           })
           .catch(async () => {
@@ -317,3 +376,50 @@ self.addEventListener('fetch', event => {
       })
   );
 });
+
+// Periodic background sync — re-fetches the API URLs the page recorded so
+// the weather cache stays fresh even when the app is closed. Android Chrome
+// only (fine for the TWA target). The browser enforces minInterval as a
+// floor and adjusts actual frequency by site engagement, battery, etc.
+self.addEventListener('periodicsync', event => {
+  if (event.tag === 'refresh-weather') {
+    event.waitUntil(refreshWeatherCache());
+  }
+});
+
+/**
+ * Replay every recorded API URL: fetch fresh and write into the cache so
+ * offline loads see recent data instead of the last manual fetch.
+ * Failures are per-URL and non-fatal — a partial refresh is still better
+ * than none.
+ */
+async function refreshWeatherCache() {
+  let urls;
+  try {
+    urls = (await idbGet(BG_SYNC_KEY)) || [];
+  } catch (e) {
+    console.warn('[Service Worker] periodic sync: could not read URLs', e);
+    return;
+  }
+
+  if (!urls.length) {
+    console.log('[Service Worker] periodic sync: no URLs recorded, skipping');
+    return;
+  }
+
+  console.log('[Service Worker] periodic sync: refreshing', urls.length, 'URLs');
+  const cache = await caches.open(CACHE_NAME);
+
+  await Promise.all(urls.map(async (url) => {
+    try {
+      const resp = await fetch(url, { cache: 'no-store' });
+      if (resp.ok) {
+        await cache.put(url, resp);
+      }
+    } catch (e) {
+      console.warn('[Service Worker] periodic sync fetch failed:', url, e);
+    }
+  }));
+
+  console.log('[Service Worker] periodic sync complete');
+}

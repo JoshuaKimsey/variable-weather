@@ -20,6 +20,23 @@ if ('serviceWorker' in navigator) {
         .catch(error => {
             warn('ServiceWorker registration failed:', error);
         });
+
+    // Register periodic background sync so the cached weather stays fresh
+    // even when the app is closed. Android Chrome only (fine for the TWA
+    // target); silently no-ops elsewhere. The browser gates the actual
+    // firing on minInterval + site engagement, so this never hammers battery.
+    navigator.serviceWorker.ready.then(reg => {
+        if (!('periodicSync' in reg)) return; // unsupported (iOS Safari, desktop Firefox)
+        reg.periodicSync.permissionState().then(state => {
+            if (state !== 'granted') return;
+            // 12h minimum interval. The SW records every API URL the page
+            // fetches; the periodicsync handler replays them into the cache.
+            const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+            reg.periodicSync.register('refresh-weather', { minInterval: TWELVE_HOURS_MS })
+                .then(() => log('Periodic background sync registered (12h min interval)'))
+                .catch(err => warn('Periodic sync registration failed:', err));
+        }).catch(err => warn('periodicSync.permissionState() failed:', err));
+    }).catch(() => { /* SW not ready; non-fatal */ });
 }
 
 let deferredPrompt;
