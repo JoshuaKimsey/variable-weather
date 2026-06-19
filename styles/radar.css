@@ -815,8 +815,9 @@
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        height: 50px !important;
+        height: calc(50px + env(safe-area-inset-top)) !important;
         padding: 0 15px !important;
+        padding-top: env(safe-area-inset-top) !important;
         background-color: rgba(0, 0, 0, 0.6) !important;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
         position: absolute !important;
@@ -862,7 +863,7 @@
     /* Fix content positioning */
     .radar-modal-content {
         position: absolute !important;
-        top: 50px !important; /* Below header */
+        top: calc(50px + env(safe-area-inset-top)) !important; /* Below header */
         left: 0 !important;
         right: 0 !important;
         bottom: 0px !important; /* Above controls */

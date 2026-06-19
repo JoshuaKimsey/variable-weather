@@ -107,6 +107,10 @@ function initApp() {
 
     // Initialize the front-page radar preview
     initRadarPreview();
+
+    // Handle ?action= launch shortcuts from the manifest's "shortcuts" list.
+    // Runs after all initializers so the targeted UI is wired up.
+    handleLaunchShortcut();
 }
 
 //==============================================================================
@@ -396,6 +400,56 @@ function checkLocationChange() {
             }
         );
     }
+}
+
+//==============================================================================
+// 4. LAUNCH SHORTCUTS
+//==============================================================================
+
+/**
+ * Handle ?action= launch shortcuts declared in the PWA manifest.
+ *
+ * Shortcuts (long-press app icon on Android/home-screen on iOS) open the app
+ * with one of: ?action=locate | search | radar. We dispatch the corresponding
+ * UI action, then strip just the `action` param from the URL via
+ * replaceState so a refresh doesn't re-fire it — any lat/lon params the geo
+ * flow set are preserved.
+ *
+ * No-ops silently when `action` is absent, so normal launches are unaffected.
+ */
+function handleLaunchShortcut() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+    if (!action) return;
+
+    log('Launch shortcut:', action);
+
+    // Defer a tick so the target UI (radar preview, search input) is ready.
+    setTimeout(() => {
+        switch (action) {
+            case 'locate':
+                if (typeof window.getUserLocation === 'function') {
+                    window.getUserLocation();
+                }
+                break;
+            case 'search': {
+                const input = document.getElementById('location-input');
+                if (input) input.focus();
+                break;
+            }
+            case 'radar': {
+                const preview = document.getElementById('radar-preview');
+                if (preview) preview.click();
+                break;
+            }
+        }
+    }, 100);
+
+    // Remove the action param but keep everything else (lat/lon, etc.).
+    urlParams.delete('action');
+    const remaining = urlParams.toString();
+    const newSearch = remaining ? `?${remaining}` : '';
+    window.history.replaceState({}, '', `${window.location.pathname}${newSearch}${window.location.hash}`);
 }
 
 //==============================================================================
