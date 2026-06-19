@@ -52,17 +52,19 @@
       "name": "My Location",
       "short_name": "Locate",
       "url": "./?action=locate",
-      "icons": [{ "src": "icons/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "icons/shortcut-locate-96.png", "sizes": "96x96", "type": "image/png" }]
     },
     {
       "name": "Search Location",
       "short_name": "Search",
-      "url": "./?action=search"
+      "url": "./?action=search",
+      "icons": [{ "src": "icons/shortcut-search-96.png", "sizes": "96x96", "type": "image/png" }]
     },
     {
       "name": "Weather Radar",
       "short_name": "Radar",
-      "url": "./?action=radar"
+      "url": "./?action=radar",
+      "icons": [{ "src": "icons/shortcut-radar-96.png", "sizes": "96x96", "type": "image/png" }]
     }
   ],
   "screenshots": [

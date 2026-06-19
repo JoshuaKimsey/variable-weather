@@ -91,6 +91,9 @@ const ASSETS = [
   './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
   './icons/icon-monochrome-512.png',
+  './icons/shortcut-locate-96.png',
+  './icons/shortcut-search-96.png',
+  './icons/shortcut-radar-96.png',
   './icons/favicon-32x32.png',
   './icons/social-thumbnail.png',
 
