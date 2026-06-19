@@ -88,8 +88,16 @@ const ASSETS = [
   // Resources - keep only essential ones that are needed for offline functionality
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png',
+  './icons/icon-monochrome-512.png',
   './icons/favicon-32x32.png',
   './icons/social-thumbnail.png',
+
+  // PWA store-listing screenshots (cached so installable app can show them)
+  './screenshots/screenshot-mobile-1.png',
+  './screenshots/screenshot-mobile-2.png',
+  './screenshots/screenshot-desktop-1.png',
   './resources/bootstrap/css/bootstrap.min.css',
   './resources/bootstrap/icons/bootstrap-icons.min.css',
   './resources/bootstrap/icons/fonts/bootstrap-icons.woff',
