@@ -1,7 +1,7 @@
 // Service Worker for Variable Weather with update support
 
 // App version - keep this in sync with the main app version
-const SW_VERSION = '2.9.8';
+const SW_VERSION = '2.9.9';
 const CACHE_NAME = `variable-weather-cache-v${SW_VERSION}`;
 
 /*
